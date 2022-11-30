@@ -55,31 +55,31 @@ if str(HOME) == '/Users/dakotamascarenas':
     lo_env = 'dm_mac'
     which_matlab = '/Applications/MATLAB_R2022b.app/bin/matlab'
 
-elif (str(HOME) == '/home/parker') & ('perigee' in HOSTNAME):
-    lo_env = 'pm_perigee'
-    roms_out1 = Path('/agdat1/parker/LO_roms')
-    roms_out2 = Path('/agdat2/parker/LO_roms')
+elif (str(HOME) == '/home/dakotamm') & ('perigee' in HOSTNAME):
+    lo_env = 'dm_perigee'
+    roms_out1 = Path('/data1/dakotamm/LO_roms')
+    roms_out2 = Path('/data1/dakotamm/LO_roms')
 
-elif (str(HOME) == '/home/parker') & ('apogee' in HOSTNAME):
-    lo_env = 'pm_apogee'
-    roms_out1 = Path('/pgdat1/parker/LO_roms')
-    roms_out2 = Path('/pgdat2/parker/LO_roms')
+elif (str(HOME) == '/home/dakotamm') & ('apogee' in HOSTNAME):
+    lo_env = 'dm_apogee'
+    roms_out1 = Path('/data1/dakotamm/LO_roms')
+    roms_out2 = Path('/data1/dakotamm/LO_roms')
 
-elif (str(HOME) == '/usr/lusers/pmacc'):
-    lo_env = 'pm_mox'
-    remote_user = 'parker'
+elif (str(HOME) == '/usr/lusers/dakotamm'):
+    lo_env = 'dm_mox'
+    remote_user = 'dakotamm'
     # remote_machine = 'perigee.ocean.washington.edu'
     # remote_dir0 = '/data1/parker'
-    remote_machine = 'apogee.ocean.washington.edu'
-    remote_dir0 = '/dat1/parker'
-    local_user = 'pmacc'
+    remote_machine = 'dakotamm.ocean.washington.edu'
+    remote_dir0 = '/data1/dakotamm'
+    local_user = 'dakotamm'
 
-elif ((str(HOME) == '/mmfs1/home/pmacc') or (str(HOME) == '/mmfs1/home/darrd')):
-    lo_env = 'pm_klone'
-    remote_user = 'parker'
+elif ((str(HOME) == '/mmfs1/home/dakotamm') or (str(HOME) == '/mmfs1/home/darrd')):
+    lo_env = 'dm_klone'
+    remote_user = 'dakotamm'
     remote_machine = 'apogee.ocean.washington.edu'
-    remote_dir0 = '/dat1/parker'
-    local_user = 'pmacc'
+    remote_dir0 = '/data1/dakotamm'
+    local_user = 'dakotamm'
 
 Ldir0 = dict()
 Ldir0['lo_env'] = lo_env
