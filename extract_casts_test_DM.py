@@ -3,6 +3,8 @@ This is code for doing cast extractions.
 
 Refactored 2022_07 to conform to the new cast data format.
 
+DM - modified to create cast field using DFO locations and select LO history files.
+
 Test on mac in ipython:
 run extract_casts -gtx cas6_v0_live -source dfo -otype ctd -year 2019 -test True
 
