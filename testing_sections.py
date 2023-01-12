@@ -20,6 +20,7 @@ from lo_tools import plotting_functions as pfun
 from importlib import reload
 #reload(pfun)
 #reload(pinfo)
+import tef_fun as tfun
 
 Ldir = Lfun.Lstart()
 if '_mac' in Ldir['lo_env']: # mac version
@@ -49,4 +50,5 @@ j_dict = pd.read_pickle(fn3)
 
 volumes = pd.read_pickle(fn4)
 
+gridname = 'cas6'
 
