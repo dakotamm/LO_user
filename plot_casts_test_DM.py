@@ -61,11 +61,10 @@ pfun.start_plot(fs=14, figsize=(14,10))
 fig, axes = plt.subplots(nrows=1, ncols=3, squeeze=False)
 for i in range(len(fn_list)):
     axes[0,0].plot(x[i],y[i],'o',c=cmap(i))
-axes[0,0].set_xlim([min_lon,max_lon])
-axes[0,0].set_ylim([min_lat,max_lat])
-depth = axes[0,1].plot(s0,t0,'.', c='orange', label ='depth') # FIX!!!!!!!!
-surface = axes[0,1].plot(s1,t1,'.', c='dodgerblue', label = 'surface')
-axes[0,1].legend(handles = [depth,surface])
+#axes[0,0].set_xlim([min_lon,max_lon])
+#axes[0,0].set_ylim([min_lat,max_lat])
+axes[0,1].plot(s0,t0,'.', c='orange') # FIX!!!!!!!!
+axes[0,1].plot(s1,t1,'.', c='dodgerblue')
 pfun.add_coast(axes[0,0])
 pfun.dar(axes[0,0])
 axes[0,1].set_xlabel('Salinity [g/kg]')
