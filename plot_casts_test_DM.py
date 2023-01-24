@@ -62,23 +62,24 @@ cmap = cm.get_cmap('tab20b', 20)
 
 plt.close('all')
 pfun.start_plot(fs=14, figsize=(14,10))
-fig, axes = plt.subplots(nrows=1, ncols=3, squeeze=False)
-for i in range(len(fn_list)):
-    axes[0,0].plot(x[i],y[i],'.') #,c=cmap(i))
+fig, axes = plt.subplots(nrows=1, ncols=1, squeeze=False)
+for i in range(len(fn_list)-20):
+    axes[0,0].plot(x[i],y[i],'o') #,c=cmap(i))
+    plt.text(x[i], y[i], str(i), fontsize=12)
 axes[0,0].set_xlim([min_lon,max_lon])
 axes[0,0].set_ylim([min_lat,max_lat])
 axes[0,0].tick_params(labelrotation=45)
-axes[0,1].plot(s0,t0,'.', c='orange') # FIX with legend!!!!!!!!
-axes[0,1].plot(s1,t1,'.', c='dodgerblue')
+#axes[0,1].plot(s0,t0,'.', c='orange') # FIX with legend!!!!!!!!
+#axes[0,1].plot(s1,t1,'.', c='dodgerblue')
 pfun.add_coast(axes[0,0])
 pfun.dar(axes[0,0])
-axes[0,1].set_xlabel('Salinity [g/kg]')
-axes[0,1].set_ylabel('Potential Temperature [deg C]')
+#axes[0,1].set_xlabel('Salinity [g/kg]')
+#axes[0,1].set_ylabel('Potential Temperature [deg C]')
 axes[0,0].set_title(in_dir.name)
-for i in range(len(fn_list)):
-    axes[0,2].plot(oxygen[i],z_rho[i],'.') #,c=cmap(i))
-axes[0,2].set_xlabel('Oxygen Concentration [mg/L]')
-axes[0,2].set_ylabel('Depth [m]')
+#for i in range(len(fn_list)):
+#    axes[0,2].plot(oxygen[i],z_rho[i],'.') #,c=cmap(i))
+#axes[0,2].set_xlabel('Oxygen Concentration [mg/L]')
+#axes[0,2].set_ylabel('Depth [m]')
 axes[0,0].set_title(in_dir.name)
 fig.tight_layout()
 plt.show()
