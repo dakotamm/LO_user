@@ -22,26 +22,19 @@ import cast_functions as cfun
 import tef_fun as tfun
 import pickle
 
+from time import time
+from subprocess import Popen as Po
+from subprocess import PIPE as Pi
+
 Ldir = exfun.intro() # this handles the argument passing
 
 year_str = str(Ldir['year'])
-
-#hacky tef segment implementation
-# sect_df = tfun.get_sect_df('cas6')
-
-# min_lon = sect_df.at['sog5','x0']
-# max_lon = sect_df.at['sog1','x1']
-# min_lat = sect_df.at['sog1','y0']
-# max_lat = sect_df.at['sog5','y0']
 
 dt = pd.Timestamp('2022-11-30 01:30:00')
 fn = cfun.get_his_fn_from_dt(Ldir, dt)
 
 #grid info
 G, S, T = zrfun.get_basic_info(fn)
-#h = G['h']
-#DA = G['DX'] * G['DY']
-#DA3 = DA.reshape((1,G['M'],G['L']))
 Lon = G['lon_rho'][0,:]
 Lat = G['lat_rho'][:,0]
 
@@ -58,16 +51,20 @@ Lfun.make_dir(out_dir, clean=True)
 
 info_fn = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / ('info_' + year_str + '.p')
 
-ii = 0
+ii= 0
 
 for seg_name in seg_list:
     
-    if 'G6' in seg_name:
+    if 'G1' in seg_name:
             
         jjj = j_dict[seg_name]
         iii = i_dict[seg_name]
         
         info_df = pd.read_pickle(info_fn)
+        
+        N = len(info_df.index)
+        Nproc = Ldir['Nproc']
+        proc_list = []
         
         for cid in info_df.index:
         
@@ -79,7 +76,7 @@ for seg_name in seg_list:
             
             if (ix in iii) and (iy in jjj):
             
-                out_fn = out_dir / (str(int(cid)) + '_sog.nc')
+                out_fn = out_dir / (str(int(cid)) + '_sog_G1.nc')
                 
                 # check on which bio variables to get
                 if ii == 0:
@@ -94,8 +91,39 @@ for seg_name in seg_list:
                 
                 print('Get ' + out_fn.name)
                 sys.stdout.flush()
-                cfun.get_cast(out_fn, fn, lon, lat, npzd)
+                
+                
+                # Nproc controls how many subprocesses we allow to stack up
+                # before we require them all to finish.
+                cmd_list = ['python','cast_worker.py',
+                '-out_fn',str(out_fn),
+                '-fn',str(fn),
+                '-lon',str(lon),
+                '-lat',str(lat),
+                '-npzd',npzd]
+                proc = Po(cmd_list, stdout=Pi, stderr=Pi)
+                proc_list.append(proc)
+                # run a collection of processes
+                if ((np.mod(ii,Nproc) == 0) and (ii > 0)) or (ii == N-1) or (Ldir['testing'] and (ii > 3)):
+                    for proc in proc_list:
+                        if Ldir['testing']:
+                            print('executing proc.communicate()')
+                        stdout, stderr = proc.communicate()
+                        if len(stdout) > 0:
+                            print('\n' + ' sdtout '.center(60,'-'))
+                            print(stdout.decode())
+                        if len(stderr) > 0:
+                            print('\n' + ' stderr '.center(60,'-'))
+                            print(stderr.decode())
+                    proc_list = []
+                # ======================================
                 ii += 1
+                
+                
+                
+                
+                # cfun.get_cast(out_fn, fn, lon, lat, npzd)
+                # ii += 1
                 
                 # if Ldir['testing'] and (ii > 20):
                 #     print(ii)
