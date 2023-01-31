@@ -15,6 +15,7 @@ from datetime import datetime
 from lo_tools import Lfun, zfun, zrfun
 from lo_tools import extract_argfun as exfun
 import cast_functions as cfun
+from lo_tools import plotting_functions as pfun
 import tef_fun as tfun
 import pickle
 
@@ -22,7 +23,10 @@ from time import time
 from subprocess import Popen as Po
 from subprocess import PIPE as Pi
 
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
+
+import matplotlib.pyplot as plt
+from matplotlib import cm
 
 Ldir = exfun.intro() # this handles the argument passing
 
@@ -45,8 +49,6 @@ seg_list = list(v_df.index)
 
 info_fn = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / ('info_' + year_str + '.p')
 
-ii= 0
-
 for seg_name in seg_list:
     
     if 'G1' in seg_name:
@@ -54,80 +56,116 @@ for seg_name in seg_list:
         jjj = j_dict[seg_name]
         iii = i_dict[seg_name]
         
-        i_ = np.unique(iii)
-        j_ = np.unique(jjj)
+        # i_ = np.unique(iii)
+        # j_ = np.unique(jjj)
         
-        m,n = np.meshgrid(i_,j_)
+        # m,n = np.meshgrid(i_,j_)
         
         info_df = pd.read_pickle(info_fn)
         
-        ix_ = []
-        iy_ = []
+        ij_ = []
+        ii_ = []
 
         for cid in info_df.index:
             
             lon = info_df.loc[cid, 'lon']
             lat = info_df.loc[cid, 'lat']
             
-            ix = zfun.find_nearest_ind(Lon, lon)
-            iy = zfun.find_nearest_ind(Lat, lat)
+            ij = zfun.find_nearest_ind(Lat, lat)
+            ii = zfun.find_nearest_ind(Lon, lon)
             
-            if (ix in iii) and (iy in jjj):
+            if (ii in iii) and (ij in jjj):
                 
-                ix_.append(ix)
-                iy_.append(iy)
-                
-                
-        #query_tree = cKDTree(list(zip(iii,jjj)))
+                ij_.append(ij)
+                ii_.append(ii)
+                               
+        i_cast = list(map(list, zip(*list(set(zip(ii_,ij_))))))
+        
+        ii_cast = i_cast[0]
+        
+        ij_cast = i_cast[1]
+        
+        
+xx = np.arange(min(iii), max(iii)+1)
+yy = np.arange(min(jjj), max(jjj)+1)
+x, y = np.meshgrid(xx, yy)
+        
+a = np.full([len(yy),len(xx)], -99)
+a[jjj-min(jjj),iii-min(iii)] = -1
+a = np.ma.masked_array(a,a==-99)
+
+b = a.copy()
+for n in range(len(ij_cast)):
+    b[ij_cast[n]-min(jjj), ii_cast[n]-min(iii)] = n
     
-        #ref_points = list(zip(ix_,iy_))
-        
-        casts = np.arange(len(ix_))
-        
-        fill_value = -99
-        
-        casts_arr = np.arange(len(j_),len(i_)+1).reshape(len(j_),len(i_))
-        
-        casts_arr[:] = fill_value
-        
-        
-        
-        
-        
-        
+c = b.copy()
+c = np.ma.masked_array(c,c==-1)
     
-        
-    
-    
-    
-                
-                
-                
+xy_water = np.array((x[~a.mask],y[~a.mask])).T
+xy_land = np.array((x[a.mask],y[a.mask])).T
+
+xy_casts = np.array((x[~c.mask],y[~c.mask])).T
+
+tree = KDTree(xy_casts)
+
+tree_query = tree.query(xy_water)[1]
+
+d = a.copy()
+d[~a.mask] = b[~c.mask][tree_query]
 
 
+#hacky tef segment implementation
+sect_df = tfun.get_sect_df('cas6')
 
-# # create a data array, with masked areas
-# a = np.arange(100).reshape(10,10)
-# fill_value=-99
-# a[2:4,3:8] = fill_value
-# a[7:,7:] = fill_value
-# a = ma.masked_array(a,a==fill_value)
+#min_lon = sect_df.at['sog5','x0']
+#max_lon = sect_df.at['sog1','x1']
+#min_lat = sect_df.at['sog1','y0']
+#max_lat = sect_df.at['sog5','y0']
 
-# # create axes
-# xx = np.linspace(0, 100, a.shape[1])
-# yy = np.linspace(0, 10, a.shape[0])
-# x, y = np.meshgrid(xx, yy)
+min_lat = [48, 48.4]
+max_lat = [49, 48.7]
+min_lon = [-124, -123.4]
+max_lon = [-122.25,-122.4]
 
-# # do the extrapolation
-# from scipy.spatial import cKDTree
-# xygood = np.array((x[~a.mask],y[~a.mask])).T
-# xybad = np.array((x[a.mask],y[a.mask])).T
-# b = a.copy()
-# b[a.mask] = a[~a.mask][cKDTree(xygood).query(xybad)[1]]
-# # asking for [1] gives the index of the nearest good value
-# # and [0] would return the distance, I think.
+# tt0 = time()
+# x = []; y = []
+# s0 = []; s1 = []
+# t0 = []; t1 = []
+# z_rho = []
+# oxygen = []
+# for fn in fn_list:
+#     ds = xr.open_dataset(fn)
+#     x.append(ds.lon_rho.values)
+#     y.append(ds.lat_rho.values)
+#     z_rho.append(ds.z_rho.values)
+#     oxygen.append(ds.oxygen.values*32/1000) #mg/L
+#     s0.append(ds.salt[0].values)
+#     t0.append(ds.temp[0].values)
+#     s1.append(ds.salt[-1].values)
+#     t1.append(ds.temp[-1].values)
+#     ds.close()
+# print('Took %0.2f sec' % (time()-tt0))
 
-# print(a)
+cmap = cm.get_cmap('viridis', len(ii_cast))
 
-# print(b)
-
+plt.close('all')
+pfun.start_plot(fs=14, figsize=(20,15))
+fig, axes = plt.subplots(nrows=1, ncols=2, squeeze=False)
+axes[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d)
+for m in range(len(ii_cast)):
+    axes[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+axes[0,0].set_xlim([min_lon[0],max_lon[0]])
+axes[0,0].set_ylim([min_lat[0],max_lat[0]])
+axes[0,0].tick_params(labelrotation=45)
+pfun.add_coast(axes[0,0])
+pfun.dar(axes[0,0])
+axes[0,1].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d)
+for m in range(len(ii_cast)):
+    axes[0,1].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+axes[0,1].set_xlim([min_lon[1],max_lon[1]])
+axes[0,1].set_ylim([min_lat[1],max_lat[1]])
+axes[0,1].tick_params(labelrotation=45)
+pfun.add_coast(axes[0,1])
+pfun.dar(axes[0,1])
+fig.tight_layout()
+plt.show()
