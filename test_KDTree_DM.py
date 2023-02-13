@@ -65,25 +65,32 @@ for seg_name in seg_list:
         
         ij_ = []
         ii_ = []
+        
 
         for cid in info_df.index:
             
-            lon = info_df.loc[cid, 'lon']
-            lat = info_df.loc[cid, 'lat']
+            if info_df.loc[cid,'time'] >= datetime(2019,6,1) and info_df.loc[cid,'time'] <= datetime(2019,8,31):
             
-            ij = zfun.find_nearest_ind(Lat, lat)
-            ii = zfun.find_nearest_ind(Lon, lon)
-            
-            if (ii in iii) and (ij in jjj):
+                lon = info_df.loc[cid, 'lon']
+                lat = info_df.loc[cid, 'lat']
                 
-                ij_.append(ij)
-                ii_.append(ii)
-                               
-        i_cast = list(map(list, zip(*list(set(zip(ii_,ij_))))))
-        
-        ii_cast = i_cast[0]
-        
-        ij_cast = i_cast[1]
+                ij = zfun.find_nearest_ind(Lat, lat)
+                ii = zfun.find_nearest_ind(Lon, lon)
+                
+                if (ii in iii) and (ij in jjj):
+                    
+                    ij_.append(ij)
+                    ii_.append(ii)
+                                   
+            # i_cast = list(map(list, zip(*list(set(zip(ii_,ij_))))))
+            
+            # ii_cast = i_cast[0]
+            
+            # ij_cast = i_cast[1]
+            
+            ii_cast = ii_
+            
+            ij_cast = ij_
         
         
 xx = np.arange(min(iii), max(iii)+1)

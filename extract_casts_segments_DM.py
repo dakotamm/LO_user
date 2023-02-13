@@ -67,65 +67,68 @@ for seg_name in seg_list:
         proc_list = []
         
         for cid in info_df.index:
+            
+            if info_df.loc[cid,'time'] >= datetime(2019,6,1) and info_df.loc[cid,'time'] <= datetime(2019,8,31):
         
-            lon = info_df.loc[cid, 'lon']
-            lat = info_df.loc[cid, 'lat']
-            
-            ix = zfun.find_nearest_ind(Lon, lon)
-            iy = zfun.find_nearest_ind(Lat, lat)
-            
-            if (ix in iii) and (iy in jjj):
-            
-                out_fn = out_dir / (str(int(cid)) + '_sog_G1.nc')
+                lon = info_df.loc[cid, 'lon']
+                lat = info_df.loc[cid, 'lat']
                 
-                # check on which bio variables to get
-                if ii == 0:
-                    ds = xr.open_dataset(fn)
-                    if 'NH4' in ds.data_vars:
-                        npzd = 'new'
-                    elif 'NO3' in ds.data_vars:
-                        npzd = 'old'
-                    else:
-                        npzd = 'none'
-                    ds.close()
-                
-                print('Get ' + out_fn.name)
-                sys.stdout.flush()
+                ix = zfun.find_nearest_ind(Lon, lon)
+                iy = zfun.find_nearest_ind(Lat, lat)
                 
                 
-                # Nproc controls how many subprocesses we allow to stack up
-                # before we require them all to finish.
-                cmd_list = ['python','cast_worker.py',
-                '-out_fn',str(out_fn),
-                '-fn',str(fn),
-                '-lon',str(lon),
-                '-lat',str(lat),
-                '-npzd',npzd]
-                proc = Po(cmd_list, stdout=Pi, stderr=Pi)
-                proc_list.append(proc)
-                # run a collection of processes
-                if ((np.mod(ii,Nproc) == 0) and (ii > 0)) or (ii == N-1) or (Ldir['testing'] and (ii > 3)):
-                    for proc in proc_list:
-                        if Ldir['testing']:
-                            print('executing proc.communicate()')
-                        stdout, stderr = proc.communicate()
-                        if len(stdout) > 0:
-                            print('\n' + ' sdtout '.center(60,'-'))
-                            print(stdout.decode())
-                        if len(stderr) > 0:
-                            print('\n' + ' stderr '.center(60,'-'))
-                            print(stderr.decode())
-                    proc_list = []
-                # ======================================
-                ii += 1
+                if (ix in iii) and (iy in jjj):
                 
+                    out_fn = out_dir / (str(int(cid)) + '_sog_G1_JunJulAug_2019.nc')
+                    
+                    # check on which bio variables to get
+                    if ii == 0:
+                        ds = xr.open_dataset(fn)
+                        if 'NH4' in ds.data_vars:
+                            npzd = 'new'
+                        elif 'NO3' in ds.data_vars:
+                            npzd = 'old'
+                        else:
+                            npzd = 'none'
+                        ds.close()
+                    
+                    print('Get ' + out_fn.name)
+                    sys.stdout.flush()
+                    
+                    
+                    # Nproc controls how many subprocesses we allow to stack up
+                    # before we require them all to finish.
+                    cmd_list = ['python','cast_worker.py',
+                    '-out_fn',str(out_fn),
+                    '-fn',str(fn),
+                    '-lon',str(lon),
+                    '-lat',str(lat),
+                    '-npzd',npzd]
+                    proc = Po(cmd_list, stdout=Pi, stderr=Pi)
+                    proc_list.append(proc)
+                    # run a collection of processes
+                    if ((np.mod(ii,Nproc) == 0) and (ii > 0)) or (ii == N-1) or (Ldir['testing'] and (ii > 3)):
+                        for proc in proc_list:
+                            if Ldir['testing']:
+                                print('executing proc.communicate()')
+                            stdout, stderr = proc.communicate()
+                            if len(stdout) > 0:
+                                print('\n' + ' sdtout '.center(60,'-'))
+                                print(stdout.decode())
+                            if len(stderr) > 0:
+                                print('\n' + ' stderr '.center(60,'-'))
+                                print(stderr.decode())
+                        proc_list = []
+                    # ======================================
+                    ii += 1
+                    
+                    
+                    
+                    
+                    # cfun.get_cast(out_fn, fn, lon, lat, npzd)
+                    # ii += 1
+                    
+                    # if Ldir['testing'] and (ii > 20):
+                    #     print(ii)
+                    #     break
                 
-                
-                
-                # cfun.get_cast(out_fn, fn, lon, lat, npzd)
-                # ii += 1
-                
-                # if Ldir['testing'] and (ii > 20):
-                #     print(ii)
-                #     break
-            
