@@ -14,6 +14,8 @@ from importlib import reload
 #reload(pfun)
 #reload(pinfo)
 
+import glob
+
 Ldir = Lfun.Lstart()
 if '_mac' in Ldir['lo_env']: # mac version
     pass
@@ -22,11 +24,11 @@ else: # remote linux version
     mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-path = '/Users/dakotamascarenas/LO_roms/cas6_v0_live/'
+path = glob.glob('/Users/dakotamascarenas/LO_roms/cas6_v0_live/f2022.*.01/')
 
-dir_list = os.listdir(path)
+#dir_list = os.listdir(path)
 
-dir_list.remove('.DS_Store')
+#dir_list.remove('.DS_Store')
 
 hyp_vol_dict = {}
 
@@ -36,9 +38,9 @@ wtd_avg_dict = {}
 
 # %%
 
-for i in dir_list:
+for file in path:
     
-    fn = path + i + '/ocean_his_0001.nc'
+    fn = file + '/ocean_his_0002.nc'
     
     ds = xr.open_dataset(fn)
 
@@ -123,7 +125,7 @@ ax2.set_title('Total Hypoxic Volume from LO [m^3]')
 
 plt.plot(x,y)
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/hyp_vol_2022-11-16--2022-11-30.png', dpi = 200)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/hyp_vol_2022-01--2022-12.png', dpi = 200)
 
 
 # %%
@@ -138,27 +140,4 @@ ax3.set_title('Avg O2 Concentration from LO [mg/L]')
 
 plt.plot(x,y)
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/avg_conc_2022-11-16--2022-11-30.png', dpi = 200)
-
-
-        
-    # hyp_vol = np.array([oxygen_mg_L_np if (oxygen_mg_L_np <= 2).any() else np.nan for oxygen_mg_L_np in oxygen_mg_L_np], dtype=np.float64) #idk why it's float32
-    
-    # hyp_vol_dict[dt] = hyp_vol
-    
-
-    #hyp_array = np.empty([30,1302,663])
-
-    #hyp_array.fill(np.nan)
-    
-    # hyp_vol = 0
-
-    # for i in range(np.shape(idx_hyp)[1]):
-    #     s_rho_idx = idx_hyp[0][i]
-    #     eta_rho_idx = idx_hyp[1][i]
-    #     xi_rho_idx = idx_hyp[2][i]
-    #     #hyp_array[s_rho_idx, eta_rho_idx, xi_rho_idx] = oxygen_mg_L_np[s_rho_idx, eta_rho_idx, xi_rho_idx]
-    #     hyp_vol = hyp_vol + dv[s_rho_idx, eta_rho_idx, xi_rho_idx]
-        
-    # hyp_vol_array[0,c] = np.datetime64(T['dt'])
-    # hyp_vol_array[1,c] = hyp_vol
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/avg_conc_2022-01-2022-12.png', dpi = 200)
