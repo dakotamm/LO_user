@@ -68,6 +68,8 @@ G, S, T = zrfun.get_basic_info(fn_his)
 Lon = G['lon_rho'][0, :]
 Lat = G['lat_rho'][:, 0]
 
+# %%
+
 for seg_name in seg_list:
     
     if 'G1' in seg_name:
@@ -279,40 +281,45 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     # max_lon = [-122.25,-122.4]
     
     
+    
+    
+    
+    
+    
     # cmap = cm.get_cmap('viridis', len(ii_cast))
     
-    plt.close('all')
-    pfun.start_plot(fs=14, figsize=(20,15))
-    fig0, axes0 = plt.subplots(nrows=1, ncols=2, squeeze=False)
-    axes0[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d)
-    for m in range(len(ii_cast)):
-        axes0[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
-    axes0[0,0].set_xlim([min_lon[0],max_lon[0]])
-    axes0[0,0].set_ylim([min_lat[0],max_lat[0]])
-    axes0[0,0].tick_params(labelrotation=45)
-    pfun.add_coast(axes0[0,0])
-    pfun.dar(axes0[0,0])
-    axes0[0,1].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d)
-    for m in range(len(ii_cast)):
-        axes0[0,1].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
-    axes0[0,1].set_xlim([min_lon[1],max_lon[1]])
-    axes0[0,1].set_ylim([min_lat[1],max_lat[1]])
-    axes0[0,1].tick_params(labelrotation=45)
-    pfun.add_coast(axes0[0,1])
-    pfun.dar(axes0[0,1])
-    plt.title(mon_str + ' Cast Areas')
-    fig0.tight_layout()
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_cast_areas.png')
+    # plt.close('all')
+    # pfun.start_plot(fs=14, figsize=(20,15))
+    # fig0, axes0 = plt.subplots(nrows=1, ncols=2, squeeze=False)
+    # axes0[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d)
+    # for m in range(len(ii_cast)):
+    #     axes0[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+    # axes0[0,0].set_xlim([min_lon[0],max_lon[0]])
+    # axes0[0,0].set_ylim([min_lat[0],max_lat[0]])
+    # axes0[0,0].tick_params(labelrotation=45)
+    # pfun.add_coast(axes0[0,0])
+    # pfun.dar(axes0[0,0])
+    # axes0[0,1].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d)
+    # for m in range(len(ii_cast)):
+    #     axes0[0,1].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+    # axes0[0,1].set_xlim([min_lon[1],max_lon[1]])
+    # axes0[0,1].set_ylim([min_lat[1],max_lat[1]])
+    # axes0[0,1].tick_params(labelrotation=45)
+    # pfun.add_coast(axes0[0,1])
+    # pfun.dar(axes0[0,1])
+    # plt.title(mon_str + ' Cast Areas')
+    # fig0.tight_layout()
+    # plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_cast_areas.png')
     
-    pfun.start_plot(fs=14, figsize=(15,10))
-    fig1, axes1 = plt.subplots(nrows=1, ncols=1, squeeze=False)
-    for i in range(len(ii_cast)):
-        axes1[0,0].plot(oxygen[i],z_rho[i],'o',c=cmap(i))
-    axes1[0,0].set_xlabel('Oxygen Concentration [mg/L]')
-    axes1[0,0].set_ylabel('Depth [m]')
-    plt.title(mon_str + ' DO Profiles')
-    fig1.tight_layout()
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_DO_profiles.png')
+    # pfun.start_plot(fs=14, figsize=(15,10))
+    # fig1, axes1 = plt.subplots(nrows=1, ncols=1, squeeze=False)
+    # for i in range(len(ii_cast)):
+    #     axes1[0,0].plot(oxygen[i],z_rho[i],'o',c=cmap(i))
+    # axes1[0,0].set_xlabel('Oxygen Concentration [mg/L]')
+    # axes1[0,0].set_ylabel('Depth [m]')
+    # plt.title(mon_str + ' DO Profiles')
+    # fig1.tight_layout()
+    # plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_DO_profiles.png')
     
     
     cast_no = list(map(str, np.arange(len(ii_cast))))
@@ -342,26 +349,26 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     e =np.ma.masked_array(e,e==-99)
     
     
-    cmap_colors = cmap.copy()
-    newcolors = cmap_colors(np.linspace(0, 1, len(cast_no)))
-    white = np.array([256/256, 256/256, 256/256, 1])
-    for cast in range(len(cast_no)):
-        if cast not in hyp_casts:
-            newcolors[int(cast), :] = white
-    new_cmap = ListedColormap(newcolors)
+    # cmap_colors = cmap.copy()
+    # newcolors = cmap_colors(np.linspace(0, 1, len(cast_no)))
+    # white = np.array([256/256, 256/256, 256/256, 1])
+    # for cast in range(len(cast_no)):
+    #     if cast not in hyp_casts:
+    #         newcolors[int(cast), :] = white
+    # new_cmap = ListedColormap(newcolors)
     
-    pfun.start_plot(fs=14, figsize=(10,10))
-    fig2, axes2 = plt.subplots(nrows=1, ncols=1, squeeze=False)
-    axes2[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d,cmap=new_cmap)
-    for m in range(len(ii_cast)):
-        axes2[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
-    axes2[0,0].set_xlim([min_lon[0],max_lon[0]])
-    axes2[0,0].set_ylim([min_lat[0],max_lat[0]])
-    axes2[0,0].tick_params(labelrotation=45)
-    pfun.add_coast(axes2[0,0])
-    plt.title(mon_str + ' <'+str(hyp_val)+'mg/L Cast Areas')
-    fig2.tight_layout()
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_hyp_cast_areas.png')
+    # pfun.start_plot(fs=14, figsize=(10,10))
+    # fig2, axes2 = plt.subplots(nrows=1, ncols=1, squeeze=False)
+    # axes2[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d,cmap=new_cmap)
+    # for m in range(len(ii_cast)):
+    #     axes2[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+    # axes2[0,0].set_xlim([min_lon[0],max_lon[0]])
+    # axes2[0,0].set_ylim([min_lat[0],max_lat[0]])
+    # axes2[0,0].tick_params(labelrotation=45)
+    # pfun.add_coast(axes2[0,0])
+    # plt.title(mon_str + ' <'+str(hyp_val)+'mg/L Cast Areas')
+    # fig2.tight_layout()
+    # plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_hyp_cast_areas.png')
     
     
     max_z_hyp = []
@@ -397,53 +404,148 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     
     #plon, plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
 
-    cmap_colors = cmap.copy()
-    newcolors = cmap_colors(np.linspace(0, 1, len(cast_no)))
-    white = np.array([256/256, 256/256, 256/256, 1])
-    for cast in range(len(cast_no)):
-        if cast not in hyp_casts:
-            newcolors[int(cast), :] = white
-    new_cmap = ListedColormap(newcolors)
+    # cmap_colors = cmap.copy()
+    # newcolors = cmap_colors(np.linspace(0, 1, len(cast_no)))
+    # white = np.array([256/256, 256/256, 256/256, 1])
+    # for cast in range(len(cast_no)):
+    #     if cast not in hyp_casts:
+    #         newcolors[int(cast), :] = white
+    # new_cmap = ListedColormap(newcolors)
     
-    pfun.start_plot(fs=14, figsize=(20,10))
-    fig3, axes3 = plt.subplots(nrows=1, ncols=2, squeeze=False)
-    axes3[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d,cmap=new_cmap)
-    for m in range(len(ii_cast)):
-        axes3[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
-    axes3[0,0].set_xlim([min_lon[0],max_lon[0]])
-    axes3[0,0].set_ylim([min_lat[0],max_lat[0]])
-    axes3[0,0].set_xlabel('Casts')
-    axes3[0,0].tick_params(labelrotation=45)
-    pfun.add_coast(axes3[0,0])
+    # pfun.start_plot(fs=14, figsize=(20,10))
+    # fig3, axes3 = plt.subplots(nrows=1, ncols=2, squeeze=False)
+    # axes3[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d,cmap=new_cmap)
+    # for m in range(len(ii_cast)):
+    #     axes3[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+    # axes3[0,0].set_xlim([min_lon[0],max_lon[0]])
+    # axes3[0,0].set_ylim([min_lat[0],max_lat[0]])
+    # axes3[0,0].set_xlabel('Casts')
+    # axes3[0,0].tick_params(labelrotation=45)
+    # pfun.add_coast(axes3[0,0])
     
-    axes3[0,1].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],hyp_deep,vmin=0.1, vmax = 7)
-    for m in range(len(ii_cast)):
-        axes3[0,1].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
-    axes3[0,1].set_xlim([min_lon[0],max_lon[0]])
-    axes3[0,1].set_ylim([min_lat[0],max_lat[0]])
-    axes3[0,1].set_xlabel('LO Volumes')
-    axes3[0,1].tick_params(labelrotation=45)
-    pfun.add_coast(axes3[0,1])
+    # axes3[0,1].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],hyp_deep,vmin=0.1, vmax = 7)
+    # for m in range(len(ii_cast)):
+    #     axes3[0,1].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+    # axes3[0,1].set_xlim([min_lon[0],max_lon[0]])
+    # axes3[0,1].set_ylim([min_lat[0],max_lat[0]])
+    # axes3[0,1].set_xlabel('LO Volumes')
+    # axes3[0,1].tick_params(labelrotation=45)
+    # pfun.add_coast(axes3[0,1])
     
-    plt.title(mon_str + ' <'+str(hyp_val)+'mg/L Bottom Areas')
-    fig3.tight_layout()
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_comp_hyp_areas.png')
+    # plt.title(mon_str + ' <'+str(hyp_val)+'mg/L Bottom Areas')
+    # fig3.tight_layout()
+    # plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_comp_hyp_areas.png')
  
     
- 
+# %%
 
-pfun.start_plot(fs=14, figsize=(20,10))
+pfun.start_plot(fs=14, figsize=(15,10))
 fig4, axes4 = plt.subplots(nrows=1, ncols=1, squeeze=False)
 hyp_vol_obs_ordered = sorted(hyp_vol_dict_obs.items())
 hyp_vol_LO_ordered = sorted(hyp_vol_dict_LO.items())
 x_obs, y_obs = zip(*hyp_vol_obs_ordered)
 x_LO, y_LO = zip(*hyp_vol_LO_ordered)
 
+plt.grid()
 plt.plot(x_obs,y_obs,label ='Casts')
 plt.plot(x_LO,y_LO,label = 'LO Volumes')
+axes4[0,0].fill_between(x_obs,y_obs,y_LO, color='gray', alpha = 0.2)
+axes4[0,0].set_xlim(x_obs[0], x_obs[-1])
+axes4[0,0].tick_params(axis ='x', labelrotation=45)
 plt.legend()
 axes4[0,0].set_title('Total Hypoxic Volumes [m^3]')
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/hyp_vol_2022.png')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/hyp_vol_2022_w_dif.png')
+
+# %%
+
+cmap_colors = cmap.copy()
+newcolors = cmap_colors(np.linspace(0, 1, len(cast_no)))
+purp = np.array([72/256, 16/256, 106/256, 0.6])
+for cast in range(len(cast_no)):
+        newcolors[int(cast), :] = purp
+new_cmap = ListedColormap(newcolors)
 
 
-    
+pfun.start_plot(fs=14, figsize=(10, 10))
+fig5, axes5 = plt.subplots(nrows=1, ncols=1, squeeze=False)
+axes5[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d,cmap=new_cmap)
+pfun.add_coast(axes5[0,0])
+axes5[0,0].set_xlim([min_lon[0],max_lon[0]])
+axes5[0,0].set_ylim([min_lat[0],max_lat[0]])
+#axes5[0,0].set_xlabel('Casts')
+axes5[0,0].tick_params(labelrotation=45)
+
+
+#plt.plot(x_obs, y_obs, label='Casts')
+#plt.plot(x_LO, y_LO, label='LO Volumes')
+#plt.legend()
+axes5[0, 0].set_title('Volume-Cast-Method Domain')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/domain.png')
+
+# %%
+
+pfun.start_plot(fs=14, figsize=(15, 10))
+fig1, axes1 = plt.subplots(nrows=1, ncols=1, squeeze=False)
+for i in range(len(ii_cast)):
+    axes1[0, 0].plot(oxygen[i], z_rho[i], 'o', c=cmap(i))
+axes1[0, 0].set_xlabel('Oxygen Concentration [mg/L]')
+axes1[0, 0].set_ylabel('Depth [m]')
+#plt.title(mon_str + ' DO Profiles')
+fig1.tight_layout()
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/DO_profiles_example.png')
+
+#%%
+
+# doesn't work yet!!!!
+
+
+# cast_no = list(map(str, np.arange(len(ii_cast))))
+
+# df0 = pd.DataFrame(oxygen[9])
+# df0['cast_no'] = cast_no
+# df0 = pd.melt(df0, id_vars=['cast_no'], var_name='sigma_level', value_name='DO')
+
+# df1 = pd.DataFrame(z_rho[9])
+# df1['cast_no'] = cast_no
+# df1 = pd.melt(df1, id_vars=['cast_no'], var_name='sigma_level', value_name='z_rho')
+
+# df = df0.merge(df1,on=['cast_no','sigma_level'])
+
+# df_hyp = df[df['DO'] < hyp_val]
+
+# hyp_casts = df_hyp['cast_no'].unique()
+
+# hyp_casts = [int(l) for l in hyp_casts]
+
+# cmap_colors = cmap.copy()
+# newcolors = cmap_colors(np.linspace(0, 1, len(cast_no)))
+# white = np.array([256/256, 256/256, 256/256, 1])
+# for cast in range(len(cast_no)):
+#     if cast not in hyp_casts:
+#         newcolors[int(cast), :] = white
+# new_cmap = ListedColormap(newcolors)
+
+# pfun.start_plot(fs=14, figsize=(20,10))
+# fig3, axes3 = plt.subplots(nrows=1, ncols=2, squeeze=False)
+# axes3[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],d,cmap=new_cmap)
+# for m in range(len(ii_cast)):
+#     axes3[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+# axes3[0,0].set_xlim([min_lon[0],max_lon[0]])
+# axes3[0,0].set_ylim([min_lat[0],max_lat[0]])
+# axes3[0,0].set_xlabel('Casts')
+# axes3[0,0].tick_params(labelrotation=45)
+# pfun.add_coast(axes3[0,0])
+
+# axes3[0,1].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],hyp_deep,vmin=0.1, vmax = 7,cmap='summer')
+# for m in range(len(ii_cast)):
+#     axes3[0,1].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+# axes3[0,1].set_xlim([min_lon[0],max_lon[0]])
+# axes3[0,1].set_ylim([min_lat[0],max_lat[0]])
+# axes3[0,1].set_xlabel('LO Volumes')
+# axes3[0,1].tick_params(labelrotation=45)
+# pfun.add_coast(axes3[0,1])
+
+# plt.title(mon_str + ' <'+str(hyp_val)+'mg/L Bottom Areas')
+# fig3.tight_layout()
+# plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_comp_hyp_areas.png')
+ 
