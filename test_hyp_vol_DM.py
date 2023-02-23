@@ -158,21 +158,40 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     
     dv_sliced = dv[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
     
+    dz_sliced = dz[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    
     ds_his = xr.open_dataset(fn_his)
+        
+    oxygen_mg_L = ds_his.oxygen.squeeze()*32/1000 #molar mass of O2 ###double check this
     
-    oxygen_mg_L = ds_his.oxygen*32/1000 #molar mass of O2
+    # fill oxygen_mg_L all below
     
-    oxygen_mg_L_np = oxygen_mg_L.isel(ocean_time = 0).to_numpy().reshape(30,1302,663)
+    #oxygen_mg_L_np = oxygen_mg_L.isel(ocean_time = 0).to_numpy().reshape(30,1302,663)
     
-    oxygen_mg_L_np = oxygen_mg_L_np[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    #oxygen_mg_L_np = oxygen_mg_L.values.squeeze() #squeezes out singleton dims
+    
+    oxygen_mg_L = oxygen_mg_L[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    
+    dv_hyp = dv_sliced.copy()
+    
+    dv_hyp[oxygen_mg_L < hyp_val] = 0
                     
-    hyp_array_LO = np.ma.masked_where(oxygen_mg_L_np > hyp_val, oxygen_mg_L_np).filled(fill_value = 0)
+    #hyp_array_LO = np.ma.masked_where(oxygen_mg_L > hyp_val, oxygen_mg_L).filled(fill_value = 0)
     
-    hyp_vol = np.ma.masked_where(oxygen_mg_L_np > hyp_val, dv_sliced).filled(fill_value = 0)
+    #hyp_vol = np.ma.masked_where(oxygen_mg_L > hyp_val, dv_sliced).filled(fill_value = 0)
         
-    wtd_avg_conc = np.nanmean(dv_sliced*1000*oxygen_mg_L_np)/np.nanmean(dv_sliced*1000)
+    #wtd_avg_conc = np.nanmean(dv_sliced*1000*oxygen_mg_L)/np.nanmean(dv_sliced*1000)
         
-    hyp_vol_sum = np.sum(hyp_vol)
+    hyp_vol_sum = np.sum(dv_hyp)
+    
+    # find alt to dictionaries
+    
+    dz_hyp = dz_sliced.copy()
+    
+    dz_hyp[oxygen_mg_L < hyp_val] = 0
+    
+    hyp_thick_sum = np.sum(dz_hyp, axis=0) #units of m...how thick hypoxic is...depth agnostic...
+    
     
     hyp_array_dict_LO[dt] = hyp_array_LO
     
