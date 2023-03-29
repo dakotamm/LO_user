@@ -136,6 +136,8 @@ tree_query = tree.query(xy_water)[1]
 d = a.copy()
 d[~a.mask] = b[~c.mask][tree_query]
 
+# %%
+
 
 sect_df = tfun.get_sect_df('cas6')
 
@@ -147,7 +149,7 @@ max_lon = [-122.25,-122.4]
 
 cmap = cm.get_cmap('viridis', len(ii_cast))
 
-hyp_val = 5.0
+hyp_val = 0.0
 
 # %%
 
@@ -163,7 +165,7 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     
     ds_his = xr.open_dataset(fn_his)
         
-    oxygen_mg_L = ds_his.oxygen.squeeze()*32/1000 #molar mass of O2 ###double check this
+    oxygen_mg_L = (ds_his.oxygen.squeeze()*32/1000).to_numpy() #molar mass of O2 ###double check this
     
     # fill oxygen_mg_L all below
     
@@ -176,6 +178,8 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     dv_hyp = dv_sliced.copy()
     
     dv_hyp[oxygen_mg_L > hyp_val] = 0
+    
+    dv_hyp[np.isnan(oxygen_mg_L)] = np.nan
                     
     #hyp_array_LO = np.ma.masked_where(oxygen_mg_L > hyp_val, oxygen_mg_L).filled(fill_value = 0)
     
@@ -183,7 +187,7 @@ for (mon_num, mon_str) in zip(month_num,month_str):
         
     #wtd_avg_conc = np.nanmean(dv_sliced*1000*oxygen_mg_L)/np.nanmean(dv_sliced*1000)
         
-    hyp_vol_sum = np.sum(dv_hyp)
+    hyp_vol_sum = np.nansum(dv_hyp)
     
     # find alt to dictionaries
     
@@ -191,7 +195,11 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     
     dz_hyp[oxygen_mg_L > hyp_val] = 0
     
-    hyp_thick_sum = np.sum(dz_hyp, axis=0) #units of m...how thick hypoxic is...depth agnostic...
+    dz_hyp[np.isnan(oxygen_mg_L)] = np.nan
+    
+    hyp_thick_sum = np.nansum(dz_hyp, axis=0) #units of m...how thick hypoxic is...depth agnostic...
+    
+    hyp_thick_sum[np.isnan(oxygen_mg_L[0,:,:])] = np.nan
     
     
   #  hyp_array_dict_LO[dt] = hyp_array_LO
@@ -335,15 +343,15 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     # fig0.tight_layout()
     # plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_cast_areas.png')
     
-    pfun.start_plot(fs=14, figsize=(7,5))
-    fig1, axes1 = plt.subplots(nrows=1, ncols=1, squeeze=False)
-    for i in range(len(ii_cast)):
-        axes1[0,0].plot(oxygen[i],z_rho[i],'o',c=cmap(i))
-    axes1[0,0].set_xlabel('[DO][mg/L]')
-    axes1[0,0].set_ylabel('Depth [m]')
-   # plt.title(mon_str + ' DO Profiles')
-    fig1.tight_layout()
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_DO_profiles_small.png')
+   #  pfun.start_plot(fs=14, figsize=(7,5))
+   #  fig1, axes1 = plt.subplots(nrows=1, ncols=1, squeeze=False)
+   #  for i in range(len(ii_cast)):
+   #      axes1[0,0].plot(oxygen[i],z_rho[i],'o',c=cmap(i))
+   #  axes1[0,0].set_xlabel('[DO][mg/L]')
+   #  axes1[0,0].set_ylabel('Depth [m]')
+   # # plt.title(mon_str + ' DO Profiles')
+   #  fig1.tight_layout()
+   #  plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_DO_profiles_small.png')
     
     
     cast_no = list(map(str, np.arange(len(ii_cast))))
@@ -418,12 +426,14 @@ for (mon_num, mon_str) in zip(month_num,month_str):
                 #hyp_array[zzz_hyp,jjj_hyp,iii_hyp] = hyp_casts[m]
                 hyp_array[zzz_hyp,jjj_hyp,iii_hyp] = dv[zzz_hyp,jjj_hyp,iii_hyp]
                 hyp_thick_array[zzz_hyp,jjj_hyp,iii_hyp] = dz[zzz_hyp,jjj_hyp,iii_hyp]
-            
-            #####  IMPLEMENT THICKNESS IN THE MORN 2/23/2023
-            
+                        
         hyp_vol = hyp_vol + np.sum(hyp_array)
         
     hyp_thick = np.sum(hyp_thick_array, axis=0)
+    
+    hyp_thick = hyp_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    
+    hyp_thick[np.isnan(oxygen_mg_L[0,:,:])] = np.nan
         
     hyp_vol_dict_obs[dt] = hyp_vol
     
@@ -450,10 +460,10 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     #     if cast not in hyp_casts:
     #         newcolors[int(cast), :] = white
     # new_cmap = ListedColormap(newcolors)
-    
+        
     pfun.start_plot(fs=14, figsize=(10,10))
     fig3, axes3 = plt.subplots(nrows=2, ncols=1, squeeze=False)
-    c0 = axes3[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],hyp_thick_dict_obs[dt][min(jjj):max(jjj)+1,min(iii):max(iii)+1],cmap='Blues', vmin = 1, vmax = 150)
+    c0 = axes3[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],hyp_thick_dict_obs[dt],cmap='Blues', vmin = 1, vmax = 150)
     for m in range(len(ii_cast)):
         axes3[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
     axes3[0,0].set_xlim([min_lon[1],max_lon[1]])
@@ -479,7 +489,48 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     
     #plt.title(mon_str + ' <'+str(hyp_val)+'mg/L Bottom Areas')
     fig3.tight_layout()
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_comp_hyp_thick.png')
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_comp_hyp_thick_'+str(hyp_val)+'.png')
+    
+    
+    
+# %%    
+
+month_num_q = ['01','04','07','10']
+
+month_str_q = ['Jan','Apr','Jul','Oct']
+
+pfun.start_plot(fs=14, figsize=(50,20))
+fig4, axes4 = plt.subplots(nrows=3, ncols=4, squeeze=False)
+
+r = 0
+
+c = 0
+
+for (mon_num, mon_str) in zip(month_num,month_str):
+    
+    dt = pd.Timestamp('2022-' + mon_num +'-01 01:30:00')
+    
+    hyp_thick_dif = hyp_thick_dict_obs[dt] - hyp_thick_dict_LO[dt]
+
+    c2 = axes4[r,c].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],hyp_thick_dif,cmap='PuOr', vmin = -150, vmax = 150)
+    for m in range(len(ii_cast)):
+        axes4[r,c].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
+    axes4[r,c].set_xlim([min_lon[1],max_lon[1]])
+    axes4[r,c].set_ylim([min_lat[1],max_lat[1]])
+    #axes3[0,0].set_xlabel('Casts')
+    axes4[r,c].tick_params(labelrotation=45)
+    axes4[r,c].set_title(mon_str+' VFC-LO')
+    pfun.add_coast(axes4[r,c])
+    fig4.colorbar(c2, ax=axes4[r,c], label = '<'+str(hyp_val)+' [mg/L] Thick Diff [m]')
+    c+=1
+    if c >= 4:
+        c = 0
+        r+=1
+    
+fig4.tight_layout()
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/hyp_thick_dif_2022_'+str(hyp_val)+'.png')
+
+    
  
     
 # %%
@@ -496,10 +547,11 @@ plt.plot(x_obs,y_obs,label ='Casts')
 plt.plot(x_LO,y_LO,label = 'LO Volumes')
 axes4[0,0].fill_between(x_obs,y_obs,y_LO, color='gray', alpha = 0.2)
 axes4[0,0].set_xlim(x_obs[0], x_obs[-1])
+#axes4[0,0].set_ylim(0, 5e10)
 axes4[0,0].tick_params(axis ='x', labelrotation=45)
 plt.legend()
 axes4[0,0].set_title('Total Subthreshold Volumes [m^3]')
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/hyp_vol_2022_w_dif.png')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/hyp_vol_2022_w_dif_'+str(hyp_val)+'.png')
 
 # # %%
 
@@ -745,5 +797,9 @@ plt.savefig('/Users/dakotamascarenas/Desktop/pltz/hyp_vol_2022_w_dif.png')
 
 
 
+# %%
 
+# find iii/jjj indices of weird cells
+
+dt = pd.Timestamp('2022-Jan-01 01:30:00')
 
