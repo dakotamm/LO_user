@@ -199,7 +199,7 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     
     hyp_thick_sum = np.nansum(dz_hyp, axis=0) #units of m...how thick hypoxic is...depth agnostic...
     
-    hyp_thick_sum[np.isnan(oxygen_mg_L[0,:,:])] = np.nan
+    #hyp_thick_sum[np.isnan(oxygen_mg_L[0,:,:])] = np.nan
     
     
   #  hyp_array_dict_LO[dt] = hyp_array_LO

@@ -134,7 +134,7 @@ def extractCastsPerSegments(Ldir, fn, cast_start, cast_end, cast_year_str, fn_mo
                         ii += 1
 
 
-def getSegmentIndices(info_fn, seg_list, j_dict, i_dict):
+def getAllSegmentIndices(info_fn, seg_list, j_dict, i_dict):
     
     """
     Assigns indices from grid to segments for ease of use.
@@ -159,20 +159,26 @@ def getSegmentIndices(info_fn, seg_list, j_dict, i_dict):
     jjj_dict = {}
     iii_dict = {}
     
-    info_df = pd.read_pickle(info_fn)
+   # info_df = pd.read_pickle(info_fn)
 
     for seg_name in seg_list:
         
         jjj_temp = j_dict[seg_name]
         iii_temp = i_dict[seg_name]
         
-        jjj_all.append(jjj_temp)
-        iii_all.append(iii_temp)
+        jjj_all.extend(jjj_temp[:])
+        iii_all.extend(iii_temp[:])
         
-        jjj_dict[seg_name]
+        jjj_dict[seg_name] = jjj_temp
+        iii_dict[seg_name] = iii_temp
+    
+    jjj_dict['all'] = np.asarray(jjj_all)
+    iii_dict['all'] = np.asarray(iii_all)
+    
+    return jjj_dict, iii_dict
     
 
-def assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, jjj, iii):
+def assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, jjj, iii, land_mask):
     """
     
     Assigns surface domain indices to casts using KDTree algorithm. Currently takes a list of segments or default NONE 
@@ -191,6 +197,8 @@ def assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, jjj, iii
         - masked array with partitioned domain by cast
         - jj_cast (j indices of casts)
         - ii_cast (i indices of casts)
+        
+    ***should make based on processed casts instead
     
     """
     
@@ -214,8 +222,10 @@ def assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, jjj, iii
             
             if (ii in iii) and (jj in jjj):
                 
-                jj_cast.append(jj)
-                ii_cast.append(ii)
+                if land_mask[jj,ii] == 1:
+                
+                    jj_cast.append(jj)
+                    ii_cast.append(ii)
                 
     xx = np.arange(min(iii), max(iii)+1)
     yy = np.arange(min(jjj), max(jjj)+1)

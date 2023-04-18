@@ -47,7 +47,9 @@ month_num = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-segments = ['G1','G2','G3']#,'G4','G5','G6']
+segments = ['J1','J2','J3','J4']
+
+#segments = ['G1','G2','G3','G4','G5','G6']
 
 sub_vol_dict_obs = {}
 
@@ -126,12 +128,13 @@ for (mon_num, mon_str) in zip(month_num,month_str):
         
         var_array_dict[dt][seg_name], sub_vol_dict_LO[dt][seg_name], sub_thick_dict_LO[dt][seg_name] = vfun.getLOSubVolThick(fn_his, j_dict[seg_name], i_dict[seg_name], var, threshold_val)
         
-        surf_casts_array_dict[dt][seg_name], jj_cast_dict[dt][seg_name], ii_cast_dict[dt][seg_name] = vfun.assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, j_dict[seg_name], i_dict[seg_name])        
+        surf_casts_array_dict[dt][seg_name], jj_cast_dict[dt][seg_name], ii_cast_dict[dt][seg_name] = vfun.assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, j_dict[seg_name], i_dict[seg_name], G['mask_rho'])        
         
         fn_list = list(sorted(in_dir.glob('*' + seg_name + '_6-6_2019_' + str(dt.month) + '_2022.nc')))
         
         sub_vol_dict_obs[dt][seg_name], sub_thick_dict_obs[dt][seg_name] = vfun.getCastsSubVolThick(in_dir, fn_list, var, threshold_val, fn_his, j_dict[seg_name], i_dict[seg_name], ii_cast_dict[dt][seg_name], surf_casts_array_dict[dt][seg_name], var_array_dict[dt][seg_name])
 
+        print(mon_str + ' ' + seg_name)
 # %%
 
 sect_df = tfun.get_sect_df('cas6')
@@ -145,11 +148,13 @@ import math
 
 plt.close('all')
 
-pfun.start_plot(fs=14, figsize=(21,7))
+pfun.start_plot(fs=14, figsize=(14,14))
 
-fig0, axes0 = plt.subplots(nrows=1, ncols=3, squeeze=False)
+fig0, axes0 = plt.subplots(nrows=2, ncols=2, squeeze=False)
 
-k= 0
+n_r = 0
+
+n_c = 0
 
 for seg_name in segments:
         
@@ -162,19 +167,26 @@ for seg_name in segments:
     d = 0      
     
     for (mon_num, mon_str) in zip(month_num, month_str):
+        
         dt = pd.Timestamp('2022-' + mon_num +'-01 01:30:00')
         
-        axes0[0,k].plot(sub_vol_dict_LO[dt][seg_name], sub_vol_dict_obs[dt][seg_name], 'o', c=cmap(d), markersize = 10, label = mon_str)
+        axes0[n_r,n_c].plot(sub_vol_dict_LO[dt][seg_name]*1e-9, sub_vol_dict_obs[dt][seg_name]*1e-9, 'o', c=cmap(d), markersize = 10, label = mon_str)
         
         d+=1
         
-        y_LO.append(sub_vol_dict_LO[dt][seg_name])
+        y_LO.append(sub_vol_dict_LO[dt][seg_name]*1e-9)
         
-        y_obs.append(sub_vol_dict_obs[dt][seg_name])
+        y_obs.append(sub_vol_dict_obs[dt][seg_name]*1e-9)
                     
     y_LO = np.array(y_LO)
     
     y_obs = np.array(y_obs)
+    
+    x_1 = np.linspace(0, max(y_LO))
+    
+    y_1 = x_1
+    
+    axes0[n_r,n_c].plot(x_1,y_1, color = 'grey', alpha = 0.5)
     
     MSE = np.square(np.subtract(y_LO,y_obs)).mean()
     
@@ -182,14 +194,28 @@ for seg_name in segments:
     
     norm_RMSE = RMSE/(y_LO.max()-y_LO.min())
         
-    axes0[0,k].set_xlabel('LO Sub 4 mg/L Vol [m^3]')
-    axes0[0,k].set_ylabel('VFC Sub 4 mg/L [m^3')
-    #plt.legend(loc="upper left")
-    axes0[0,k].set_title(seg_name + ' Vol Comparison, Norm RMSE = '+str(round(norm_RMSE,3)))
-    k +=1
+    axes0[n_r,n_c].set_xlabel('LO Sub 4 mg/L Vol [km^3]')
+    axes0[n_r,n_c].set_ylabel('VFC Sub 4 mg/L [km^3]')
+    axes0[n_r,n_c].set_title(seg_name + ' Vol Comparison, Norm RMSE = '+str(round(norm_RMSE,3)))
+    n_c += 1
+    
+    if n_c > 1:
+        n_r += 1
+        n_c = 0
+    
+    print(str(n_r) + ' ' + str(n_c))
+    
+handles, labels = axes0[1,1].get_legend_handles_labels()
+fig0.legend(handles, labels, bbox_to_anchor=(0, -0.2, 1, 0.2), loc="upper left",
+                mode="expand", borderaxespad=0, ncol=12) #loc='upper center')
+    
 fig0.tight_layout()
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/G1-G2-G3_vol.png')
-        
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/comp_vol_J.png',bbox_inches='tight')
+
+
+# %%
+
+
 
 
 
