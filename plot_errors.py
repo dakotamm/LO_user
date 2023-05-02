@@ -1,10 +1,10 @@
 """
-Finding hypoxic volume using VFC to compare to LO output.
+Plot casts and color by normalized RMSE from VFC method vs. LO output
 
 Created on 2023/03/23
 
 Test on mac:
-run find_VFC_LO_vol_DM -gtx cas6_v0_live -source dfo -otype ctd -year 2019 -test False
+run plot_errors -gtx cas6_v0_live -source dfo -otype ctd -year 2019 -test False
 
 """
 
@@ -38,6 +38,8 @@ import itertools
 
 from collections import defaultdict
 
+import math
+
 
 Ldir = exfun.intro() # this handles the argument passing
 
@@ -47,9 +49,7 @@ month_num = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-segments = ['H3','H4','H7','H8']
-
-#segments = ['G1','G2','G3','G4','G5','G6']
+segments = ['H1','H2','H3','H4','H5','H6','H8']
 
 sub_vol_dict_obs = {}
 
@@ -84,9 +84,6 @@ dv = dz*G['DX']*G['DY']
 in_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' /
     (Ldir['source'] + '_' + Ldir['otype'] + '_' + year_str))
 
-
-#%%
-
 surf_casts_array_dict = {}
 
 ii_cast_dict = {}
@@ -99,9 +96,12 @@ threshold_val = 4 #mg/L
 
 cast_start = datetime(2019,6,1)
 
-cast_end = datetime(2019,8,30)
+cast_end = datetime(2019,6,30)
 
-#%%
+norm_RMSE_dict = {}
+
+
+# %%
 
 for (mon_num, mon_str) in zip(month_num,month_str):
 
@@ -130,49 +130,23 @@ for (mon_num, mon_str) in zip(month_num,month_str):
         
         surf_casts_array_dict[dt][seg_name], jj_cast_dict[dt][seg_name], ii_cast_dict[dt][seg_name] = vfun.assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, j_dict[seg_name], i_dict[seg_name], G['mask_rho'])        
         
-        fn_list = list(sorted(in_dir.glob('*' + seg_name + '_6-8_2019_' + str(dt.month) + '_2022.nc')))
+        fn_list = list(sorted(in_dir.glob('*' + seg_name + '_6-6_2019_' + str(dt.month) + '_2022.nc')))
         
         sub_vol_dict_obs[dt][seg_name], sub_thick_dict_obs[dt][seg_name] = vfun.getCastsSubVolThick(in_dir, fn_list, var, threshold_val, fn_his, j_dict[seg_name], i_dict[seg_name], ii_cast_dict[dt][seg_name], surf_casts_array_dict[dt][seg_name], var_array_dict[dt][seg_name])
 
         print(mon_str + ' ' + seg_name)
+        
 # %%
 
-sect_df = tfun.get_sect_df('cas6')
-
-min_lat = [48, 48.4]
-max_lat = [49, 48.7]
-min_lon = [-124, -123.4]
-max_lon = [-122.25,-122.4]
-
-import math
-
-plt.close('all')
-
-pfun.start_plot(fs=14, figsize=(14,14))
-
-fig0, axes0 = plt.subplots(nrows=2, ncols=2, squeeze=False)
-
-n_r = 0
-
-n_c = 0
-
 for seg_name in segments:
-        
-    cmap = cm.get_cmap('twilight', 12)
-    
+            
     y_LO = []
 
     y_obs = []  
-
-    d = 0      
-    
+        
     for (mon_num, mon_str) in zip(month_num, month_str):
         
         dt = pd.Timestamp('2022-' + mon_num +'-01 01:30:00')
-        
-        axes0[n_r,n_c].plot(sub_vol_dict_LO[dt][seg_name]*1e-9, sub_vol_dict_obs[dt][seg_name]*1e-9, 'o', c=cmap(d), markersize = 10, label = mon_str)
-        
-        d+=1
         
         y_LO.append(sub_vol_dict_LO[dt][seg_name]*1e-9)
         
@@ -182,41 +156,62 @@ for seg_name in segments:
     
     y_obs = np.array(y_obs)
     
-    x_1 = np.linspace(0, max(y_LO))
-    
-    y_1 = x_1
-    
-    axes0[n_r,n_c].plot(x_1,y_1, color = 'grey', alpha = 0.5)
-    
     MSE = np.square(np.subtract(y_LO,y_obs)).mean()
     
     RMSE = math.sqrt(MSE)
     
     norm_RMSE = RMSE/(y_LO.max()-y_LO.min())
-        
-    axes0[n_r,n_c].set_xlabel('LO Sub 4 mg/L Vol [km^3]')
-    axes0[n_r,n_c].set_ylabel('VFC Sub 4 mg/L [km^3]')
-    axes0[n_r,n_c].set_title(seg_name + ' Vol Comparison, Norm RMSE = '+str(round(norm_RMSE,3)))
-    n_c += 1
     
-    if n_c > 1:
-        n_r += 1
-        n_c = 0
+    norm_RMSE_dict[seg_name] = norm_RMSE
     
-    print(str(n_r) + ' ' + str(n_c))
+# %%
+
+all_j_idx = []
+
+all_i_idx = []
+
+norm_RMSE_array = np.zeros(np.shape(z_rho_grid[0]))
+
+
+
+for seg_name in segments:
     
-handles, labels = axes0[1,1].get_legend_handles_labels()
-fig0.legend(handles, labels, bbox_to_anchor=(0, -0.2, 1, 0.2), loc="upper left",
-                mode="expand", borderaxespad=0, ncol=12) #loc='upper center')
+    all_j_idx.extend(j_dict[seg_name])
     
-fig0.tight_layout()
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/comp_vol_H.png',bbox_inches='tight')
+    all_i_idx.extend(i_dict[seg_name])
+    
+    norm_RMSE_array[j_dict[seg_name],i_dict[seg_name]] = norm_RMSE_dict[seg_name]
+    
+# for seg_name in ['H1','H2','H5','H6']:
+#     all_j_idx.extend(j_dict[seg_name])
+    
+#     all_i_idx.extend(i_dict[seg_name])
+    
+    
+norm_RMSE_array[norm_RMSE_array == 0] = np.nan
+
+norm_RMSE_array_sliced = norm_RMSE_array[min(all_j_idx):max(all_j_idx)+1,min(all_i_idx):max(all_i_idx)+1]
 
 
 # %%
 
+plt.close('all')
+pfun.start_plot(fs=14, figsize=(10,10))
+fig0, axes0 = plt.subplots(nrows=1, ncols=1, squeeze=False)
+cf = axes0[0,0].pcolormesh(Lon[np.unique(all_i_idx)],Lat[np.unique(all_j_idx)],norm_RMSE_array_sliced, cmap = 'YlOrRd', vmin = 0.06, vmax = 0.23)
+for seg_name in segments:
+    for m in range(len(ii_cast_dict[dt][seg_name])):
+        axes0[0,0].plot(Lon[ii_cast_dict[dt][seg_name][m]],Lat[jj_cast_dict[dt][seg_name][m]],'o',markeredgecolor='black', markerfacecolor="lightgrey",markersize=5)
+        
+axes0[0,0].tick_params(labelrotation=45)
+pfun.add_coast(axes0[0,0])
+pfun.dar(axes0[0,0])
+fig0.colorbar(cf, ax=axes0[0,0])
+axes0[0,0].set_xlim([min(Lon[np.unique(all_i_idx)]),max(Lon[np.unique(all_i_idx)])])
+axes0[0,0].set_ylim([min(Lat[np.unique(all_j_idx)]),max(Lat[np.unique(all_j_idx)])])
 
-
-
+plt.title('Ecology Hood Canal Normalized RMSE (2022)')
+fig0.tight_layout()
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/ecology_hc_norm_RMSE_2022.png')
 
 

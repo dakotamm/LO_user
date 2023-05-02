@@ -41,9 +41,19 @@ month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 #month_str = ['Jul','Aug','Sep','Oct','Nov','Dec']
 
 cast_start = datetime(2019,6,1)
-cast_end = datetime(2019,6,30)
+cast_end = datetime(2019,8,30)
 
-segments = ['G6']
+#segments = ['A1','A2','A3']
+
+#segments = ['W1','W2','W3','W4']
+
+#segments = ['M1','M2','M3','M4','M5','M6']
+
+#segments = ['T1','T2']
+
+#segments = ['S1','S2','S3','S4']
+
+segments = ['H1','H2','H3','H4','H5','H6','H7','H8']
 
 for (mon_num, mon_str) in zip(month_num, month_str):
 
