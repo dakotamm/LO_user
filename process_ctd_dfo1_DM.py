@@ -17,7 +17,7 @@ from scipy.stats import binned_statistic
 
 from lo_tools import Lfun, obs_functions
 Ldir = Lfun.Lstart()
-in_dir = / 'data1' / 'parker' / 'LO_data' / 'obs' / 'dfo1' #meant to go into parker's folder on perigee
+in_dir = 'data1' / 'parker' / 'LO_data' / 'obs' / 'dfo1' #meant to go into parker's folder on perigee
 #in_dir = Ldir['data'] / 'obs' / 'dfo1'
 
 testing = False
