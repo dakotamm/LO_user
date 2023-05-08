@@ -15,6 +15,8 @@ from time import time
 import xarray as xr
 from scipy.stats import binned_statistic
 
+from pathlib import Path
+
 from lo_tools import Lfun, obs_functions
 Ldir = Lfun.Lstart()
 in_dir = Path('/data1/parker/LO_data') / 'obs' / 'dfo1' #meant to go into parker's folder on perigee
