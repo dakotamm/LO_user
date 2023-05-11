@@ -65,6 +65,10 @@ sub_thick_dict_obs = {}
 
 surf_casts_array_dict = {}
 
+jj_cast_dict_obs = {}
+
+ii_cast_dict_obs = {}
+
 # get segment info
 vol_dir = Ldir['LOo'] / 'extract' / 'tef' / ('volumes_' + Ldir['gridname'])
 v_df = pd.read_pickle(vol_dir / 'volumes.p')
@@ -186,6 +190,10 @@ for segment in segments:
             
     sub_vol_dict_obs[segment] = {}
     
+    jj_cast_dict_obs[segment] = {}
+    
+    ii_cast_dict_obs[segment] = {}
+    
     
     for mon_num in month_num:
         
@@ -224,6 +232,11 @@ for segment in segments:
             
             
         else: # if there ARE casts in this time period
+        
+            jj_cast_dict_obs[segment][m] = info_df_use_month['jj_cast'].to_numpy()
+            
+            ii_cast_dict_obs[segment][m] = info_df_use_month['ii_cast'].to_numpy()
+
 
             xx = np.arange(min(iii), max(iii)+1)
             yy = np.arange(min(jjj), max(jjj)+1)
@@ -262,6 +275,8 @@ for segment in segments:
             if df_sub.empty: # if there are no subthreshold volumes
             
                 sub_thick = np.sum(sub_thick_array, axis=0)
+                
+                sub_thick[G['mask_rho'] == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK FOR PLOTTING
                 
                 sub_thick = sub_thick[min(jjj):max(jjj)+1, min(iii):max(iii)+1]
                 
@@ -313,6 +328,8 @@ for segment in segments:
                 
                 sub_thick = np.sum(sub_thick_array, axis=0)
                 
+                sub_thick[G['mask_rho'] == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK FOR PLOTTING
+                
                 sub_thick = sub_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
                 
                 sub_vol_dict_obs[segment][m] = sub_vol
@@ -326,51 +343,6 @@ for segment in segments:
         
 # check if CID indexes correctly on info_df and df
 
-# %%
-
-# for (mon_num, mon_str) in zip(month_num,month_str):
-    
-#     m = int(mon_num) - 1
-
-#    # dt = pd.Timestamp('2022-' + mon_num +'-01 01:30:00')
-    
-#     # cmap_colors = cmap.copy()
-#     # newcolors = cmap_colors(np.linspace(0, 1, len(cast_no)))
-#     # white = np.array([256/256, 256/256, 256/256, 1])
-#     # for cast in range(len(cast_no)):
-#     #     if cast not in hyp_casts:
-#     #         newcolors[int(cast), :] = white
-#     # new_cmap = ListedColormap(newcolors)
-        
-#     pfun.start_plot(fs=14, figsize=(10,10))
-#     fig3, axes3 = plt.subplots(nrows=2, ncols=1, squeeze=False)
-#     c0 = axes3[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],hyp_thick_dict_obs[dt],cmap='Blues', vmin = 1, vmax = 150)
-#     for m in range(len(ii_cast)):
-#         axes3[0,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
-#     axes3[0,0].set_xlim([min_lon[1],max_lon[1]])
-#     axes3[0,0].set_ylim([min_lat[1],max_lat[1]])
-#     #axes3[0,0].set_xlabel('Casts')
-#     axes3[0,0].tick_params(labelrotation=45)
-#     axes3[0,0].set_title('Volume-From-Casts ('+mon_str+')')
-#     pfun.add_coast(axes3[0,0])
-    
-#     hyp_thick_dict_LO[dt][hyp_thick_dict_LO[dt] <= 4] = 0
-#     c1 = axes3[1,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)],hyp_thick_dict_LO[dt],cmap = 'Blues', vmin = 1, vmax = 150)
-#     for m in range(len(ii_cast)):
-#         axes3[1,0].plot(Lon[ii_cast[m]],Lat[ij_cast[m]],'o',c=cmap(m),markeredgecolor='black', markersize=10)
-#     axes3[1,0].set_xlim([min_lon[1],max_lon[1]])
-#     axes3[1,0].set_ylim([min_lat[1],max_lat[1]])
-#     # axes3[0,1].set_xlabel('LO Volumes')
-#     axes3[1,0].tick_params(labelrotation=45)
-#     axes3[1,0].set_title('LO Volumes ('+mon_str+')')
-#     pfun.add_coast(axes3[1,0])
-    
-#     fig3.colorbar(c0,ax=axes3[0,0], label = 'Subthreshold Thickness [m]')
-#     fig3.colorbar(c1,ax=axes3[1,0], label = 'Subthreshold Thickness [m]')
-    
-#     #plt.title(mon_str + ' <'+str(hyp_val)+'mg/L Bottom Areas')
-#     fig3.tight_layout()
-#     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+mon_str+'_comp_hyp_thick_'+str(hyp_val)+'.png')
 
 
 # %%
@@ -398,6 +370,9 @@ for segment in segments:
         fig0, axes0 = plt.subplots(nrows=1, ncols=1, squeeze=False)
         c0 = axes0[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)], sub_thick_dict_obs[segment][m], cmap='Blues', vmin = -50, vmax = 250)
         
+        if jj_cast_dict_obs[segment][m]:
+            
+        
         axes0[0,0].set_xlim([min_lon,max_lon])
         axes0[0,0].set_ylim([min_lat,max_lat])
         axes0[0,0].tick_params(labelrotation=45)
@@ -415,7 +390,7 @@ for segment in segments:
         fig0.colorbar(c0,ax=axes0[0,0], label = 'Subthreshold Thickness [m]')
         
         fig0.tight_layout()
-        plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+segment+ '_' +mon_str+year_str+'_sub_thick_'+str(threshold_val)+'mg_L_DO.png')
+        plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+segment+ '_' +mon_str+year_str+'_sub_thick_'+str(threshold_val)+'_mg_L_DO.png')
 
 
 
@@ -450,4 +425,4 @@ axes1[0,0].set_ylabel('Sub-'+str(threshold_val)+' mg/L DO Volume [km^3]')
 
 plt.legend()
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+segment+ '_'+year_str+'_sub_vol_'+str(threshold_val)+'mg_L_DO.png')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+segment+ '_'+year_str+'_sub_vol_'+str(threshold_val)+'_mg_L_DO.png')
