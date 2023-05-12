@@ -45,7 +45,7 @@ month_num = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-segments = ['G1','G2','G3','G4','G5','G6']
+segments = ['G4']
 
 # this is hella stupid but whatever (below)
 
@@ -369,9 +369,7 @@ for segment in segments:
         pfun.start_plot(fs=14, figsize=(16,9))
         fig0, axes0 = plt.subplots(nrows=1, ncols=1, squeeze=False)
         c0 = axes0[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)], sub_thick_dict_obs[segment][m], cmap='Blues', vmin = -50, vmax = 250)
-        
-        if jj_cast_dict_obs[segment][m]:
-            
+                    
         
         axes0[0,0].set_xlim([min_lon,max_lon])
         axes0[0,0].set_ylim([min_lat,max_lat])

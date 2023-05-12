@@ -49,7 +49,7 @@ month_num = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-segments = ['H1','H2','H3','H4','H5','H6','H8']
+segments = ['G1','G2','G3','G4','G5','G6']
 
 sub_vol_dict_obs = {}
 
@@ -210,8 +210,8 @@ fig0.colorbar(cf, ax=axes0[0,0])
 axes0[0,0].set_xlim([min(Lon[np.unique(all_i_idx)]),max(Lon[np.unique(all_i_idx)])])
 axes0[0,0].set_ylim([min(Lat[np.unique(all_j_idx)]),max(Lat[np.unique(all_j_idx)])])
 
-plt.title('Ecology Hood Canal Normalized RMSE (2022)')
+plt.title('DFO Strait of Georgia Normalized RMSE (2022)')
 fig0.tight_layout()
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/ecology_hc_norm_RMSE_2022.png')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/dfo_g_norm_RMSE_2022.png')
 
 

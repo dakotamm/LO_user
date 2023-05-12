@@ -47,9 +47,7 @@ month_num = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-segments = ['H3','H4','H7','H8']
-
-#segments = ['G1','G2','G3','G4','G5','G6']
+segments = ['G1','G2','G3','G4','G5','G6']
 
 sub_vol_dict_obs = {}
 
@@ -210,7 +208,7 @@ fig0.legend(handles, labels, bbox_to_anchor=(0, -0.2, 1, 0.2), loc="upper left",
                 mode="expand", borderaxespad=0, ncol=12) #loc='upper center')
     
 fig0.tight_layout()
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/comp_vol_H.png',bbox_inches='tight')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/comp_vol_G.png',bbox_inches='tight')
 
 
 # %%
