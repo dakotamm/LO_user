@@ -36,6 +36,7 @@ import itertools
     # casts outside of segments (not generally in Salish Sea)
     # speed limitations - this is clunky
     # error catching
+    # fix extract cast - maybe check to see if the cast is already there? probably inefficient to have duplicate casts in different folders; revert to original cast extraction idea
 
 
 def getGridInfo(fn):
