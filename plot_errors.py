@@ -182,12 +182,6 @@ for seg_name in segments:
     
     norm_RMSE_array[j_dict[seg_name],i_dict[seg_name]] = norm_RMSE_dict[seg_name]
     
-# for seg_name in ['H1','H2','H5','H6']:
-#     all_j_idx.extend(j_dict[seg_name])
-    
-#     all_i_idx.extend(i_dict[seg_name])
-    
-    
 norm_RMSE_array[norm_RMSE_array == 0] = np.nan
 
 norm_RMSE_array_sliced = norm_RMSE_array[min(all_j_idx):max(all_j_idx)+1,min(all_i_idx):max(all_i_idx)+1]
@@ -212,6 +206,6 @@ axes0[0,0].set_ylim([min(Lat[np.unique(all_j_idx)]),max(Lat[np.unique(all_j_idx)
 
 plt.title('DFO Strait of Georgia Normalized RMSE (2022)')
 fig0.tight_layout()
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/dfo_g_norm_RMSE_2022.png')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/dfo_g_norm_RMSE_2022.png') # need to not hardcode
 
 

@@ -26,7 +26,16 @@ from scipy.spatial import KDTree
 
 import itertools
 
-# I WANT CONCURRENT BOTTLE HANDLING
+# TO DO:
+    # concurrent bottle/ctd handling
+    # multiple sources at once
+    # flag fo LO casts/OBS casts/LO history comparison
+    # plotting functions
+    # better date range-gating
+    # tidally-averaged grid, or take history file when obs cast was taken? - space inefficient!
+    # casts outside of segments (not generally in Salish Sea)
+    # speed limitations - this is clunky
+    # error catching
 
 
 def getGridInfo(fn):
