@@ -45,9 +45,9 @@ month_num = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-segments = ['G4']
+segments = ['G1', 'G2','G3','G4', 'G5','G6']
 
-# this is hella stupid but whatever (below)
+# this is really not a good way to code this (below)
 
 cast_start = [datetime(int(year_str),1,1), datetime(int(year_str),2,1), datetime(int(year_str),3,1), datetime(int(year_str),4,1), datetime(int(year_str),5,1),
               datetime(int(year_str),6,1), datetime(int(year_str),7,1), datetime(int(year_str),8,1), datetime(int(year_str),9,1), datetime(int(year_str),10,1),
@@ -276,7 +276,7 @@ for segment in segments:
             
                 sub_thick = np.sum(sub_thick_array, axis=0)
                 
-                sub_thick[G['mask_rho'] == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK FOR PLOTTING
+                sub_thick[G['mask_rho'] == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK
                 
                 sub_thick = sub_thick[min(jjj):max(jjj)+1, min(iii):max(iii)+1]
                 
@@ -328,7 +328,7 @@ for segment in segments:
                 
                 sub_thick = np.sum(sub_thick_array, axis=0)
                 
-                sub_thick[G['mask_rho'] == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK FOR PLOTTING
+                sub_thick[G['mask_rho'] == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK
                 
                 sub_thick = sub_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
                 
@@ -337,17 +337,11 @@ for segment in segments:
                 sub_thick_dict_obs[segment][m] = sub_thick
             
             
-        
-       # sub_thick[np.isnan(var_array[0,:,:])] = np.nan - integrate with LO??? IMPLEMENT IF NEED BE
-       
-        
-# check if CID indexes correctly on info_df and df
-
+             
 
 
 # %%
 
-segments = ['G1']
 
 for segment in segments:
     
@@ -377,14 +371,6 @@ for segment in segments:
         axes0[0,0].set_title(mon_str + ' ' + year_str + ' ' + segment + ' Sub-' + str(threshold_val) + ' mg/L DO')
         pfun.add_coast(axes0[0,0])
         
-        # plt.plot([Lon[min(iii)], Lat[min(jjj)]], [Lon[max(iii)], Lat[min(jjj)]], color = 'lightgray', linewidth = 0.5)
-        
-        # plt.plot([Lon[min(iii)], Lat[min(jjj)]], [Lon[min(iii)], Lat[max(jjj)]], color = 'lightgray', linewidth = 0.5)
-        
-        # plt.plot([Lon[min(iii)], Lat[max(jjj)]], [Lon[max(iii)], Lat[max(jjj)]], color = 'lightgray', linewidth = 0.5)
-        
-        # plt.plot([Lon[max(iii)], Lat[min(jjj)]], [Lon[max(iii)], Lat[max(jjj)]], color = 'lightgray', linewidth = 0.5)
-        
         fig0.colorbar(c0,ax=axes0[0,0], label = 'Subthreshold Thickness [m]')
         
         fig0.tight_layout()
@@ -399,7 +385,6 @@ pfun.start_plot(fs=14, figsize=(16,9))
 fig1, axes1 = plt.subplots(nrows=1, ncols=1, squeeze=False)
 plt.grid()
 
-segments = ['G1','G2','G3','G4','G5','G6']
 
 
 for segment in segments:
@@ -423,4 +408,4 @@ axes1[0,0].set_ylabel('Sub-'+str(threshold_val)+' mg/L DO Volume [km^3]')
 
 plt.legend()
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+segment+ '_'+year_str+'_sub_vol_'+str(threshold_val)+'_mg_L_DO.png')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + year_str+'_sub_vol_'+str(threshold_val)+'_mg_L_DO.png')
