@@ -286,10 +286,14 @@ def getLOSubVolThick(fn_his, jjj, iii, var, threshold_val):
     dz = np.diff(z_w_grid,axis=0)
     dv = dz*G['DX']*G['DY']
     
-    dv_sliced = dv[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+   # dv_sliced = dv[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
     
-    dz_sliced = dz[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    #dz_sliced = dz[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
     
+    dv_sliced = dv[:,jjj,iii]
+    
+    dz_sliced = dz[:,jjj,iii]
+
     ds_his = xr.open_dataset(fn_his)
     
     if var =='oxygen':
@@ -300,13 +304,15 @@ def getLOSubVolThick(fn_his, jjj, iii, var, threshold_val):
         
         var_array = (ds_his[var].squeeze()).to_numpy() #implement other var conversions if necessary??? Parker has dict for this
     
-    var_array = var_array[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+   # var_array = var_array[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    
+    var_array = var_array[:,jjj,iii]
     
     dv_sub = dv_sliced.copy()
     
     dv_sub[var_array > threshold_val] = 0
     
-    dv_sub[np.isnan(var_array)] = np.nan
+   # dv_sub[np.isnan(var_array)] = np.nan
         
     sub_vol_sum = np.nansum(dv_sub)
         
@@ -314,11 +320,11 @@ def getLOSubVolThick(fn_his, jjj, iii, var, threshold_val):
     
     dz_sub[var_array > threshold_val] = 0
     
-    dz_sub[np.isnan(var_array)] = np.nan
+    #dz_sub[np.isnan(var_array)] = np.nan
     
     sub_thick_sum = np.nansum(dz_sub, axis=0) #units of m...how thick hypoxic column is...depth agnostic
     
-    sub_thick_sum[np.isnan(var_array[0,:,:])] = np.nan
+    #sub_thick_sum[np.isnan(var_array[0,:,:])] = np.nan
     
     return var_array, sub_vol_sum, sub_thick_sum
 

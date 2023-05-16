@@ -49,7 +49,13 @@ month_num = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-segments = ['G1','G2','G3','G4','G5','G6']
+#segments = ['G1','G2','G3','G4','G5','G6']
+
+month_num = ['01']
+
+month_str = ['Jan']
+
+segments = ['G1']
 
 sub_vol_dict_obs = {}
 
@@ -103,7 +109,10 @@ norm_RMSE_dict = {}
 
 # %%
 
+tt0 = time()
+
 for (mon_num, mon_str) in zip(month_num,month_str):
+    
 
     dt = pd.Timestamp('2022-' + mon_num +'-01 01:30:00')
     fn_his = cfun.get_his_fn_from_dt(Ldir, dt)
@@ -124,18 +133,36 @@ for (mon_num, mon_str) in zip(month_num,month_str):
     
     sub_vol_dict_obs[dt] = {}
     
+    tt1 = time()
+    
     for seg_name in segments:
+        
+        tt2 = time()
         
         var_array_dict[dt][seg_name], sub_vol_dict_LO[dt][seg_name], sub_thick_dict_LO[dt][seg_name] = vfun.getLOSubVolThick(fn_his, j_dict[seg_name], i_dict[seg_name], var, threshold_val)
         
+        print('elapsed time getLOSubVolThick = %0.2f' % (time() - tt2))
+        
+        tt2 = time()
+
         surf_casts_array_dict[dt][seg_name], jj_cast_dict[dt][seg_name], ii_cast_dict[dt][seg_name] = vfun.assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, j_dict[seg_name], i_dict[seg_name], G['mask_rho'])        
+        
+        print('elapsed time assignSurfaceToCasts = %0.2f' % (time() - tt2))
+        
+        tt2 = time()
         
         fn_list = list(sorted(in_dir.glob('*' + seg_name + '_6-6_2019_' + str(dt.month) + '_2022.nc')))
         
         sub_vol_dict_obs[dt][seg_name], sub_thick_dict_obs[dt][seg_name] = vfun.getCastsSubVolThick(in_dir, fn_list, var, threshold_val, fn_his, j_dict[seg_name], i_dict[seg_name], ii_cast_dict[dt][seg_name], surf_casts_array_dict[dt][seg_name], var_array_dict[dt][seg_name])
 
+        print('elapsed time getCastsSubVolThick = %0.2f' % (time() - tt2))
+        
         print(mon_str + ' ' + seg_name)
         
+    print('elapsed time (segment loop) = %0.2f' % (time() - tt1))
+        
+        
+print('elapsed time (month + segment loop) = %0.2f' % (time() - tt0))        
 # %%
 
 for seg_name in segments:
