@@ -2,7 +2,7 @@
 Finding hypoxic depth and volume using observational data.
 
 Test on mac in ipython:
-run obs_hyp_vol_DM -gtx cas6_v0_live -source dfo1 -otype ctd -year 2017 -test False
+run obs_hyp_vol_DM -gtx cas6_v0_live -source nceiSalish -otype bottle -year 2017 -test False
 
 """
 
@@ -36,6 +36,8 @@ import itertools
 
 from collections import defaultdict
 
+import os
+
 
 Ldir = exfun.intro() # this handles the argument passing
 
@@ -45,7 +47,9 @@ month_num = ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-segments = ['G1', 'G2','G3','G4', 'G5','G6']
+segments = ['H1','H2','H3','H4','H5','H6','H7','H8']
+
+#segments = ['M1','M2','M3','M4', 'M5','M6']
 
 # this is really not a good way to code this (below)
 
@@ -64,6 +68,10 @@ var_array_dict = {}
 sub_thick_dict_obs = {}
 
 surf_casts_array_dict = {}
+
+surf_casts_array_plot_dict = {}
+
+sub_casts_array_plot_dict = {}
 
 jj_cast_dict_obs = {}
 
@@ -90,6 +98,7 @@ Lat = G['lat_rho'][:, 0]
 z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
 dz = np.diff(z_w_grid,axis=0)
 dv = dz*G['DX']*G['DY']
+
 
 # %%
 
@@ -127,12 +136,15 @@ for cid in info_df.index:
 
 info_df['segment'] = 'None'
 
-for cid in info_df.index:
+for seg_name in seg_list:
+    
+    ij_pair = list(zip(i_dict[seg_name],j_dict[seg_name]))
 
-    for seg_name in seg_list:
+    for cid in info_df.index:        
+          
+        pair = (info_df.loc[cid,'ix'].tolist(), info_df.loc[cid,'iy'].tolist())
         
-        if (info_df.loc[cid,'ix'] in i_dict[seg_name]) and (info_df.loc[cid, 'iy'] in j_dict[seg_name]):
-            
+        if pair in ij_pair:
             info_df.loc[cid,'segment'] = seg_name
             
         else:
@@ -187,12 +199,16 @@ for segment in segments:
     sub_thick_dict_obs[segment] = {}
     
     surf_casts_array_dict[segment] = {}
+    
+    surf_casts_array_plot_dict[segment] = {}
             
     sub_vol_dict_obs[segment] = {}
     
     jj_cast_dict_obs[segment] = {}
     
     ii_cast_dict_obs[segment] = {}
+    
+    sub_casts_array_plot_dict[segment] = {}
     
     
     for mon_num in month_num:
@@ -229,6 +245,7 @@ for segment in segments:
             sub_vol_dict_obs[segment][m] = np.nan
             
             sub_thick_dict_obs[segment][m] = sub_thick
+        
             
             
         else: # if there ARE casts in this time period
@@ -247,26 +264,48 @@ for segment in segments:
             a = np.ma.masked_array(a,a==-99)
         
             b = a.copy()
+            b0 = a.copy()
             
-            for cid in info_df_use.index:
-                b[int(info_df_use.loc[cid, 'jj_cast'])-min(jjj), int(info_df_use.loc[cid, 'ii_cast'])-min(iii)] = cid
+            n = 0
+            
+            for cid in info_df_use_month.index:
+                b[int(info_df_use_month.loc[cid, 'jj_cast'])-min(jjj), int(info_df_use_month.loc[cid, 'ii_cast'])-min(iii)] = cid
+                b0[int(info_df_use_month.loc[cid, 'jj_cast'])-min(jjj), int(info_df_use_month.loc[cid, 'ii_cast'])-min(iii)] = n
+                n +=1 
+                
+            cast_nums = np.linspace(0,(n-1))
                 
             c = b.copy()
             c = np.ma.masked_array(c,c==-1)
+            
+            c0 = b0.copy()
+            c0 = np.ma.masked_array(c0,c0==-1)
                 
             xy_water = np.array((x[~a.mask],y[~a.mask])).T
         
             xy_casts = np.array((x[~c.mask],y[~c.mask])).T
+            
+            xy_casts0 = np.array((x[~c0.mask],y[~c0.mask])).T
         
             tree = KDTree(xy_casts)
-        
+            
+            tree0 = KDTree(xy_casts0)
+            
             tree_query = tree.query(xy_water)[1]
-        
+            
+            
             surf_casts_array = a.copy()
             
             surf_casts_array[~a.mask] = b[~c.mask][tree_query]
             
             surf_casts_array_dict[segment][m] = surf_casts_array
+            
+            
+            surf_casts_array_plot = a.copy()
+            
+            surf_casts_array_plot[~a.mask] = b0[~c0.mask][tree_query]
+            
+            surf_casts_array_plot_dict[segment][m] = surf_casts_array_plot
             
             
             df_sub = df_use_month[df_use_month[var] < threshold_val]
@@ -279,6 +318,8 @@ for segment in segments:
                 sub_thick[G['mask_rho'] == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK
                 
                 sub_thick = sub_thick[min(jjj):max(jjj)+1, min(iii):max(iii)+1]
+                
+                sub_thick = np.ma.masked_where(np.ma.getmask(surf_casts_array), sub_thick)
                 
                 sub_vol_dict_obs[segment][m] = sub_vol
                 
@@ -296,12 +337,22 @@ for segment in segments:
                         info_df_sub.drop([cid])
                 
                 sub_casts_array = surf_casts_array.copy()
+                
+                sub_casts_array_plot = surf_casts_array_plot.copy()
         
                 sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
-        
+                
+                sub_casts_array_plot = [[ele if ele in cast_nums else -99 for ele in line] for line in sub_casts_array]
+                
                 sub_casts_array = np.array(sub_casts_array)
         
                 sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
+                
+                sub_casts_array_plot = np.array(sub_casts_array_plot)
+        
+                sub_casts_array_plot =np.ma.masked_array(sub_casts_array_plot,sub_casts_array_plot == -99)
+                
+                sub_casts_array_plot_dict[segment][m] = sub_casts_array_plot
                 
                 max_z_sub = []
                 
@@ -332,6 +383,8 @@ for segment in segments:
                 
                 sub_thick = sub_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
                 
+                sub_thick = np.ma.masked_where(np.ma.getmask(surf_casts_array), sub_thick)
+                
                 sub_vol_dict_obs[segment][m] = sub_vol
                 
                 sub_thick_dict_obs[segment][m] = sub_thick
@@ -359,10 +412,40 @@ for segment in segments:
     for (mon_num, mon_str) in zip(month_num,month_str):
         
         m = int(mon_num) - 1
-
+ 
         pfun.start_plot(fs=14, figsize=(16,9))
         fig0, axes0 = plt.subplots(nrows=1, ncols=1, squeeze=False)
-        c0 = axes0[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)], sub_thick_dict_obs[segment][m], cmap='Blues', vmin = -50, vmax = 250)
+        
+        # if m in sub_casts_array_plot_dict[segment]:
+            
+        # #     cmap = cm.get_cmap('viridis', len(ii_cast_dict_obs[segment][m]))
+
+        # #     c0 = axes0[0,0].pcolormesh(Lon[np.unique(iii)], Lat[np.unique(jjj)], surf_casts_array_dict[segment][m])#, vmin = 50, vmax = 55) #, facecolor='none', edgecolors='k', cmap='gray')
+             
+        #    # plt.contour(Lon[np.unique(iii)], Lat[np.unique(jjj)], surf_casts_array_dict[segment][m], 0.1, colors='white')
+        
+        #     c0 = axes0[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)], sub_casts_array_plot_dict[segment][m], cmap='viridis', alpha = 0.8)
+        
+        # if (m in ii_cast_dict_obs[segment]) and (m in jj_cast_dict_obs[segment]):
+                        
+        #     for n in range(len(ii_cast_dict_obs[segment][m])):
+        
+        #         axes0[0,0].plot(Lon[int(ii_cast_dict_obs[segment][m][n])],Lat[int(jj_cast_dict_obs[segment][m][n])],'o', c = 'white', markeredgecolor='black', markersize=10)
+                    
+        
+        # axes0[0,0].set_xlim([min_lon,max_lon])
+        # axes0[0,0].set_ylim([min_lat,max_lat])
+        # axes0[0,0].tick_params(labelrotation=45)
+        # axes0[0,0].set_title('Sub-threshold Cast Areas')
+        # pfun.add_coast(axes0[0,0])
+        
+        c1 = axes0[0,0].pcolormesh(Lon[np.unique(iii)],Lat[np.unique(jjj)], sub_thick_dict_obs[segment][m], cmap='jet', alpha = 0.8, vmin = 0, vmax = 300)
+        
+        if (m in ii_cast_dict_obs[segment]) and (m in jj_cast_dict_obs[segment]):
+                        
+            for n in range(len(ii_cast_dict_obs[segment][m])):
+        
+                axes0[0,0].plot(Lon[int(ii_cast_dict_obs[segment][m][n])],Lat[int(jj_cast_dict_obs[segment][m][n])],'o', c = 'white', markeredgecolor='black', markersize=10)
                     
         
         axes0[0,0].set_xlim([min_lon,max_lon])
@@ -371,10 +454,10 @@ for segment in segments:
         axes0[0,0].set_title(mon_str + ' ' + year_str + ' ' + segment + ' Sub-' + str(threshold_val) + ' mg/L DO')
         pfun.add_coast(axes0[0,0])
         
-        fig0.colorbar(c0,ax=axes0[0,0], label = 'Subthreshold Thickness [m]')
+        fig0.colorbar(c1,ax=axes0[0,0], label = 'Subthreshold Thickness [m]')
         
         fig0.tight_layout()
-        plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+segment+ '_' +mon_str+year_str+'_sub_thick_'+str(threshold_val)+'_mg_L_DO.png')
+        plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+segment+ '_' +mon_str+year_str+'_sub_thick_'+str(threshold_val)+'_mg_L_DO_casts_00' + mon_num+'.png')
 
 
 
@@ -384,6 +467,7 @@ for segment in segments:
 pfun.start_plot(fs=14, figsize=(16,9))
 fig1, axes1 = plt.subplots(nrows=1, ncols=1, squeeze=False)
 plt.grid()
+
 
 
 
@@ -408,4 +492,12 @@ axes1[0,0].set_ylabel('Sub-'+str(threshold_val)+' mg/L DO Volume [km^3]')
 
 plt.legend()
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + year_str+'_sub_vol_'+str(threshold_val)+'_mg_L_DO.png')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/nceiSalish_H_bottle' + year_str+'_sub_vol_'+str(threshold_val)+'_mg_L_DO.png')
+
+# %%
+
+outdir = '/Users/dakotamascarenas/Desktop/pltz/'
+
+ff_str = ("ffmpeg -r 8 -i " + outdir + "G2_sub_thick_5_mg_L_DO_casts_%04d.png -vcodec libx264 -pix_fmt yuv420p -crf 25" + outdir + "G2_2017.mp4")
+os.system(ff_str)
+
