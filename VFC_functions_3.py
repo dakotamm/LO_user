@@ -1,7 +1,7 @@
 """
-Functions for DM's VFC method! REVISED
+Functions for DM's VFC method! REVISED AGAIN
 
-Created 2023/05/11.
+Created 2023/05/23.
 
 """
 
@@ -27,17 +27,17 @@ from scipy.spatial import KDTree
 import itertools
 
 # TO DO:
-    # concurrent bottle/ctd handling
-    # multiple sources at once
-    # flag fo LO casts/OBS casts/LO history comparison
     # plotting functions
-    # better date range-gating
     # tidally-averaged grid, or take history file when obs cast was taken? - space inefficient!
     # casts outside of segments (not generally in Salish Sea)
     # speed limitations - this is clunky
     # error catching
     # fix extract cast - maybe check to see if the cast is already there? probably inefficient to have duplicate casts in different folders; revert to original cast extraction idea
-
+    # efficiency + fancy indexing
+    # using plon/plat - pfun.get_plon_plat
+    # make slow movies
+    
+    
 
 def getGridInfo(fn):
     
@@ -45,11 +45,12 @@ def getGridInfo(fn):
     land_mask = G['mask_rho']
     Lon = G['lon_rho'][0,:]
     Lat = G['lat_rho'][:,0]
+    plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
     z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
     dz = np.diff(z_w_grid,axis=0)
     dv = dz*G['DX']*G['DY']
     
-    return G, S, T, land_mask, Lon, Lat, z_rho_grid, dz, dv
+    return G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, dz, dv
 
     
     
@@ -223,15 +224,6 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):
                     
                     jjj_all.extend(jjj_temp[:])
                     iii_all.extend(iii_temp[:])
-                    
-                    # if np.any(jjj_dict[seg_name]) and np.any(iii_dict[seg_name]):
-                        
-                    #     continue
-                    
-                    # else:
-                        
-                    #     jjj_dict[seg_name] = jjj_temp
-                    #     iii_dict[seg_name] = iii_temp
                         
                 jjj_dict[seg_str] = np.asarray(jjj_all)
                 iii_dict[seg_str] = np.asarray(iii_all)
@@ -333,16 +325,13 @@ def extractLOCasts(Ldir, info_df, fn):
     
     """
     
-    Extracts casts in designated segmented for designated time in LO history file; uses obs locations for designated period.
+    Extracts casts in designated segment for designated time in LO history file; uses obs locations for designated period.
         
     Inputs:
         - LDir dictionary
         - info_df: 
         - fn: history file to be used
-        ********** NOT USED BELOW
-        - fn_mon_str: month of fn history file used (***need to generalize)
-        - fn_year_str: year of fn history file used (***need to generalize)
-        - segment string or list of strings (IF WANT TO USE DIFFERENT DATES******)
+        - CLUNKY NEEDS REVISE ***
         
     Outputs:
         - NONE: saves to output directory for future use
@@ -433,39 +422,46 @@ def assignSurfaceToCasts(info_df, jjj, iii):
         
     Returns:
         - masked array with partitioned domain by cast
-        
-    ***should make based on processed casts instead
-    
+            
     """
-                
+    
+    
     xx = np.arange(min(iii), max(iii)+1)
     yy = np.arange(min(jjj), max(jjj)+1)
-    x, y = np.meshgrid(xx, yy)
+                
+    if info_df.empty:
+        
+        surf_casts_array = np.empty([len(yy),len(xx)])
+        surf_casts_array.fill(np.nan)
+                
+    else:
+        
+        x, y = np.meshgrid(xx, yy)
+                
+        a = np.full([len(yy),len(xx)], -99)
+        a[jjj-min(jjj),iii-min(iii)] = -1
+        a = np.ma.masked_array(a,a==-99)
+    
+        b = a.copy()
+        
+        for cid in info_df.index:
+            b[int(info_df.loc[cid, 'jj_cast'])-min(jjj), int(info_df.loc[cid, 'ii_cast'])-min(iii)] = cid # use string to see if it helps plotting?
             
-    a = np.full([len(yy),len(xx)], -99)
-    a[jjj-min(jjj),iii-min(iii)] = -1
-    a = np.ma.masked_array(a,a==-99)
-
-    b = a.copy()
+        c = b.copy()
+        c = np.ma.masked_array(c,c==-1)
+            
+        xy_water = np.array((x[~a.mask],y[~a.mask])).T
     
-    for cid in info_df.index:
-        b[int(info_df.loc[cid, 'jj_cast'])-min(jjj), int(info_df.loc[cid, 'ii_cast'])-min(iii)] = cid # use string to see if it helps plotting?
+        xy_casts = np.array((x[~c.mask],y[~c.mask])).T
+    
+        tree = KDTree(xy_casts)
+    
+        tree_query = tree.query(xy_water)[1]
+    
+        surf_casts_array = a.copy()
         
-    c = b.copy()
-    c = np.ma.masked_array(c,c==-1)
-        
-    xy_water = np.array((x[~a.mask],y[~a.mask])).T
-
-    xy_casts = np.array((x[~c.mask],y[~c.mask])).T
-
-    tree = KDTree(xy_casts)
-
-    tree_query = tree.query(xy_water)[1]
-
-    surf_casts_array = a.copy()
-    
-    surf_casts_array[~a.mask] = b[~c.mask][tree_query]
-    
+        surf_casts_array[~a.mask] = b[~c.mask][tree_query]
+            
     return surf_casts_array
 
 
@@ -489,9 +485,13 @@ def getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val):
     
     """
     
-    dv_sliced = dv[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    dv_sliced = dv[:, jjj, iii]
     
-    dz_sliced = dz[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    dz_sliced = dz[:, jjj, iii]
+    
+   # dv_sliced = dv[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    
+   # dz_sliced = dz[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
     
     ds_his = xr.open_dataset(fn_his)
     
@@ -503,25 +503,31 @@ def getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val):
         
         var_array = (ds_his[var].squeeze()).to_numpy() #implement other var conversions if necessary??? Parker has dict for this
     
-    var_array = var_array[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+   # var_array = var_array[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+    
+    var_array = var_array[:, jjj, iii]
     
     dv_sub = dv_sliced.copy()
     
     dv_sub[var_array > threshold_val] = 0
     
-    dv_sub[np.isnan(var_array)] = np.nan
+    #dv_sub[np.isnan(var_array)] = np.nan
         
-    sub_vol_sum = np.nansum(dv_sub)
+    #sub_vol_sum = np.nansum(dv_sub)
+    
+    sub_vol_sum = np.sum(dv_sub)
         
     dz_sub = dz_sliced.copy()
     
     dz_sub[var_array > threshold_val] = 0
     
-    dz_sub[np.isnan(var_array)] = np.nan
+    #dz_sub[np.isnan(var_array)] = np.nan
     
-    sub_thick_sum = np.nansum(dz_sub, axis=0) #units of m...how thick hypoxic column is...depth agnostic
+    #sub_thick_sum = np.nansum(dz_sub, axis=0) #units of m...how thick hypoxic column is...depth agnostic
     
-    sub_thick_sum[np.isnan(var_array[0,:,:])] = np.nan
+    sub_thick_sum = np.sum(dz_sub, axis=0) #units of m...how thick hypoxic column is...depth agnostic
+    
+    # sub_thick_sum[np.isnan(var_array[0,:,:])] = np.nan
     
     return sub_vol_sum, sub_thick_sum #var_array
 
@@ -580,7 +586,7 @@ def getLOCastsAttrs(fn):
         
 
 
-def getLOCastsSubVolThick(Ldir, info_df, var, threshold_val, z_rho_grid, dv, dz, land_mask, jjj, iii, surf_casts_array):
+def getLOCastsSubVolThick(Ldir, info_df, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array):
     """
     
     Gets subthreshold volume and thickness from LO casts (volume-from-casts method).
@@ -606,25 +612,33 @@ def getLOCastsSubVolThick(Ldir, info_df, var, threshold_val, z_rho_grid, dv, dz,
     GENERALIZE TO OTHER VARIABLES
     
     """
+        
+    surf_casts_array_full = np.empty(np.shape(land_mask))
+    surf_casts_array_full.fill(np.nan)
     
-    
-    sub_vol = 0
+    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = surf_casts_array
 
     sub_thick_array = np.empty(np.shape(z_rho_grid))
-    sub_thick_array.fill(0)
     
-    sub_casts_array = np.empty(np.shape(land_mask))
-    sub_casts_array.fill(0)    
+    sub_casts_array_full = np.empty(np.shape(surf_casts_array_full))
     
+        
     if info_df.empty: #if no casts in this time period and region
         
         sub_thick_array.fill(np.nan)
     
         sub_thick = np.sum(sub_thick_array, axis=0)
         
-        sub_thick = sub_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
-                    
+        sub_thick = sub_thick[jjj,iii]
+                            
         sub_vol = np.nan
+        
+        sub_casts_array_full.fill(np.nan)
+        
+        sub_casts_array = sub_casts_array_full[jjj,iii]
+        
+        print('no casts')
+
         
     else: #if there are casts in this time and region
     
@@ -660,21 +674,24 @@ def getLOCastsSubVolThick(Ldir, info_df, var, threshold_val, z_rho_grid, dv, dz,
         
         
         if df_sub.empty: # if no subthreshold values
-        
+            
+            sub_vol = 0
+            
+            sub_thick_array.fill(0)
+            
             sub_thick = np.sum(sub_thick_array, axis=0)
             
-            sub_thick[land_mask == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK FOR PLOTTING
-            
-            sub_thick = sub_thick[min(jjj):max(jjj)+1, min(iii):max(iii)+1]
-            
-            sub_casts_array[land_mask == 0] = np.nan
+            sub_thick = sub_thick[jjj,iii]
                         
-            sub_casts_array = sub_casts_array[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+            sub_casts_array_full.fill(np.nan)
+        
+            sub_casts_array = sub_casts_array_full[jjj,iii]
+            
+            print('no sub')
+
             
         else: # if subthreshold values!
-             
-             max_z_sub = []
-                      
+                                   
              info_df_sub = info_df.copy()
          
              for cid in info_df.index:
@@ -691,39 +708,45 @@ def getLOCastsSubVolThick(Ldir, info_df, var, threshold_val, z_rho_grid, dv, dz,
      
              sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
              
+             sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
+             
+             sub_array = np.empty(np.shape(z_rho_grid))
+             sub_array.fill(0)
+
+             sub_thick_array.fill(0)
+                          
+             
  
              for cid in info_df_sub.index:
+                 
                  df_temp = df_sub[df_sub['cid']==cid]
+                 
                  max_z_sub = df_temp['z_rho'].max()
-                 idx_sub = np.where(sub_casts_array == cid)
                  
-                 sub_array = np.empty(np.shape(z_rho_grid))
-                 sub_array.fill(0)
+                 sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], 30, axis=0)
+                                                   
+                 sub_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dv[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
                  
-                 for nn in range(len(idx_sub[0])):
-                     jjj_sub = idx_sub[0][nn] + min(jjj)
-                     iii_sub = idx_sub[1][nn] + min(iii)
-                     zzz_sub= np.where(z_rho_grid[:,jjj_sub,iii_sub] <= max_z_sub)
-                     if zzz_sub:
-                         sub_array[zzz_sub,jjj_sub,iii_sub] = dv[zzz_sub,jjj_sub,iii_sub]
-                         sub_thick_array[zzz_sub,jjj_sub,iii_sub] = dz[zzz_sub,jjj_sub,iii_sub]
-                         
-                 sub_vol = sub_vol + np.sum(sub_array)
-         
+                 sub_thick_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dz[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                                                   
+                 
+                    
+             sub_vol = np.sum(sub_array)
+             
              sub_thick = np.sum(sub_thick_array, axis=0)
              
-             sub_thick[land_mask == 0] = np.nan
-     
-             sub_thick = sub_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
-     
-    # sub_thick[np.isnan(var_array[0,:,:])] = np.nan
-        
+             sub_thick = sub_thick[jjj,iii]
+             
+             sub_casts_array = sub_casts_array_full[jjj,iii]
+             
+
+             
     return sub_vol, sub_thick, sub_casts_array
 
 
 
 
-def getOBSCastsSubVolThick(info_df, df, var, threshold_val, z_rho_grid, dv, dz, land_mask, jjj, iii):
+def getOBSCastsSubVolThick(info_df, df, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array):
     
     """
     
@@ -750,16 +773,14 @@ def getOBSCastsSubVolThick(info_df, df, var, threshold_val, z_rho_grid, dv, dz, 
     """
 
     
-    sub_vol = 0
+    surf_casts_array_full = np.empty(np.shape(land_mask))
+    surf_casts_array_full.fill(np.nan)
     
+    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = surf_casts_array
+
     sub_thick_array = np.empty(np.shape(z_rho_grid))
-    sub_thick_array.fill(0)
     
-    surf_casts_array = np.empty(np.shape(land_mask))
-    surf_casts_array.fill(0)
-    
-    sub_casts_array = np.empty(np.shape(land_mask))
-    sub_casts_array.fill(0)    
+    sub_casts_array_full = np.empty(np.shape(surf_casts_array_full))
     
     
     if df.empty: # if there are no casts in this time period
@@ -768,18 +789,14 @@ def getOBSCastsSubVolThick(info_df, df, var, threshold_val, z_rho_grid, dv, dz, 
     
         sub_thick = np.sum(sub_thick_array, axis=0)
         
-        sub_thick = sub_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
-                    
+        sub_thick = sub_thick[jjj,iii]
+                            
         sub_vol = np.nan
         
-        surf_casts_array.fill(np.nan)
+        sub_casts_array_full.fill(np.nan)
         
-        surf_casts_array = surf_casts_array[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
-        
-        sub_casts_array.fill(np.nan)
-        
-        sub_casts_array = sub_casts_array[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
-                
+        sub_casts_array = sub_casts_array_full[jjj,iii]
+                        
         
     else: # if there ARE casts in this time period
             
@@ -787,25 +804,20 @@ def getOBSCastsSubVolThick(info_df, df, var, threshold_val, z_rho_grid, dv, dz, 
     
         if df_sub.empty: # if there are no subthreshold volumes
         
+            sub_vol = 0
+            
+            sub_thick_array.fill(0)
+            
             sub_thick = np.sum(sub_thick_array, axis=0)
             
-            sub_thick[land_mask == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK FOR PLOTTING
-            
-            sub_thick = sub_thick[min(jjj):max(jjj)+1, min(iii):max(iii)+1]
-            
-            surf_casts_array[land_mask == 0] = np.nan
+            sub_thick = sub_thick[jjj,iii]
                         
-            surf_casts_array = surf_casts_array[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
-            
-            sub_casts_array[land_mask == 0] = np.nan
-                        
-            sub_casts_array = sub_casts_array[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
-            
+            sub_casts_array_full.fill(np.nan)
         
+            sub_casts_array = sub_casts_array_full[jjj,iii]
+                    
         else: # if there ARE subthreshold volumes
-        
-            surf_casts_array = assignSurfaceToCasts(info_df, jjj, iii)
-        
+                
             info_df_sub = info_df.copy()
         
             for cid in info_df.index:
@@ -822,36 +834,36 @@ def getOBSCastsSubVolThick(info_df, df, var, threshold_val, z_rho_grid, dv, dz, 
     
             sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
             
-            max_z_sub = []
+            sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
             
+            sub_array = np.empty(np.shape(z_rho_grid))
+            sub_array.fill(0)
+
+            sub_thick_array.fill(0)
+                         
+            
+
             for cid in info_df_sub.index:
                 
-                df_temp = df_sub[df_sub['cid'] == cid]
+                df_temp = df_sub[df_sub['cid']==cid]
                 
                 max_z_sub = df_temp['z'].max()
                 
-                idx_sub = np.where(sub_casts_array == cid)
+                sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], 30, axis=0)
+                                                  
+                sub_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dv[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
                 
-                sub_array = np.empty(np.shape(z_rho_grid))
-                sub_array.fill(0)
+                sub_thick_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dz[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                                                  
                 
-                for nn in range(len(idx_sub[0])):
-                    jjj_sub = idx_sub[0][nn] + min(jjj)
-                    iii_sub = idx_sub[1][nn] + min(iii)
-                    zzz_sub= np.where(z_rho_grid[:,jjj_sub,iii_sub] <= max_z_sub)
-                    if zzz_sub:
-                        sub_array[zzz_sub,jjj_sub,iii_sub] = dv[zzz_sub,jjj_sub,iii_sub]
-                        sub_thick_array[zzz_sub,jjj_sub,iii_sub] = dz[zzz_sub,jjj_sub,iii_sub]
-                        
-                sub_vol = sub_vol + np.sum(sub_array)
+                   
+            sub_vol = np.sum(sub_array)
             
             sub_thick = np.sum(sub_thick_array, axis=0)
             
-            sub_thick[land_mask == 0] = np.nan # ESSENTIALLY - NEED TO REAPPLY LAND MASK FOR PLOTTING
+            sub_thick = sub_thick[jjj,iii]
             
-            sub_thick = sub_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
-
-            # land mask match for the volume sum???????
+            sub_casts_array = sub_casts_array_full[jjj,iii]
 
         
-    return sub_vol, sub_thick, surf_casts_array, sub_casts_array
+    return sub_vol, sub_thick, sub_casts_array
