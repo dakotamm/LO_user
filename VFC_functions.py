@@ -1,7 +1,7 @@
 """
-Functions for DM's VFC method!
+Functions for DM's VFC method! REVISED AGAIN
 
-Created 2023/03/23.
+Created 2023/05/23.
 
 """
 
@@ -26,52 +26,327 @@ from scipy.spatial import KDTree
 
 import itertools
 
-
-
-def extractCastsPerSegments(Ldir, fn, cast_start, cast_end, cast_year_str, fn_mon_str, fn_year_str, segment):
-    """
+# TO DO:
+    # plotting functions
+    # tidally-averaged grid, or take history file when obs cast was taken? - space inefficient!
+    # casts outside of segments (not generally in Salish Sea)
+    # speed limitations - this is clunky
+    # error catching
+    # fix extract cast - maybe check to see if the cast is already there? probably inefficient to have duplicate casts in different folders; revert to original cast extraction idea
+    # efficiency + fancy indexing
+    # using plon/plat - pfun.get_plon_plat
+    # make slow movies
     
-    Extracts casts in designated segmented for designated time in LO history file; uses obs locations for designated period.
-        
-    Inputs:
-        - LDir dictionary
-        - fn: history file to extract from
-        - cast_start: datetime to bound casts (using obs locations)
-        - cast_end: datetime to bound casts (using obs locations)
-        - cast_year_str: where to get location from in obs data (year)
-        - fn_mon_str: month of fn history file used (***need to generalize)
-        - fn_year_str: year of fn history file used (***need to generalize)
-        - segment string or list of strings
-        
-    """    
-    #grid info
+    
+
+def getGridInfo(fn):
+    
     G, S, T = zrfun.get_basic_info(fn)
+    land_mask = G['mask_rho']
     Lon = G['lon_rho'][0,:]
     Lat = G['lat_rho'][:,0]
+    plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
+    z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
+    dz = np.diff(z_w_grid,axis=0)
+    dv = dz*G['DX']*G['DY']
     
-    # get segment info
+    return G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, dz, dv
+
+    
+    
+def getSegmentInfo(Ldir):
+    
     vol_dir = Ldir['LOo'] / 'extract' / 'tef' / ('volumes_' + Ldir['gridname'])
     v_df = pd.read_pickle(vol_dir / 'volumes.p')
     j_dict = pickle.load(open(vol_dir / 'j_dict.p', 'rb'))
     i_dict = pickle.load(open(vol_dir / 'i_dict.p', 'rb'))
     seg_list = list(v_df.index)
     
-    out_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' /
-        (Ldir['source'] + '_' + Ldir['otype'] + '_' + cast_year_str))
-    Lfun.make_dir(out_dir, clean=False)
+    return vol_dir, v_df, j_dict, i_dict, seg_list
+
+
+def buildInfoDF(Ldir, info_fn_temp, info_fn):
     
-    info_fn = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / ('info_' + cast_year_str + '.p')
+    info_df_temp = pd.read_pickle(info_fn_temp)
+        
+    info_df_temp['source'] = Ldir['source']
     
-    ii= 0
+    info_df_temp['type'] = Ldir['otype']
     
+    info_df_temp['time'] = info_df_temp['time'].astype('datetime64[ns]')
+        
+    if info_fn.exists():
+        
+        info_df = pd.read_pickle(info_fn)
+        
+        if info_df[(info_df['type'] == Ldir['otype']) & (info_df['source'] == Ldir['source'])].empty:
+    
+            for col in info_df.columns:
+                
+                if col not in info_df_temp.columns:
+                    
+                    info_df_temp[col] = np.nan
+            
+            for col in info_df_temp.columns:
+                
+                if col not in info_df.columns:
+                    
+                    info_df[col] = np.nan
+                    
+            info_df = pd.concat([info_df, info_df_temp], ignore_index=True)
+            
+            info_df.index.name = 'cid'
+            
+            info_df.to_pickle(info_fn)
+            
+        else:
+            print('Data already added to info_df.')
+            
+        
+    else:
+        
+        info_df = info_df_temp
+        
+        info_df.to_pickle(info_fn)
+        
+        
+    return info_df_temp, info_df
+
+
+def buildDF(Ldir, fn_temp, fn, info_df):
+    
+    df_temp = pd.read_pickle(fn_temp)
+        
+    df_temp['source'] = Ldir['source']
+    
+    df_temp['type'] = Ldir['otype']
+    
+    df_temp['time'] = df_temp['time'].astype('datetime64[ns]')
+    
+    if fn.exists():
+        
+        df = pd.read_pickle(fn)
+        
+        if df[(df['type'] == Ldir['otype']) & (df['source'] == Ldir['source'])].empty:
+
+            for col in df.columns:
+                    
+                if col not in df_temp.columns:
+                        
+                    df_temp[col] = np.nan
+                    
+            for col in df_temp.columns:
+                
+                if col not in df.columns:
+                    
+                    df[col] = np.nan
+                        
+            df_temp['cid'] = df_temp['cid'] + info_df[(info_df['type'] == Ldir['otype']) & (info_df['source'] == Ldir['source'])].index.min()
+            
+            df = pd.concat([df, df_temp])
+            
+            df.to_pickle(fn)
+        
+        else:
+            print('Data already added to df.')
+            
+    else:
+        
+        df = df_temp
+        
+        df.to_pickle(fn)
+        
+        
+    return df_temp, df
+
+
+def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):
+    
+    """
+    Assigns indices from grid to segments for ease of use; this currently keeps all existing segments in dict that are called as parts of new segments.
+    
+    CAN OPTIONALLY NOT DO THIS AND JUST USE J_DICT, I_DICT
+    
+    Inputs:
+        - seg_str: list of strings indicating desired segment names
+        - seg_list_build: list of strings indicating segments to build new segments (can be an existing single segment or list of lists of segments; each item in the main list will become a segment)
+        - j_dict: big dict from the LO history file
+        - i_dict: ^^^
+        
+    Returns
+        - jjj_dict
+        - iii_dict
+        
+    """
+    
+    if seg_str_list == 'all':
+        
+        jjj_dict = j_dict
+        
+        iii_dict = i_dict
+    
+    elif seg_str_list == 'basins':
+        
+        seg_str_list = ['Admiralty Inlet', 'Strait of Georgia','Hood Canal','Strait of Juan de Fuca', 'Main Basin', 'South Sound', 'Tacoma Narrows', 'Whidbey Basin']
+        
+        seg_list_build = [['A1','A2','A3'], ['G1','G2','G3','G4','G5','G6'], ['H1','H2','H3','H4','H5','H6','H7','H8'], ['J1','J2','J3','J4'], ['M1','M2','M3','M4','M5','M6'], ['S1','S2','S3','S4'], ['T1', 'T2'], ['W1','W2','W3','W4']]
+    
+    elif seg_str_list == 'sound_straits':
+    
+        seg_str_list = ['Puget Sound', 'Strait of Georgia','Strait of Juan de Fuca']
+        
+        seg_list_build = [['A1','A2','A3', 'H1','H2','H3','H4','H5','H6','H7','H8', 'M1','M2','M3','M4','M5','M6', 'S1','S2','S3','S4', 'T1', 'T2', 'W1','W2','W3','W4'], ['G1','G2','G3','G4','G5','G6'], ['J1','J2','J3','J4']]
+     
+    elif seg_str_list == 'whole':
+        
+        seg_str_list = ['All Segments']
+        
+        seg_list_build = ['A1','A2','A3', 'H1','H2','H3','H4','H5','H6','H7','H8', 'M1','M2','M3','M4','M5','M6', 'S1','S2','S3','S4', 'T1', 'T2', 'W1','W2','W3','W4', 'G1','G2','G3','G4','G5','G6','J1','J2','J3','J4']
+        
+    
+    if seg_str_list != 'all':
+        
+        jjj_dict = {}
+        
+        iii_dict = {}
+        
+        for (seg_str, seg_object) in zip(seg_str_list, seg_list_build):
+            
+            if isinstance(seg_object, list):
+                
+                jjj_all = []
+                iii_all = []
+                    
+                for seg_name in seg_object:
+                    
+                    jjj_temp = j_dict[seg_name]
+                    iii_temp = i_dict[seg_name]
+                    
+                    jjj_all.extend(jjj_temp[:])
+                    iii_all.extend(iii_temp[:])
+                        
+                jjj_dict[seg_str] = np.asarray(jjj_all)
+                iii_dict[seg_str] = np.asarray(iii_all)
+                
+            else:
+                
+                seg_name = seg_object
+                
+                jjj_dict[seg_str] = j_dict[seg_name]
+                iii_dict[seg_str] = i_dict[seg_name]
+            
+    
+    return jjj_dict, iii_dict, seg_str_list
+
+
+
+
+def getCleanInfoDF(info_fn, land_mask, Lon, Lat, seg_list, jjj_dict, iii_dict):
+    
+    """
+    Cleans the info_df (applicable to both LO casts and obs casts). Need to have defined segments and LO grid components.
+    
+    Input:
+        - info_fn
+        - land_mask:  extracted from "G"
+        - Lon: extracted from "G"
+        - Lat: extracted from "G"
+        - seg_list: list of segments (either given or defined using defineSegmentIndices)
+        - jjj_dict:
+        - iii_dict:
+    
+    """
+    
+    info_df = pd.read_pickle(info_fn)
+    
+    info_df['ix'] = 0
+
+    info_df['iy'] = 0
+    
+    info_df['segment'] = 'None'
+    
+    info_df['ii_cast'] = np.nan
+
+    info_df['jj_cast'] = np.nan
+    
+
+    for cid in info_df.index:
+
+        info_df.loc[cid,'ix'] = zfun.find_nearest_ind(Lon, info_df.loc[cid,'lon'])
+
+        info_df.loc[cid,'iy'] = zfun.find_nearest_ind(Lat, info_df.loc[cid,'lat'])
+        
+        if land_mask[info_df.loc[cid,'iy'], info_df.loc[cid,'ix']] == 1:
+            
+            info_df.loc[cid, 'ii_cast'] = info_df.loc[cid, 'ix']
+            
+            info_df.loc[cid, 'jj_cast'] = info_df.loc[cid, 'iy']
+            
     for seg_name in seg_list:
         
-        if segment in seg_name:
-                
-            jjj = j_dict[seg_name]
-            iii = i_dict[seg_name]
+        ij_pair = list(zip(iii_dict[seg_name],jjj_dict[seg_name]))
+        
+        for cid in info_df.index:        
+              
+            pair = (info_df.loc[cid,'ix'].tolist(), info_df.loc[cid,'iy'].tolist())
             
-            info_df = pd.read_pickle(info_fn)
+            if pair in ij_pair:
+                info_df.loc[cid,'segment'] = seg_name
+            
+    info_df = info_df[~(np.isnan(info_df['jj_cast'])) & ~(np.isnan(info_df['ii_cast']))]
+        
+    return info_df
+    
+
+
+def getCleanDF(fn, info_df):
+    
+    """
+    Cleans the df (applicable to obs casts). (MODIFIES DO COLUMN) - works with bottles and ctds
+    
+    Input:
+        - fn
+        - info_df: clean info_df
+    
+    """
+    
+    df = pd.read_pickle(fn)
+    
+    df = pd.merge(df, info_df[['ix','iy','ii_cast','jj_cast','segment']], how='left', on=['cid'])
+
+    df['DO_mg_L'] = df['DO (uM)']*32/1000
+        
+    return df
+    
+    
+
+
+def extractLOCasts(Ldir, info_df, fn):
+    
+    """
+    
+    Extracts casts in designated segment for designated time in LO history file; uses obs locations for designated period.
+        
+    Inputs:
+        - LDir dictionary
+        - info_df: 
+        - fn: history file to be used
+        - CLUNKY NEEDS REVISE ***
+        
+    Outputs:
+        - NONE: saves to output directory for future use
+        
+    """   
+    
+    if not info_df.empty:
+        
+        LO_casts_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' / (str(Ldir['year'])) / (str(info_df['segment'].iloc[0]) + '_' + str(info_df['time'].dt.date.min()) + '_' + str(info_df['time'].dt.date.max()) ) )
+                
+        if not LO_casts_dir.exists():
+                
+            Lfun.make_dir(LO_casts_dir, clean=False) # clean=True clobbers the entire directory so be wary kids
+                
+            ii = 0
             
             N = len(info_df.index)
             Nproc = Ldir['Nproc']
@@ -79,194 +354,123 @@ def extractCastsPerSegments(Ldir, fn, cast_start, cast_end, cast_year_str, fn_mo
             
             for cid in info_df.index:
                 
-                if info_df.loc[cid,'time'] >= cast_start and info_df.loc[cid,'time'] <= cast_end:
-            
+                out_fn = LO_casts_dir / (str(int(cid)) + '.nc')
+                
+                if out_fn.exists():
+                    
+                    continue
+                
+                else:
+                    
                     lon = info_df.loc[cid, 'lon']
                     lat = info_df.loc[cid, 'lat']
+                                
+                    # check on which bio variables to get
+                    if ii == 0:
+                        ds = xr.open_dataset(fn)
+                        if 'NH4' in ds.data_vars:
+                            npzd = 'new'
+                        elif 'NO3' in ds.data_vars:
+                            npzd = 'old'
+                        else:
+                            npzd = 'none'
+                        ds.close()
                     
-                    ix = zfun.find_nearest_ind(Lon, lon)
-                    iy = zfun.find_nearest_ind(Lat, lat)
-                    
-                    
-                    if (ix in iii) and (iy in jjj):
-                    
-                        out_fn = out_dir / (str(int(cid)) + '_' +segment + '_'+str(cast_start.month)+'-'+str(cast_end.month)+'_'+cast_year_str+'_' + fn_mon_str + '_' +fn_year_str+'.nc')
-                        
-                        # check on which bio variables to get
-                        if ii == 0:
-                            ds = xr.open_dataset(fn)
-                            if 'NH4' in ds.data_vars:
-                                npzd = 'new'
-                            elif 'NO3' in ds.data_vars:
-                                npzd = 'old'
-                            else:
-                                npzd = 'none'
-                            ds.close()
-                        
-                        print('Get ' + out_fn.name)
-                        sys.stdout.flush()
-                        
-                        
-                        # Nproc controls how many subprocesses we allow to stack up
-                        # before we require them all to finish.
-                        cmd_list = ['python','cast_worker.py',
-                        '-out_fn',str(out_fn),
-                        '-fn',str(fn),
-                        '-lon',str(lon),
-                        '-lat',str(lat),
-                        '-npzd',npzd]
-                        proc = Po(cmd_list, stdout=Pi, stderr=Pi)
-                        proc_list.append(proc)
-                        # run a collection of processes
-                        if ((np.mod(ii,Nproc) == 0) and (ii > 0)) or (ii == N-1) or (Ldir['testing'] and (ii > 3)):
-                            for proc in proc_list:
-                                if Ldir['testing']:
-                                    print('executing proc.communicate()')
-                                stdout, stderr = proc.communicate()
-                                if len(stdout) > 0:
-                                    print('\n' + ' sdtout '.center(60,'-'))
-                                    print(stdout.decode())
-                                if len(stderr) > 0:
-                                    print('\n' + ' stderr '.center(60,'-'))
-                                    print(stderr.decode())
-                            proc_list = []
-                        # ======================================
-                        ii += 1
+                    print('Get ' + out_fn.name)
+                    sys.stdout.flush()
+                                    
+                                    
+                    # Nproc controls how many subprocesses we allow to stack up
+                    # before we require them all to finish.
+                    cmd_list = ['python','cast_worker.py',
+                    '-out_fn',str(out_fn),
+                    '-fn',str(fn),
+                    '-lon',str(lon),
+                    '-lat',str(lat),
+                    '-npzd',npzd]
+                    proc = Po(cmd_list, stdout=Pi, stderr=Pi)
+                    proc_list.append(proc)
+                    # run a collection of processes
+                    if ((np.mod(ii,Nproc) == 0) and (ii > 0)) or (ii == N-1) or (Ldir['testing'] and (ii > 3)):
+                        for proc in proc_list:
+                            if Ldir['testing']:
+                                print('executing proc.communicate()')
+                            stdout, stderr = proc.communicate()
+                            if len(stdout) > 0:
+                                print('\n' + ' sdtout '.center(60,'-'))
+                                print(stdout.decode())
+                            if len(stderr) > 0:
+                                print('\n' + ' stderr '.center(60,'-'))
+                                print(stderr.decode())
+                        proc_list = []
+                    # ======================================
+                    ii += 1
+        
 
-
-def getAllSegmentIndices(info_fn, seg_list, j_dict, i_dict):
-    
-    """
-    Assigns indices from grid to segments for ease of use.
-    
-    Inputs:
-        - info_fn
-        - seg_list
-        - j_dict
-        - i_dict
-        
-    Returns
-        - jjj_dict
-        - jjj_all
-        - iii_dict
-        - iii_all
-        
-    """
-    
-    jjj_all = []
-    iii_all = []
-    
-    jjj_dict = {}
-    iii_dict = {}
-    
-   # info_df = pd.read_pickle(info_fn)
-
-    for seg_name in seg_list:
-        
-        jjj_temp = j_dict[seg_name]
-        iii_temp = i_dict[seg_name]
-        
-        jjj_all.extend(jjj_temp[:])
-        iii_all.extend(iii_temp[:])
-        
-        jjj_dict[seg_name] = jjj_temp
-        iii_dict[seg_name] = iii_temp
-    
-    jjj_dict['all'] = np.asarray(jjj_all)
-    iii_dict['all'] = np.asarray(iii_all)
-    
-    return jjj_dict, iii_dict
     
 
-def assignSurfaceToCasts(Ldir, info_fn, cast_start, cast_end, Lon, Lat, jjj, iii, land_mask):
+def assignSurfaceToCasts(info_df, jjj, iii):
     """
     
     Assigns surface domain indices to casts using KDTree algorithm. Currently takes a list of segments or default NONE 
     to use every segment.
         
     Inputs:
-        - LDir dictionary
-        - info_fn (where casts are coming from, a pickle file usually from obs usually); currently just one at a time***
-        - cast_start datetime to bound casts (using obs locations)
-        - cast_end datetime to bound casts (using obs locations)
-        - Lon field from LO grid info
-        - Lat field from LO grid info
-        - segment string (just one in loop usually)
+        - info_df: cleaned data frame for specific time/space
+        - jjj: indices for this segment
+        - iii: indices for this segment
         
     Returns:
         - masked array with partitioned domain by cast
-        - jj_cast (j indices of casts)
-        - ii_cast (i indices of casts)
-        
-    ***should make based on processed casts instead
-    
+            
     """
     
-    info_df = pd.read_pickle(info_fn)
-        
-    jj_cast = []
-    ii_cast = []
     
-   # jj_cast_temp = []
-    #ii_cast_temp  = []
-            
-    for cid in info_df.index:
-        
-        if info_df.loc[cid,'time'] >= cast_start and info_df.loc[cid,'time'] <= cast_end:
-        
-            lon = info_df.loc[cid, 'lon']
-            lat = info_df.loc[cid, 'lat']
-            
-            jj = zfun.find_nearest_ind(Lat, lat)
-            ii = zfun.find_nearest_ind(Lon, lon)
-            
-            if (ii in iii) and (jj in jjj):
-                
-                if land_mask[jj,ii] == 1:
-                
-                    jj_cast.append(jj)
-                    ii_cast.append(ii)
-                
     xx = np.arange(min(iii), max(iii)+1)
     yy = np.arange(min(jjj), max(jjj)+1)
-    x, y = np.meshgrid(xx, yy)
+                
+    if info_df.empty:
+        
+        surf_casts_array = np.empty([len(yy),len(xx)])
+        surf_casts_array.fill(np.nan)
+                
+    else:
+        
+        x, y = np.meshgrid(xx, yy)
+                
+        a = np.full([len(yy),len(xx)], -99)
+        a[jjj-min(jjj),iii-min(iii)] = -1
+        a = np.ma.masked_array(a,a==-99)
+    
+        b = a.copy()
+        
+        for cid in info_df.index:
+            b[int(info_df.loc[cid, 'jj_cast'])-min(jjj), int(info_df.loc[cid, 'ii_cast'])-min(iii)] = cid # use string to see if it helps plotting?
             
-    a = np.full([len(yy),len(xx)], -99)
-    a[jjj-min(jjj),iii-min(iii)] = -1
-    a = np.ma.masked_array(a,a==-99)
-
-    b = a.copy()
+        c = b.copy()
+        c = np.ma.masked_array(c,c==-1)
+            
+        xy_water = np.array((x[~a.mask],y[~a.mask])).T
     
-    for n in range(len(jj_cast)):
-        b[jj_cast[n]-min(jjj), ii_cast[n]-min(iii)] = n
+        xy_casts = np.array((x[~c.mask],y[~c.mask])).T
+    
+        tree = KDTree(xy_casts)
+    
+        tree_query = tree.query(xy_water)[1]
+    
+        surf_casts_array = a.copy()
         
-    c = b.copy()
-    c = np.ma.masked_array(c,c==-1)
-        
-    xy_water = np.array((x[~a.mask],y[~a.mask])).T
-
-    xy_casts = np.array((x[~c.mask],y[~c.mask])).T
-
-    tree = KDTree(xy_casts)
-
-    tree_query = tree.query(xy_water)[1]
-
-    surf_casts_array = a.copy()
-    
-    surf_casts_array[~a.mask] = b[~c.mask][tree_query]
-    
-    return surf_casts_array, jj_cast, ii_cast
+        surf_casts_array[~a.mask] = b[~c.mask][tree_query]
+            
+    return surf_casts_array
 
 
 
-
-def getLOSubVolThick(fn_his, jjj, iii, var, threshold_val):
+def getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val):
     """
     
     Gets LO subthreshold thickness and volume from specified LO_output.
-    
-    ***I want to add more here, like bottom area.***
-        
+            
     Inputs:
         - fn_his: LO history file to use (one at a time for now)
         - jjj: array of j indices in segment domain
@@ -281,22 +485,17 @@ def getLOSubVolThick(fn_his, jjj, iii, var, threshold_val):
     
     """
     
-    G, S, T = zrfun.get_basic_info(fn_his)
-    z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
-    dz = np.diff(z_w_grid,axis=0)
-    dv = dz*G['DX']*G['DY']
+    dv_sliced = dv[:, jjj, iii]
+    
+    dz_sliced = dz[:, jjj, iii]
     
    # dv_sliced = dv[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
     
-    #dz_sliced = dz[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+   # dz_sliced = dz[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
     
-    dv_sliced = dv[:,jjj,iii]
-    
-    dz_sliced = dz[:,jjj,iii]
-
     ds_his = xr.open_dataset(fn_his)
     
-    if var =='oxygen':
+    if var =='DO_mg_L':
         
         var_array = (ds_his.oxygen.squeeze()*32/1000).to_numpy() #molar mass of O2 ###double check this
         
@@ -306,15 +505,17 @@ def getLOSubVolThick(fn_his, jjj, iii, var, threshold_val):
     
    # var_array = var_array[:,min(jjj):max(jjj)+1,min(iii):max(iii)+1]
     
-    var_array = var_array[:,jjj,iii]
+    var_array = var_array[:, jjj, iii]
     
     dv_sub = dv_sliced.copy()
     
     dv_sub[var_array > threshold_val] = 0
     
-   # dv_sub[np.isnan(var_array)] = np.nan
+    #dv_sub[np.isnan(var_array)] = np.nan
         
-    sub_vol_sum = np.nansum(dv_sub)
+    #sub_vol_sum = np.nansum(dv_sub)
+    
+    sub_vol_sum = np.sum(dv_sub)
         
     dz_sub = dz_sliced.copy()
     
@@ -322,14 +523,18 @@ def getLOSubVolThick(fn_his, jjj, iii, var, threshold_val):
     
     #dz_sub[np.isnan(var_array)] = np.nan
     
-    sub_thick_sum = np.nansum(dz_sub, axis=0) #units of m...how thick hypoxic column is...depth agnostic
+    #sub_thick_sum = np.nansum(dz_sub, axis=0) #units of m...how thick hypoxic column is...depth agnostic
     
-    #sub_thick_sum[np.isnan(var_array[0,:,:])] = np.nan
+    sub_thick_sum = np.sum(dz_sub, axis=0) #units of m...how thick hypoxic column is...depth agnostic
     
-    return var_array, sub_vol_sum, sub_thick_sum
+    # sub_thick_sum[np.isnan(var_array[0,:,:])] = np.nan
+    
+    return sub_vol_sum, sub_thick_sum #var_array
 
 
-def getCastsAttrs(in_dir,fn_list):
+
+
+def getLOCastsAttrs(fn):
     """
     
     Gets attributes from individual casts.
@@ -337,18 +542,18 @@ def getCastsAttrs(in_dir,fn_list):
     ***Can add more.
         
     Inputs:
-        - in_dir: directory to find processed casts
+        - LO_casts_dir: directory to find processed casts
         - fn_list: cast files
         
     Returns:
         - z_rho: depth [m]
         - oxygen: DO [mg/L]
-        - sal: salinity [g/kg]***
-        - temp: temperature [C]***
-        - s0: bottom salinity (bottom sigma layer)
-        - s1: surface salinity (top sigma layer)
-        - t0: bottom temp
-        - t1: surface temp
+        # - sal: salinity [g/kg]***
+        # - temp: temperature [C]***
+        # - s0: bottom salinity (bottom sigma layer)
+        # - s1: surface salinity (top sigma layer)
+        # - t0: bottom temp
+        # - t1: surface temp
         
     NEED TO GENERALIZE
     
@@ -362,38 +567,38 @@ def getCastsAttrs(in_dir,fn_list):
     #t0 = []; t1 = []
     #sal = []
     #temp = []
-    z_rho = []
-    oxygen = []
+   # z_rho = []
+   # oxygen = []
     
-    for fn in fn_list:
-        ds = xr.open_dataset(fn)
-        z_rho.append(ds.z_rho.values)
-        oxygen.append(ds.oxygen.values*32/1000)  # mg/L
-        #sal.append(ds.salt.values)
-        #temp.append(ds.temp.values)
-        #s0.append(ds.salt[0].values)
-        #t0.append(ds.temp[0].values)
-        #s1.append(ds.salt[-1].values)
-        #t1.append(ds.temp[-1].values)
-        ds.close()
+    ds = xr.open_dataset(fn)
+    z_rho = ds.z_rho.values
+    oxygen = ds.oxygen.values*32/1000  # mg/L
+    #sal.append(ds.salt.values)
+    #temp.append(ds.temp.values)
+    #s0.append(ds.salt[0].values)
+    #t0.append(ds.temp[0].values)
+    #s1.append(ds.salt[-1].values)
+    #t1.append(ds.temp[-1].values)
+    ds.close()
         
     return z_rho, oxygen #, sal, temp, s0, t0, s1, t1
         
         
 
 
-def getCastsSubVolThick(in_dir, fn_list, var, threshold_val, fn_his, jjj, iii, ii_cast, surf_casts_array, var_array):
+def getLOCastsSubVolThick(Ldir, info_df, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array):
     """
     
-    Gets subthreshold volume and thickness from casts (volume-from-casts method).
+    Gets subthreshold volume and thickness from LO casts (volume-from-casts method).
     
     ***Can add more.
         
     Inputs:
-        - ii_cast: i indices to assign cast #s
+        - Ldir: big directory situation 
+        - info_df: all the cast info (cleaned)
         - var: variable to work with, from "getCastsAttrs"
         - threshold_val: define threshold for var (under which is considered here)
-        - fn_his: LO grid to work with (used both with LO casts and obs)
+        - fn_his: LO grid to work with
         - z_rho: depth from "getCastsAttrs"
         - jjj: j indices of domain
         - iii: i indices of domain
@@ -404,73 +609,261 @@ def getCastsSubVolThick(in_dir, fn_list, var, threshold_val, fn_his, jjj, iii, i
         - sub_vol: sub-threshold volume (one value)
         - sub_thick: sub-threshold thickness (array of thicknesses in domain)
         
-    GENERALIZE
+    GENERALIZE TO OTHER VARIABLES
+    
+    """
+        
+    surf_casts_array_full = np.empty(np.shape(land_mask))
+    surf_casts_array_full.fill(np.nan)
+    
+    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = surf_casts_array
+
+    sub_thick_array = np.empty(np.shape(z_rho_grid))
+    
+    sub_casts_array_full = np.empty(np.shape(surf_casts_array_full))
+    
+        
+    if info_df.empty: #if no casts in this time period and region
+        
+        sub_thick_array.fill(np.nan)
+    
+        sub_thick = np.sum(sub_thick_array, axis=0)
+        
+        sub_thick = sub_thick[jjj,iii]
+                            
+        sub_vol = np.nan
+        
+        sub_casts_array_full.fill(np.nan)
+        
+        sub_casts_array = sub_casts_array_full[jjj,iii]
+        
+        print('no casts')
+
+        
+    else: #if there are casts in this time and region
+    
+        LO_casts_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' / (str(Ldir['year'])) / (str(info_df['segment'].iloc[0]) + '_' + str(info_df['time'].dt.date.min()) + '_' + str(info_df['time'].dt.date.max()) ) )
+    
+        df0 = pd.DataFrame()
+    
+        df0['cid'] = []
+            
+        df0['z_rho'] = []
+    
+        df0[var] = []
+    
+        for cid in info_df.index:
+            
+            df_temp = pd.DataFrame()    
+            
+            fn = (LO_casts_dir) / (str(cid) + '.nc')
+            
+            if fn.exists(): 
+            
+                z_rho, var_out = getLOCastsAttrs(fn) #need to generalize
+                        
+                df_temp['z_rho'] = z_rho
+                
+                df_temp[var] = var_out
+                
+                df_temp['cid'] = cid
+                
+                df0 = pd.concat([df0, df_temp])
+                
+        df_sub = df0[df0[var] < threshold_val]
+        
+        
+        if df_sub.empty: # if no subthreshold values
+            
+            sub_vol = 0
+            
+            sub_thick_array.fill(0)
+            
+            sub_thick = np.sum(sub_thick_array, axis=0)
+            
+            sub_thick = sub_thick[jjj,iii]
+                        
+            sub_casts_array_full.fill(np.nan)
+        
+            sub_casts_array = sub_casts_array_full[jjj,iii]
+            
+            print('no sub')
+
+            
+        else: # if subthreshold values!
+                                   
+             info_df_sub = info_df.copy()
+         
+             for cid in info_df.index:
+                 
+                 if ~(cid in df_sub['cid'].unique()):
+                     
+                     info_df_sub.drop([cid])
+             
+             sub_casts_array = surf_casts_array.copy()
+     
+             sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
+     
+             sub_casts_array = np.array(sub_casts_array)
+     
+             sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
+             
+             sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
+             
+             sub_array = np.empty(np.shape(z_rho_grid))
+             sub_array.fill(0)
+
+             sub_thick_array.fill(0)
+                          
+             
+ 
+             for cid in info_df_sub.index:
+                 
+                 df_temp = df_sub[df_sub['cid']==cid]
+                 
+                 max_z_sub = df_temp['z_rho'].max()
+                 
+                 sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], 30, axis=0)
+                                                   
+                 sub_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dv[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                 
+                 sub_thick_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dz[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                                                   
+                 
+                    
+             sub_vol = np.sum(sub_array)
+             
+             sub_thick = np.sum(sub_thick_array, axis=0)
+             
+             sub_thick = sub_thick[jjj,iii]
+             
+             sub_casts_array = sub_casts_array_full[jjj,iii]
+             
+
+             
+    return sub_vol, sub_thick, sub_casts_array
+
+
+
+
+def getOBSCastsSubVolThick(info_df, df, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array):
     
     """
     
-    z_rho, var_out = getCastsAttrs(in_dir, fn_list) #need to generalize
+    Gets subthreshold volume and thickness from casts (volume-from-casts method).
             
-    G, S, T = zrfun.get_basic_info(fn_his)
-    z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
-    dz = np.diff(z_w_grid,axis=0)
-    dv = dz*G['DX']*G['DY']
+    Inputs:
+        - info_df_use: all the cast info (cleaned)
+        - df_use: all the 
+        - var: variable to work with, from "getCastsAttrs"
+        - threshold_val: define threshold for var (under which is considered here)
+        - dv: from grid
+        - dz: from grid
+        - land_mask: from grid
+        - jjj: j indices of domain
+        - iii: i indices of domain
         
-    cast_no = list(map(str, np.arange(len(ii_cast))))
+    Returns:
+        - sub_vol: sub-threshold volume (one value)
+        - sub_thick: sub-threshold thickness (array of thicknesses in domain)
+        - sub_array: where the casts are beneath a threshold in surface domain
+        
+    GENERALIZE TO OTHER VARIABLES
+    
+    """
 
-    df0 = pd.DataFrame(var_out)
-    df0['cast_no'] = cast_no
-    df0 = pd.melt(df0, id_vars=['cast_no'], var_name='sigma_level', value_name = var)
-
-    df1 = pd.DataFrame(z_rho)
-    df1['cast_no'] = cast_no
-    df1 = pd.melt(df1, id_vars=['cast_no'], var_name='sigma_level', value_name='z_rho')
-
-    df = df0.merge(df1,on=['cast_no','sigma_level'])
-
-    df_sub = df[df[var] < threshold_val]
-
-    sub_casts = df_sub['cast_no'].unique()
-
-    sub_casts = [int(l) for l in sub_casts]
-
-    sub_casts_array = surf_casts_array.copy()
-
-    sub_casts_array = [[ele if ele in sub_casts else -99 for ele in line] for line in sub_casts_array]
-
-    sub_casts_array = np.array(sub_casts_array)
-
-    sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
-
-    max_z_sub = []
-
-    sub_vol = 0
+    
+    surf_casts_array_full = np.empty(np.shape(land_mask))
+    surf_casts_array_full.fill(np.nan)
+    
+    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = surf_casts_array
 
     sub_thick_array = np.empty(np.shape(z_rho_grid))
-    sub_thick_array.fill(0)
-
-    for n in range(len(sub_casts)):
-        df_temp = df_sub[df_sub['cast_no']==str(sub_casts[n])]
-        max_z_sub = df_temp['z_rho'].max()
-        idx_sub = np.where(sub_casts_array == sub_casts[n])
-        sub_array = np.empty(np.shape(z_rho_grid))
-        sub_array.fill(0)
+    
+    sub_casts_array_full = np.empty(np.shape(surf_casts_array_full))
+    
+    
+    if df.empty: # if there are no casts in this time period
+    
+        sub_thick_array.fill(np.nan)
+    
+        sub_thick = np.sum(sub_thick_array, axis=0)
         
-        for nn in range(len(idx_sub[0])):
-            jjj_sub = idx_sub[0][nn] + min(jjj)
-            iii_sub = idx_sub[1][nn] + min(iii)
-            zzz_sub= np.where(z_rho_grid[:,jjj_sub,iii_sub] <= max_z_sub)
-            if zzz_sub:
-                sub_array[zzz_sub,jjj_sub,iii_sub] = dv[zzz_sub,jjj_sub,iii_sub]
-                sub_thick_array[zzz_sub,jjj_sub,iii_sub] = dz[zzz_sub,jjj_sub,iii_sub]
+        sub_thick = sub_thick[jjj,iii]
+                            
+        sub_vol = np.nan
+        
+        sub_casts_array_full.fill(np.nan)
+        
+        sub_casts_array = sub_casts_array_full[jjj,iii]
                         
-        sub_vol = sub_vol + np.sum(sub_array)
         
-    sub_thick = np.sum(sub_thick_array, axis=0)
+    else: # if there ARE casts in this time period
+            
+        df_sub = df[df[var] < threshold_val]
     
-    sub_thick = sub_thick[min(jjj):max(jjj)+1,min(iii):max(iii)+1]
+        if df_sub.empty: # if there are no subthreshold volumes
+        
+            sub_vol = 0
+            
+            sub_thick_array.fill(0)
+            
+            sub_thick = np.sum(sub_thick_array, axis=0)
+            
+            sub_thick = sub_thick[jjj,iii]
+                        
+            sub_casts_array_full.fill(np.nan)
+        
+            sub_casts_array = sub_casts_array_full[jjj,iii]
+                    
+        else: # if there ARE subthreshold volumes
+                
+            info_df_sub = info_df.copy()
+        
+            for cid in info_df.index:
+                
+                if ~(cid in df_sub['cid'].unique()):
+                    
+                    info_df_sub.drop([cid])
+            
+            sub_casts_array = surf_casts_array.copy()
     
-    sub_thick[np.isnan(var_array[0,:,:])] = np.nan
+            sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
+    
+            sub_casts_array = np.array(sub_casts_array)
+    
+            sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
+            
+            sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
+            
+            sub_array = np.empty(np.shape(z_rho_grid))
+            sub_array.fill(0)
+
+            sub_thick_array.fill(0)
+                         
+            
+
+            for cid in info_df_sub.index:
+                
+                df_temp = df_sub[df_sub['cid']==cid]
+                
+                max_z_sub = df_temp['z'].max()
+                
+                sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], 30, axis=0)
+                                                  
+                sub_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dv[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                
+                sub_thick_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dz[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                                                  
+                
+                   
+            sub_vol = np.sum(sub_array)
+            
+            sub_thick = np.sum(sub_thick_array, axis=0)
+            
+            sub_thick = sub_thick[jjj,iii]
+            
+            sub_casts_array = sub_casts_array_full[jjj,iii]
+
         
-    return sub_vol, sub_thick      
-        
-        
+    return sub_vol, sub_thick, sub_casts_array
