@@ -14,9 +14,9 @@ from datetime import datetime
 
 from lo_tools import Lfun, zfun, zrfun
 from lo_tools import extract_argfun as exfun
-import cast_functions as cfun
+import cast_functions as cfun #remove local dependency
 from lo_tools import plotting_functions as pfun
-import tef_fun as tfun
+import tef_fun as tfun #remove local dependency
 import pickle
 
 import VFC_functions_3 as vfun3
@@ -48,9 +48,9 @@ fn_his = cfun.get_his_fn_from_dt(Ldir, dt)
 
 if Ldir['testing']:
 
-    month_num = ['09'] # ['01', '02','03','04','05','06','07','08','09','10','11','12']
+    month_num =  ['01', '02','03','04','05','06','07','08','09','10','11','12']
     
-    month_str = ['Sep'] #,['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     
 else:
     
