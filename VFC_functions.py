@@ -53,7 +53,7 @@ def getGridInfo(fn):
     dv = dz*G['DX']*G['DY']
     h = G['h']
     
-    return G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, dz, dv, h
+    return G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h
 
     
     
@@ -244,7 +244,7 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):
 
 
 
-def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, iii_dict):
+def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, iii_dict, var):
     
     """
     Cleans the info_df (applicable to both LO casts and obs casts). Need to have defined segments and LO grid components. Cleans the df (applicable to obs casts). (MODIFIES DO COLUMN) - works with bottles and ctds
@@ -306,6 +306,14 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
 
     df['DO_mg_L'] = df['DO (uM)']*32/1000
     
+    df = df[~np.isnan(df[var])]
+    
+    bad_casts = np.asarray([val for val in info_df.index if val not in df['cid'].unique().astype('int64')])
+    
+    for bad in bad_casts:
+        
+        info_df.drop([bad], inplace=True)
+    
     
     bad_casts = np.asarray([val for val in df['cid'].unique().astype('int64') if val not in info_df.index])
     
@@ -326,7 +334,7 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
         
     for cid in min_z.index:
 
-        if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -0.5*min_z.loc[cid, 'h']):
+        if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -0.8*min_z.loc[cid, 'h']):
             
             info_df.drop([cid], inplace=True)
             
@@ -428,6 +436,8 @@ def extractLOCasts(Ldir, info_df_use, fn_his):
                         proc_list = []
                     # ======================================
                     ii += 1
+        else:
+            print('cast extraction exists')
         
 
     
@@ -686,7 +696,7 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
          
              for cid in info_df_use.index:
                  
-                 if ~(cid in df_sub['cid'].unique()):
+                 if cid not in df_sub['cid'].unique():
                      
                      info_df_sub.drop([cid], inplace = True)
              
@@ -711,13 +721,27 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                  
                  df_temp = df_sub[df_sub['cid']==cid]
                  
-                 max_z_sub = df_temp['z_rho'].max()
+                 z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid,'ii_cast'])]
                  
-                 sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], 30, axis=0)
+                 n = 0
+                 
+                 for depth in z_rho_array:
+                     
+                     if depth not in np.asarray(df_temp['z_rho']):
+                         
+                         z_rho_array[n] = np.nan
+                         
+                     n +=1
+                         
+                 z_rho_array_full = np.repeat(z_rho_array[:,np.newaxis], np.size(z_rho_grid, axis=1), axis=1)
+                 
+                 z_rho_array_full_3d = np.repeat(z_rho_array_full[:,:,np.newaxis], np.size(z_rho_grid, axis=2), axis=2)
+                 
+                 sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], np.size(z_rho_grid, axis=0), axis=0)
                                                    
-                 sub_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dv[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                 sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
                  
-                 sub_thick_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dz[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                 sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
                                                    
                  
                     
@@ -812,7 +836,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
         
             for cid in info_df_use.index:
                 
-                if ~(cid in df_sub['cid'].unique()):
+                if cid not in df_sub['cid'].unique():
                     
                     info_df_sub.drop([cid], inplace = True)
             
@@ -836,15 +860,38 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
             for cid in info_df_sub.index:
                 
                 df_temp = df_sub[df_sub['cid']==cid]
+                                
+                z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid, 'ii_cast'])]
+                                                
+                good_depths = []
                 
-                max_z_sub = df_temp['z'].max()
+                for depth in np.asarray(df_temp['z']):
+                    
+                    difs = abs(depth - z_rho_array)
+                    
+                    good_depths.append(np.argmin(difs))
+                    
+                good_depths = np.asarray(good_depths)
                 
-                sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], 30, axis=0)
+                good_depths = np.unique(good_depths)
+                                
+                for n in range(len(z_rho_array)):
+                    
+                    if n not in good_depths:
+                        
+                        z_rho_array[n] = np.nan
+                    
+                    
+                z_rho_array_full = np.repeat(z_rho_array[:,np.newaxis], np.size(z_rho_grid, axis=1), axis=1)
+                
+                z_rho_array_full_3d = np.repeat(z_rho_array_full[:,:,np.newaxis], np.size(z_rho_grid, axis=2), axis=2)
+                                
+                sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], np.size(z_rho_grid, axis=0), axis=0)
                                                   
-                sub_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dv[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
+                sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
                 
-                sub_thick_array[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)] = dz[(sub_casts_array_full_3d == cid) & (z_rho_grid <= max_z_sub)]
-                                                  
+                sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
+                                             
                 
                    
             sub_vol = np.sum(sub_array)
