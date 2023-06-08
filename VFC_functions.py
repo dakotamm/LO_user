@@ -70,9 +70,9 @@ def getSegmentInfo(Ldir):
     return vol_dir, v_df, j_dict, i_dict, seg_list
 
 
-def buildInfoDF(Ldir, info_fn_temp, info_fn):
+def buildInfoDF(Ldir, info_fn_in, info_fn):
     
-    info_df_temp = pd.read_pickle(info_fn_temp)
+    info_df_temp = pd.read_pickle(info_fn_in)
         
     info_df_temp['source'] = Ldir['source']
     
@@ -115,12 +115,12 @@ def buildInfoDF(Ldir, info_fn_temp, info_fn):
         info_df.to_pickle(info_fn)
         
         
-    return info_df_temp, info_df
+    return info_df
 
 
-def buildDF(Ldir, fn_temp, fn, info_df):
+def buildDF(Ldir, fn_in, fn, info_df):
     
-    df_temp = pd.read_pickle(fn_temp)
+    df_temp = pd.read_pickle(fn_in)
         
     df_temp['source'] = Ldir['source']
     
@@ -162,7 +162,7 @@ def buildDF(Ldir, fn_temp, fn, info_df):
         df.to_pickle(fn)
         
         
-    return df_temp, df
+    return df
 
 
 def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):

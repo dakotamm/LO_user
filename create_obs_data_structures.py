@@ -11,11 +11,14 @@ from lo_tools import extract_argfun as exfun
 
 import VFC_functions as vfun
 
+from pathlib import Path, PosixPath
+
 
 # %%
 
 
 Ldir = exfun.intro() # this handles the argument passing
+
 
 # %%
 
@@ -31,20 +34,32 @@ Lfun.make_dir(df_dir, clean=False)
 
 # %%
 
-info_fn_temp = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / ('info_' + str(Ldir['year']) + '.p')
+if Ldir['lo_env'] == 'dm_mac':
+
+    info_fn_in = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / ('info_' + str(Ldir['year']) + '.p')
+    
+elif Ldir['lo_env'] == 'dm_perigee':
+    
+    info_fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/info_' + str(Ldir['year']) + '.p')
 
 info_fn = (info_df_dir / ('info_' + str(Ldir['year']) + '.p'))
 
 
-info_df_temp, info_df = vfun.buildInfoDF(Ldir, info_fn_temp, info_fn)
+info_df = vfun.buildInfoDF(Ldir, info_fn_in, info_fn)
 
 # %%
 
-fn_temp = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / (str(Ldir['year']) + '.p')
+if Ldir['lo_env'] == 'dm_mac':
+
+    fn_in = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / (str(Ldir['year']) + '.p')
+
+elif Ldir['lo_env'] == 'dm_perigee':
+
+    fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/' + str(Ldir['year']) + '.p')
 
 fn = (df_dir / (str(Ldir['year']) + '.p'))
 
 
-df_temp, df = vfun.buildDF(Ldir, fn_temp, fn, info_df)
+df = vfun.buildDF(Ldir, fn_in, fn, info_df)
 
             
