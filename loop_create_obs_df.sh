@@ -16,7 +16,7 @@ do
 		
 		do
 		
-            run create_obs_data_structures -gtx cas6_v0_live -source $src -otype $tp -year $yr -test False
+            python create_obs_data_structures.py -gtx cas6_v0_live -source $src -otype $tp -year $yr -test False
 			
 		done
 		
