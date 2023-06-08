@@ -26,8 +26,6 @@ from scipy.spatial import KDTree
 
 import itertools
 
-import copy
-
 # TO DO:
     # plotting functions
     # tidally-averaged grid, or take history file when obs cast was taken? - space inefficient!
@@ -263,7 +261,7 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
     
     """
     
-    depth_threshold = 0.2 # percentage of bathymetry the cast can be from the bottom to be accepted
+    depth_threshold = 0.8
     
     info_df = pd.read_pickle(info_fn)
     
@@ -307,12 +305,8 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
     df = pd.read_pickle(fn)
     
     df = pd.merge(df, info_df[['ix','iy','ii_cast','jj_cast','segment']], how='left', on=['cid'])
-    
-    df = df[~(np.isnan(df['jj_cast'])) & ~(np.isnan(df['ii_cast']))]
 
-    df[var] = df['DO (uM)']*32/1000
-    
-    
+    df['DO_mg_L'] = df['DO (uM)']*32/1000
     
     df = df[~np.isnan(df[var])]
     
@@ -320,7 +314,14 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
     
     for bad in bad_casts:
         
-        info_df = info_df.drop(bad)
+        info_df.drop([bad], inplace=True)
+    
+    
+    bad_casts = np.asarray([val for val in df['cid'].unique().astype('int64') if val not in info_df.index])
+    
+    for bad in bad_casts:
+        
+        df.drop(df.loc[df['cid'] == bad].index, inplace=True) #this is grossly inefficient, but this is all i got right now
         
     
     min_z = df.groupby(['cid'])['z'].min().to_frame()
@@ -337,14 +338,14 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
 
         if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -depth_threshold*min_z.loc[cid, 'h']):
             
-            info_df = info_df.drop(cid)
+            info_df.drop([cid], inplace=True)
             
             
     bad_casts = np.asarray([val for val in df['cid'].unique().astype('int64') if val not in info_df.index])   
          
     for bad in bad_casts:
         
-        df = df.drop(df.loc[df['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
+        df.drop(df.loc[df['cid'] == bad].index, inplace=True) #this is grossly inefficient, but this is all i got right now
             
     
     return info_df, df
@@ -476,12 +477,12 @@ def assignSurfaceToCasts(info_df_use, jjj, iii):
         a[jjj-min(jjj),iii-min(iii)] = -1
         a = np.ma.masked_array(a,a==-99)
     
-        b = copy.deepcopy(a)
+        b = a.copy()
         
         for cid in info_df_use.index:
             b[int(info_df_use.loc[cid, 'jj_cast'])-min(jjj), int(info_df_use.loc[cid, 'ii_cast'])-min(iii)] = cid # use string to see if it helps plotting?
             
-        c = copy.deepcopy(b)
+        c = b.copy()
         c = np.ma.masked_array(c,c==-1)
             
         xy_water = np.array((x[~a.mask],y[~a.mask])).T
@@ -492,7 +493,7 @@ def assignSurfaceToCasts(info_df_use, jjj, iii):
     
         tree_query = tree.query(xy_water)[1]
     
-        surf_casts_array = copy.deepcopy(a)
+        surf_casts_array = a.copy()
         
         surf_casts_array[~a.mask] = b[~c.mask][tree_query]
             
@@ -617,7 +618,7 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
     surf_casts_array_full = np.empty(np.shape(land_mask))
     surf_casts_array_full.fill(np.nan)
     
-    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array)
+    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = surf_casts_array
 
     sub_thick_array = np.empty(np.shape(z_rho_grid))
     
@@ -628,9 +629,9 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
         
         sub_thick_array.fill(np.nan)
     
-        sub_thick_temp = np.sum(sub_thick_array, axis=0)
+        sub_thick = np.sum(sub_thick_array, axis=0)
         
-        sub_thick = sub_thick_temp[jjj,iii]
+        sub_thick = sub_thick[jjj,iii]
                             
         sub_vol = np.nan
         
@@ -693,15 +694,15 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
             
         else: # if subthreshold values!
                                    
-             info_df_sub = info_df_use.copy(deep=True)
+             info_df_sub = info_df_use.copy()
          
              for cid in info_df_use.index:
                  
                  if cid not in df_sub['cid'].unique():
                      
-                     info_df_sub = info_df_sub.drop(cid)
+                     info_df_sub.drop([cid], inplace = True)
              
-             sub_casts_array = copy.deepcopy(surf_casts_array)
+             sub_casts_array = surf_casts_array.copy()
      
              sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
      
@@ -722,7 +723,7 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                  
                  df_temp = df_sub[df_sub['cid']==cid]
                  
-                 z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid,'ii_cast'])].copy()
+                 z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid,'ii_cast'])]
                  
                  n = 0
                  
@@ -748,9 +749,9 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                     
              sub_vol = np.sum(sub_array)
              
-             sub_thick_temp = np.sum(sub_thick_array, axis=0)
+             sub_thick = np.sum(sub_thick_array, axis=0)
              
-             sub_thick = sub_thick_temp[jjj,iii]
+             sub_thick = sub_thick[jjj,iii]
              
              sub_casts_array = sub_casts_array_full[jjj,iii]
              
@@ -791,7 +792,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
     surf_casts_array_full = np.empty(np.shape(land_mask))
     surf_casts_array_full.fill(np.nan)
     
-    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array)
+    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = surf_casts_array
 
     sub_thick_array = np.empty(np.shape(z_rho_grid))
     
@@ -802,9 +803,9 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
     
         sub_thick_array.fill(np.nan)
     
-        sub_thick_temp = np.sum(sub_thick_array, axis=0)
+        sub_thick = np.sum(sub_thick_array, axis=0)
         
-        sub_thick = sub_thick_temp[jjj,iii]
+        sub_thick = sub_thick[jjj,iii]
                             
         sub_vol = np.nan
         
@@ -833,15 +834,15 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                     
         else: # if there ARE subthreshold volumes
                 
-            info_df_sub = info_df_use.copy(deep=True)
+            info_df_sub = info_df_use.copy()
         
             for cid in info_df_use.index:
                 
                 if cid not in df_sub['cid'].unique():
                     
-                    info_df_sub = info_df_sub.drop(cid) 
+                    info_df_sub.drop([cid], inplace = True)
             
-            sub_casts_array = copy.deepcopy(surf_casts_array)
+            sub_casts_array = surf_casts_array.copy()
     
             sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
     
@@ -862,7 +863,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                 
                 df_temp = df_sub[df_sub['cid']==cid]
                                 
-                z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid, 'ii_cast'])].copy()
+                z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid, 'ii_cast'])]
                                                 
                 good_depths = []
                 
@@ -897,9 +898,9 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                    
             sub_vol = np.sum(sub_array)
             
-            sub_thick_temp = np.sum(sub_thick_array, axis=0)
+            sub_thick = np.sum(sub_thick_array, axis=0)
             
-            sub_thick = sub_thick_temp[jjj,iii]
+            sub_thick = sub_thick[jjj,iii]
             
             sub_casts_array = sub_casts_array_full[jjj,iii]
 
