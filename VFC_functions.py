@@ -110,7 +110,7 @@ def buildInfoDF(Ldir, info_fn_temp, info_fn):
         
     else:
         
-        info_df = info_df_temp
+        info_df = info_df_temp.copy(deep=True)
         
         info_df.to_pickle(info_fn)
         
@@ -157,7 +157,7 @@ def buildDF(Ldir, fn_temp, fn, info_df):
             
     else:
         
-        df = df_temp
+        df = df_temp.copy(deep=True)
         
         df.to_pickle(fn)
         
