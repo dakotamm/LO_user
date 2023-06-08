@@ -41,11 +41,12 @@ if Ldir['lo_env'] == 'dm_mac':
 elif Ldir['lo_env'] == 'dm_perigee':
     
     info_fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/info_' + str(Ldir['year']) + '.p')
+    
+if info_fn_in.exists:
 
-info_fn = (info_df_dir / ('info_' + str(Ldir['year']) + '.p'))
+    info_fn = (info_df_dir / ('info_' + str(Ldir['year']) + '.p'))
 
-
-info_df = vfun.buildInfoDF(Ldir, info_fn_in, info_fn)
+    info_df = vfun.buildInfoDF(Ldir, info_fn_in, info_fn)
 
 # %%
 
@@ -56,10 +57,11 @@ if Ldir['lo_env'] == 'dm_mac':
 elif Ldir['lo_env'] == 'dm_perigee':
 
     fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/' + str(Ldir['year']) + '.p')
+    
+if fn_in.exists:
 
-fn = (df_dir / (str(Ldir['year']) + '.p'))
+    fn = (df_dir / (str(Ldir['year']) + '.p'))
 
-
-df = vfun.buildDF(Ldir, fn_in, fn, info_df)
+    df = vfun.buildDF(Ldir, fn_in, fn, info_df)
 
             
