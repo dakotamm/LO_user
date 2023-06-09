@@ -41,7 +41,7 @@ threshold_val = 2 #mg/L DO
 
 var = 'DO_mg_L'
 
-segments = 'whole' #custom (specify string list and string build list), basins, whole domain, sound and strait
+segments = 'sound_straits' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
 # seg_build_list = optional
     
@@ -170,9 +170,11 @@ obs_ranges = obs_ranges.to_frame().reset_index()
 
 vol_df_wide = vol_df.pivot(index=['month', 'segment'], columns = 'data_type', values='vol_km3').reset_index()
 
-vol_df_wide = pd.merge(vol_df_wide, LO_his_ranges, how='left', on='segment')
 
 if fn_his.exists():
+    
+    vol_df_wide = pd.merge(vol_df_wide, LO_his_ranges, how='left', on='segment')
+
 
     vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'LO_his_ranges'})
     
@@ -182,11 +184,8 @@ vol_df_wide = pd.merge(vol_df_wide, obs_ranges, how='left', on='segment')
 vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'obs_ranges'})
 
 
-    #vol_df_wide = vol_df_wide[['month','segment','LO Casts','LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
-
-
 if fn_his.exists():
-    
+
     if Ldir['year'] == 2017:
         vol_df_wide = vol_df_wide[['month','segment','LO Casts','LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
     else:
@@ -216,27 +215,27 @@ if fn_his.exists():
         vol_df_wide['norm_RMSE_LO_his_LO_casts'] = vol_df_wide['RMSE_LO_his_LO_casts'] / vol_df_wide['LO_his_ranges']
 
         
-    else:
+    
         
 
 
-        vol_df_wide['SE_OBS_LO_his'] = np.square(vol_df_wide['OBS'] - vol_df_wide['LO His'])
-    
-    
-    
-        temp2 = vol_df_wide.groupby(['segment'])['SE_OBS_LO_his'].mean().to_frame().reset_index()
-    
-        temp2 = temp2.rename(columns = {'SE_OBS_LO_his':'MSE_OBS_LO_his'})
-    
-    
-    
-        temp2['RMSE_OBS_LO_his'] = np.sqrt(temp2['MSE_OBS_LO_his'])
-    
-    
-        vol_df_wide = pd.merge(vol_df_wide, temp2, how='left', on='segment')
-    
-    
-        vol_df_wide['norm_RMSE_OBS_LO_his'] = vol_df_wide['RMSE_OBS_LO_his'] / vol_df_wide['obs_ranges']
+    vol_df_wide['SE_OBS_LO_his'] = np.square(vol_df_wide['OBS'] - vol_df_wide['LO His'])
+
+
+
+    temp2 = vol_df_wide.groupby(['segment'])['SE_OBS_LO_his'].mean().to_frame().reset_index()
+
+    temp2 = temp2.rename(columns = {'SE_OBS_LO_his':'MSE_OBS_LO_his'})
+
+
+
+    temp2['RMSE_OBS_LO_his'] = np.sqrt(temp2['MSE_OBS_LO_his'])
+
+
+    vol_df_wide = pd.merge(vol_df_wide, temp2, how='left', on='segment')
+
+
+    vol_df_wide['norm_RMSE_OBS_LO_his'] = vol_df_wide['RMSE_OBS_LO_his'] / vol_df_wide['obs_ranges']
 
 
 vol_df_wide.to_pickle((file_dir + 'vol_df_wide.p'))
