@@ -27,6 +27,13 @@ Ldir = exfun.intro() # this handles the argument passing
 dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
 fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
 
+if ~fn_his.exists():
+    
+    dt = pd.Timestamp('2017-01-01 01:30:00')
+    fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+
+    
+
 if Ldir['testing']:
     
     month_num = ['09']
@@ -158,10 +165,19 @@ for seg_name in seg_list:
         
         fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
         
-        G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
+        if ~fn_his.exists():
+            
+            dt = pd.Timestamp('2017-01-01 01:30:00')
+            fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+        
+            G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
         
         
-        sub_vol_LO_his[seg_name][int(mon_num)], sub_thick_LO_his[seg_name][int(mon_num)] = vfun.getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val)
+        else:
+            
+            G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
+            
+            sub_vol_LO_his[seg_name][int(mon_num)], sub_thick_LO_his[seg_name][int(mon_num)] = vfun.getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val)
         
         
         surf_casts_array[seg_name][int(mon_num)] = vfun.assignSurfaceToCasts(info_df_use, jjj, iii)
@@ -176,26 +192,40 @@ for seg_name in seg_list:
         
 # %%
 
-with open((save_dir + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
-    pickle.dump(sub_casts_array_LO_casts, f)
+dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
+
+fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
+
+if fn_his.exists():
+    
+    with open((save_dir + 'sub_thick_LO_his.pkl'), 'wb') as f: 
+        pickle.dump(sub_thick_LO_his, f)  
+    
+    with open((save_dir + 'sub_vol_LO_his.pkl'), 'wb') as f: 
+        pickle.dump(sub_vol_LO_his, f)
+
+
+
+# with open((save_dir + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
+#     pickle.dump(sub_casts_array_LO_casts, f)
 
 with open((save_dir + 'sub_casts_array_obs.pkl'), 'wb') as f: 
     pickle.dump(sub_casts_array_obs, f)      
 
-with open((save_dir + 'sub_thick_LO_casts.pkl'), 'wb') as f: 
-    pickle.dump(sub_thick_LO_casts, f)
+# with open((save_dir + 'sub_thick_LO_casts.pkl'), 'wb') as f: 
+#     pickle.dump(sub_thick_LO_casts, f)
 
-with open((save_dir + 'sub_thick_LO_his.pkl'), 'wb') as f: 
-    pickle.dump(sub_thick_LO_his, f)  
+# with open((save_dir + 'sub_thick_LO_his.pkl'), 'wb') as f: 
+#     pickle.dump(sub_thick_LO_his, f)  
     
 with open((save_dir + 'sub_thick_obs.pkl'), 'wb') as f: 
     pickle.dump(sub_thick_obs, f)
 
-with open((save_dir + 'sub_vol_LO_casts.pkl'), 'wb') as f: 
-    pickle.dump(sub_vol_LO_casts, f)      
+# with open((save_dir + 'sub_vol_LO_casts.pkl'), 'wb') as f: 
+#     pickle.dump(sub_vol_LO_casts, f)      
 
-with open((save_dir + 'sub_vol_LO_his.pkl'), 'wb') as f: 
-    pickle.dump(sub_vol_LO_his, f)
+# with open((save_dir + 'sub_vol_LO_his.pkl'), 'wb') as f: 
+#     pickle.dump(sub_vol_LO_his, f)
 
 with open((save_dir + 'sub_vol_obs.pkl'), 'wb') as f: 
     pickle.dump(sub_vol_obs, f)  
