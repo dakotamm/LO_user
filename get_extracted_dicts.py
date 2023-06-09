@@ -10,7 +10,6 @@ import pandas as pd
 
 from lo_tools import Lfun
 from lo_tools import extract_argfun as exfun
-import cast_functions as cfun
 import pickle
 
 import VFC_functions as vfun
@@ -44,11 +43,11 @@ else:
     
     month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-threshold_val = 5 #mg/L DO
+threshold_val = 2 #mg/L DO
 
 var = 'DO_mg_L'
 
-segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
+segments = 'whole' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
 # seg_build_list = optional
     
@@ -157,7 +156,7 @@ for seg_name in seg_list:
         
         dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
         
-        fn_his = cfun.get_his_fn_from_dt(Ldir, dt)
+        fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
         
         G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
         
@@ -168,7 +167,7 @@ for seg_name in seg_list:
         surf_casts_array[seg_name][int(mon_num)] = vfun.assignSurfaceToCasts(info_df_use, jjj, iii)
         
 
-        sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+       # sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
         sub_vol_obs[seg_name][int(mon_num)], sub_thick_obs[seg_name][int(mon_num)], sub_casts_array_obs[seg_name][int(mon_num)] = vfun.getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
