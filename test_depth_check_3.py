@@ -2,7 +2,7 @@
 Blah
 
 Test on mac in ipython:
-run test_depth_check_3 -gtx cas6_v0_live -year 2017 -test True
+run test_depth_check_3 -gtx cas6_v0_live -year 2017 -test False
 
 """
 
@@ -68,7 +68,7 @@ else:
     
     month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-threshold_val = 5 #mg/L DO
+threshold_val = 2 #mg/L DO
 
 var = 'DO_mg_L'
 
@@ -119,8 +119,6 @@ sub_vol_LO_his = {}
 sub_vol_LO_casts = {}
 
 sub_vol_obs = {}
-
-#sub_thick_obs = {}
 
 ii_casts = {}
 
@@ -234,6 +232,8 @@ for seg_name in seg_list:
         
         
         sub_vol_obs[seg_name][int(mon_num)], sub_thick_obs[seg_name][int(mon_num)], sub_casts_array_obs[seg_name][int(mon_num)] = vfun.getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+        
+        print(seg_name + ' ' + mon_str)
 
 # %%
 
@@ -407,4 +407,45 @@ for seg_name in seg_list:
         
         fig0.tight_layout()
         plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+seg_name + '_sub_thick_'+str(threshold_val)+'_mg_L_DO_casts_' + str(Ldir['year']) + '_00' + mon_num+'.png', bbox_inches='tight')
-        
+
+
+# %%
+
+file_dir = '/Users/dakotamascarenas/Desktop/'
+
+
+with open((file_dir + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
+    pickle.dump(sub_casts_array_LO_casts, f)
+
+with open((file_dir + 'sub_casts_array_obs.pkl'), 'wb') as f: 
+    pickle.dump(sub_casts_array_obs, f)      
+
+with open((file_dir + 'sub_thick_LO_casts.pkl'), 'wb') as f: 
+    pickle.dump(sub_thick_LO_casts, f)
+
+with open((file_dir + 'sub_thick_LO_his.pkl'), 'wb') as f: 
+    pickle.dump(sub_thick_LO_his, f)  
+    
+with open((file_dir + 'sub_thick_obs.pkl'), 'wb') as f: 
+    pickle.dump(sub_thick_obs, f)
+
+with open((file_dir + 'sub_vol_LO_casts.pkl'), 'wb') as f: 
+    pickle.dump(sub_vol_LO_casts, f)      
+
+with open((file_dir + 'sub_vol_LO_his.pkl'), 'wb') as f: 
+    pickle.dump(sub_vol_LO_his, f)
+
+with open((file_dir + 'sub_vol_obs.pkl'), 'wb') as f: 
+    pickle.dump(sub_vol_obs, f)  
+    
+with open((file_dir + 'surf_casts_array.pkl'), 'wb') as f: 
+    pickle.dump(surf_casts_array, f)  
+    
+with open((file_dir + 'jj_casts.pkl'), 'wb') as f: 
+    pickle.dump(jj_casts, f)
+
+with open((file_dir + 'ii_casts.pkl'), 'wb') as f: 
+    pickle.dump(ii_casts, f)  
+    
+with open((file_dir + 'cid_dict.pkl'), 'wb') as f: 
+    pickle.dump(cid_dict, f)

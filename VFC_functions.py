@@ -28,19 +28,38 @@ import itertools
 
 import copy
 
+from pathlib import PosixPath
+
+from datetime import timedelta
+
 # TO DO:
     # plotting functions
     # tidally-averaged grid, or take history file when obs cast was taken? - space inefficient!
-    # casts outside of segments (not generally in Salish Sea)
     # speed limitations - this is clunky
     # error catching
     # fix extract cast - maybe check to see if the cast is already there? probably inefficient to have duplicate casts in different folders; revert to original cast extraction idea
-    # efficiency + fancy indexing
-    # cast depth checking (omit if not full depth)
-    # true hypsometry - find where threshold may invert (ie not just lower DO at depth)
-    #  - on this, underprediction or overprediction based on if cutoff is inclusive or not
+    # underprediction or overprediction based on if cutoff is inclusive or not
 
+
+def get_his_fn_from_dt(Ldir, dt): # RIPPED FROM CFUN to support perigee usage
+    # This creates the Path of a history file from its datetime
+    if dt.hour == 0:
+        # perfect restart does not write the 0001 file
+        dt = dt - timedelta(days=1)
+        his_num = '0025'
+    else:
+        his_num = ('0000' + str(dt.hour + 1))[-4:]
+    date_string = dt.strftime(Ldir['ds_fmt'])
     
+    if Ldir['lo_env'] == 'dm_mac':
+        
+        fn = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + date_string) / ('ocean_his_' + his_num + '.nc')
+        
+    elif Ldir['lo_env'] == 'dm_perigee':
+        
+        fn = (PosixPath('/data1/parker/LO_roms/') / Ldir['gtagex'] / ('f' + date_string) / ('ocean_his_' + his_num + '.nc'))
+              
+    return fn
     
 
 def getGridInfo(fn):
@@ -186,6 +205,8 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):
     
     if seg_str_list == 'all':
         
+        seg_str_list = ['A1','A2','A3', 'H1','H2','H3','H4','H5','H6','H7','H8', 'M1','M2','M3','M4','M5','M6', 'S1','S2','S3','S4', 'T1', 'T2', 'W1','W2','W3','W4', 'G1','G2','G3','G4','G5','G6','J1','J2','J3','J4']
+        
         jjj_dict = j_dict
         
         iii_dict = i_dict
@@ -206,10 +227,10 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):
         
         seg_str_list = ['All Segments']
         
-        seg_list_build = ['A1','A2','A3', 'H1','H2','H3','H4','H5','H6','H7','H8', 'M1','M2','M3','M4','M5','M6', 'S1','S2','S3','S4', 'T1', 'T2', 'W1','W2','W3','W4', 'G1','G2','G3','G4','G5','G6','J1','J2','J3','J4']
+        seg_list_build = [['A1','A2','A3', 'H1','H2','H3','H4','H5','H6','H7','H8', 'M1','M2','M3','M4','M5','M6', 'S1','S2','S3','S4', 'T1', 'T2', 'W1','W2','W3','W4', 'G1','G2','G3','G4','G5','G6','J1','J2','J3','J4']]
         
     
-    if seg_str_list != 'all':
+    if seg_list_build:
         
         jjj_dict = {}
         
@@ -373,7 +394,13 @@ def extractLOCasts(Ldir, info_df_use, fn_his):
     if not info_df_use.empty:
         
         LO_casts_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' / (str(Ldir['year'])) / (str(info_df_use['segment'].iloc[0]) + '_' + str(info_df_use['time'].dt.date.min()) + '_' + str(info_df_use['time'].dt.date.max()) ) )
-                
+        
+        # if Ldir['lo_env'] == 'dm_mac':
+                        
+        # elif Ldir['lo_env'] == 'dm_perigee':
+            
+        #     info_fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/info_' + str(Ldir['year']) + '.p')
+        
         if not LO_casts_dir.exists():
                 
             Lfun.make_dir(LO_casts_dir, clean=False) # clean=True clobbers the entire directory so be wary kids
@@ -860,27 +887,148 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
 
             for cid in info_df_sub.index:
                 
-                df_temp = df_sub[df_sub['cid']==cid]
-                                
+                #df_temp = df_sub[df_sub['cid']==cid]
+                
+                df_temp = df_use[df_use['cid'] == cid].sort_values('z').reset_index()
+                
+                cross_below_to_above = []
+                
+                cross_above_to_below = []
+                
+                for idx in df_temp.index:
+                    
+                    if idx < df_temp.index.max():
+                        
+                        if (df_temp.loc[idx, 'DO_mg_L'] < threshold_val) & (df_temp.loc[idx+1, 'DO_mg_L'] > threshold_val):
+                            
+                            cross_point = ((df_temp.loc[idx+1, 'z'] - df_temp.loc[idx,'z'])/2) + df_temp.loc[idx,'z']
+                            
+                            cross_below_to_above.append(cross_point)
+                            
+                        elif (df_temp.loc[idx, 'DO_mg_L'] > threshold_val) & (df_temp.loc[idx+1, 'DO_mg_L'] < threshold_val):
+                            
+                            cross_point = ((df_temp.loc[idx+1, 'z'] - df_temp.loc[idx,'z'])/2) + df_temp.loc[idx,'z']
+                            
+                            cross_above_to_below.append(cross_point)
+                            
+                
                 z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid, 'ii_cast'])].copy()
                                                 
-                good_depths = []
+                #good_depths = []
                 
-                for depth in np.asarray(df_temp['z']):
-                    
-                    difs = abs(depth - z_rho_array)
-                    
-                    good_depths.append(np.argmin(difs))
-                    
-                good_depths = np.asarray(good_depths)
                 
-                good_depths = np.unique(good_depths)
+               # if df_sub_index == df_temp.index: #if whole cast is below threshold
+                    
+                
+                if (len(cross_below_to_above) > 0) & (len(cross_above_to_below) > 0):
+                    
+                    z_rho_array_temp = np.empty(np.shape(z_rho_array))
+                    
+                    z_rho_array_temp.fill(np.nan)
+                    
+                    
+                    if len(cross_below_to_above) > len(cross_above_to_below): #always going to be either equal or offset by 1 only
+                                                
+                        for n in range(len(cross_below_to_above)):
+                            
+                            if n == 0:
+                            
+                                z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
                                 
-                for n in range(len(z_rho_array)):
-                    
-                    if n not in good_depths:
+                            elif (n != 0) & (n!= len(cross_below_to_above)-1):
+                                                                                                
+                                z_rho_array_temp[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])]
+                                                    
+                    elif len(cross_below_to_above) < len(cross_above_to_below):
                         
-                        z_rho_array[n] = np.nan
+                        for n in range(len(cross_above_to_below)):
+                            
+                            if n != len(cross_above_to_below)-1:
+                            
+                                z_rho_array_temp[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])]
+                    
+                            else:
+                                
+                                z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]] 
+                            
+                    else:
+                        
+                        if cross_below_to_above[0] < cross_above_to_below[0]:
+                            
+                            for n in range(len(cross_below_to_above)):
+                                
+                                if len(cross_below_to_above) > 1:
+                                
+                                    if n==0:
+                                        
+                                        z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
+                                        
+                                    elif (n!=0) & (n != len(cross_above_to_below)-1):
+                                        
+                                        z_rho_array_temp[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])]
+    
+                                    else:
+                                        
+                                        z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
+                                
+                                else:
+                                    
+                                        z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
+                                        
+                                        z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
+
+
+                        else:
+                            
+                            for n in range(len(cross_above_to_below)):
+                                                                                                
+                                z_rho_array_temp[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])]
+                        
+                    z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
+                    
+                
+                elif (len(cross_below_to_above) > 0) & (len(cross_above_to_below) == 0):
+                    
+                    z_rho_array_temp = np.empty(np.shape(z_rho_array))
+                    
+                    z_rho_array_temp.fill(np.nan)
+                    
+                    for n in range(len(cross_below_to_above)):
+                    
+                        z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
+                        
+                    z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
+                    
+                elif (len(cross_below_to_above) == 0) & (len(cross_above_to_below) > 0):
+                    
+                    z_rho_array_temp = np.empty(np.shape(z_rho_array))
+                    
+                    z_rho_array_temp.fill(np.nan)
+                    
+                    for n in range(len(cross_above_to_below)):
+                        
+                        z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
+                        
+                    z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
+                    
+                #else: #if subthreshold vals but no zero crossings
+
+                
+                # for depth in np.asarray(df_temp['z']):
+                    
+                #     difs = abs(depth - z_rho_array)
+                    
+                #     good_depths.append(np.argmin(difs))
+                    
+                # good_depths = np.asarray(good_depths)
+                
+                # good_depths = np.unique(good_depths)
+                                
+                # for n in range(len(z_rho_array)):
+                    
+                #     if n not in good_depths:
+                        
+                #         z_rho_array[n] = np.nan
                     
                     
                 z_rho_array_full = np.repeat(z_rho_array[:,np.newaxis], np.size(z_rho_grid, axis=1), axis=1)

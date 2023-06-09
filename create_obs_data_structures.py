@@ -11,7 +11,7 @@ from lo_tools import extract_argfun as exfun
 
 import VFC_functions as vfun
 
-from pathlib import Path, PosixPath
+from pathlib import PosixPath
 
 
 # %%
