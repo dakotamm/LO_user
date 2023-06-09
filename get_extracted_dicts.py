@@ -71,7 +71,7 @@ info_fn = (info_df_dir / ('info_' + str(Ldir['year']) + '.p'))
 
 fn = (df_dir / (str(Ldir['year']) + '.p'))
 
-save_dir = (Ldir['LOo'] / 'extract' / 'vfc' / ('DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str[Ldir['year']])) )
+save_dir = (Ldir['LOo'] / 'extract' / 'vfc' / ('DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str(Ldir['year']))) )
 
 Lfun.make_dir(save_dir, clean=False)
 
