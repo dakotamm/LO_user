@@ -41,7 +41,7 @@ threshold_val = 2 #mg/L DO
 
 var = 'DO_mg_L'
 
-segments = 'sound_straits' #custom (specify string list and string build list), basins, whole domain, sound and strait
+segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
 # seg_build_list = optional
     
@@ -144,7 +144,7 @@ for seg_name in seg_list:
         
         vol_df = pd.concat([vol_df, df_temp], ignore_index=True)
         
-vol_df.to_pickle((file_dir + 'vol_df.p'))       
+vol_df.to_pickle((file_dir + '/' + 'vol_df.p'))       
         
 # %%
 
@@ -238,6 +238,6 @@ if fn_his.exists():
     vol_df_wide['norm_RMSE_OBS_LO_his'] = vol_df_wide['RMSE_OBS_LO_his'] / vol_df_wide['obs_ranges']
 
 
-vol_df_wide.to_pickle((file_dir + 'vol_df_wide.p'))
+vol_df_wide.to_pickle((file_dir + '/' + 'vol_df_wide.p'))
 
 
