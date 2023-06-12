@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run make_thick_plot_TEST -gtx cas6_v0_live -source ecology -otype ctd -year 2013 -test True
+run make_thick_plot_TEST -gtx cas6_v0_live -year 2008 -test True
 
 """
 
@@ -99,7 +99,7 @@ df['month'] = df['time'].dt.month
 
 # %%
 
-save_dir = '/Users/dakotamascarenas/Desktop/DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str(Ldir['year']))
+save_dir = (Ldir['LOo'] / 'extract' / 'vfc' / ('DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str(Ldir['year']))) )
 
 file_dir = str(save_dir)
 

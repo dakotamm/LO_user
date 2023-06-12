@@ -671,29 +671,37 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
     else: #if there are casts in this time and region
     
         domain_flag = False
-    
-        for cid in info_df_use.index:
+        
+        num_casts = len(info_df_use.index)
+        
+        if num_casts == 1:
             
-            test = np.where(surf_casts_array == cid)
-            
-            if (np.size(test) > 0.5*np.size(jjj)) & (len(info_df_use.index) > 2):
+            domain_flag = True
+        
+        else:
+     
+            for cid in info_df_use.index:
                 
-                if domain_flag == False:
+                test = np.where(surf_casts_array == cid)
+                
+                if np.size(test) > np.size(jjj)/(num_casts-1):
                     
-                    domain_flag = True
+                    if domain_flag == False:
+                        
+                        domain_flag = True
         
         if domain_flag: #if too few casts for domain
         
-            sub_vol = 0
-            
-            sub_thick_array.fill(0)
-            
-            sub_thick = np.sum(sub_thick_array, axis=0)
-            
-            sub_thick = sub_thick[jjj,iii]
-                        
-            sub_casts_array_full.fill(np.nan)
+            sub_thick_array.fill(np.nan)
         
+            sub_thick_temp = np.sum(sub_thick_array, axis=0)
+            
+            sub_thick = sub_thick_temp[jjj,iii]
+                                
+            sub_vol = np.nan
+            
+            sub_casts_array_full.fill(np.nan)
+            
             sub_casts_array = sub_casts_array_full[jjj,iii]
             
             print('not enough spatial coverage LO casts')
@@ -877,29 +885,37 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
     else: # if there ARE casts in this time period
             
         domain_flag = False
-    
-        for cid in info_df_use.index:
-            
-            test = np.where(surf_casts_array == cid)
-            
-            if (np.size(test) > 0.5*np.size(jjj)) & (len(info_df_use.index) > 2):
-                
-                if domain_flag == False:
-                    
-                    domain_flag = True
         
+        num_casts = len(info_df_use.index)
+        
+        if num_casts == 1:
+            
+            domain_flag = True
+        
+        else:
+     
+            for cid in info_df_use.index:
+                
+                test = np.where(surf_casts_array == cid)
+                
+                if np.size(test) > np.size(jjj)/(num_casts-1):
+                    
+                    if domain_flag == False:
+                        
+                        domain_flag = True
+                        
         if domain_flag: #if too few casts for domain
         
-            sub_vol = 0
-            
-            sub_thick_array.fill(0)
-            
-            sub_thick = np.sum(sub_thick_array, axis=0)
-            
-            sub_thick = sub_thick[jjj,iii]
-                        
-            sub_casts_array_full.fill(np.nan)
+            sub_thick_array.fill(np.nan)
         
+            sub_thick_temp = np.sum(sub_thick_array, axis=0)
+            
+            sub_thick = sub_thick_temp[jjj,iii]
+                                
+            sub_vol = np.nan
+            
+            sub_casts_array_full.fill(np.nan)
+            
             sub_casts_array = sub_casts_array_full[jjj,iii]
             
             print('not enough spatial coverage obs')

@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run make_thick_plots -gtx cas6_v0_live -source ecology -otype ctd -year 2017 -test False
+run plot_time_his -gtx cas6_v0_live -test False
 
 """
 
@@ -64,7 +64,7 @@ fig, ax = plt.subplots(1,1,figsize=(12,8))
 
 sns.lineplot(data = vol_df, x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], style = 'data_type')#, size='segment', size_order = ['Tacoma Narrows', 'South Sound', 'Admiralty Inlet', 'Hood Canal', 'Whidbey Basin', 'Main Basin', 'Strait of Juan de Fuca', 'Strait of Georgia'], sizes=(3, 1))
 
-ax.set_title('2017 Sub-2.0 mg/L [DO]')
+ax.set_title(str(years[0]) +'-'+ str(years[-1])+ ' Sub-' +str(threshold_val) + ' mg/L [DO]')
 
 ax.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1))
 
@@ -80,4 +80,4 @@ plt.grid()
 
 fig.tight_layout()
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/2008-2017_sub_2mg_vol.png')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol.png')

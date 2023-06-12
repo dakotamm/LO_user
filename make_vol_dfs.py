@@ -57,13 +57,7 @@ info_fn = (info_df_dir / ('info_' + str(Ldir['year']) + '.p'))
 
 fn = (df_dir / (str(Ldir['year']) + '.p'))
 
-if Ldir['lo_env'] == 'dm_mac':
-    
-    save_dir = '/Users/dakotamascarenas/Desktop/DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str(Ldir['year']))
-    
-elif Ldir['lo_env'] == 'dm_perigee':
-
-    save_dir = (Ldir['LOo'] / 'extract' / 'vfc' / ('DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str(Ldir['year']))) )
+save_dir = (Ldir['LOo'] / 'extract' / 'vfc' / ('DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str(Ldir['year']))) )
 
 # %%
 

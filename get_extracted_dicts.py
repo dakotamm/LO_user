@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run get_extracted_dicts -gtx cas6_v0_live -source ecology -otype ctd -year 2013 -test True
+run get_extracted_dicts -gtx cas6_v0_live -year 2008 -test False
 
 """
 
@@ -29,7 +29,7 @@ Ldir = exfun.intro() # this handles the argument passing
 dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
 fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
 
-if ~fn_his.exists():
+if not fn_his.exists():
     
     dt = pd.Timestamp('2017-01-01 01:30:00')
     fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
@@ -38,9 +38,9 @@ if ~fn_his.exists():
 
 if Ldir['testing']:
     
-    month_num = ['08']
+    month_num = ['02']
     
-    month_str = ['Aug']
+    month_str = ['Feb']
 
     # month_num =  ['01', '02','03','04','05','06','07','08','09','10','11','12']
      
@@ -171,7 +171,7 @@ for seg_name in seg_list:
         
         
         
-        if ~fn_his.exists():
+        if not fn_his.exists():
             
             dt = pd.Timestamp('2017-01-01 01:30:00')
             fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
@@ -196,6 +196,10 @@ for seg_name in seg_list:
         
         cid_dict[seg_name][int(mon_num)] = np.array(info_df_use.index)
         
+        jj_casts[seg_name][int(mon_num)] = np.array(info_df_use['jj_cast'])
+        
+        ii_casts[seg_name][int(mon_num)] = np.array(info_df_use['ii_cast'])
+                
         print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']))
         
 # %%
@@ -216,7 +220,7 @@ if Ldir['testing'] == False:
     
     if Ldir['year'] == 2017:
     
-        with open((save_dir + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
+        with open((str(save_dir) + '/' + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
             pickle.dump(sub_casts_array_LO_casts, f)
             
         with open((str(save_dir) + '/' +  'sub_thick_LO_casts.pkl'), 'wb') as f: 
