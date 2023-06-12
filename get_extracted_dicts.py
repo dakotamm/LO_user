@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run get_extracted_dicts -gtx cas6_v0_live -source ecology -otype ctd -year 2017 -test False
+run get_extracted_dicts -gtx cas6_v0_live -source ecology -otype ctd -year 2013 -test True
 
 """
 
@@ -11,6 +11,8 @@ import pandas as pd
 from lo_tools import Lfun
 from lo_tools import extract_argfun as exfun
 import pickle
+
+import numpy as np
 
 import VFC_functions as vfun
 
@@ -36,12 +38,12 @@ if ~fn_his.exists():
 
 if Ldir['testing']:
     
-    month_num = ['09']
+    month_num = ['08']
     
-    month_str = ['Sep']
+    month_str = ['Aug']
 
     # month_num =  ['01', '02','03','04','05','06','07','08','09','10','11','12']
-    
+     
     # month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     
 else:
@@ -82,7 +84,7 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 
 if Ldir['testing']:
 
-    seg_list = ['Strait of Juan de Fuca']
+    seg_list = ['Strait of Georgia']
     
 # %%
 
@@ -160,10 +162,14 @@ for seg_name in seg_list:
         
         df_use = df[(df['segment'] == seg_name) & (df['month'] == int(mon_num))]
         
+        surf_casts_array[seg_name][int(mon_num)] = vfun.assignSurfaceToCasts(info_df_use, jjj, iii)
+        
         
         dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
         
         fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
+        
+        
         
         if ~fn_his.exists():
             
@@ -179,65 +185,64 @@ for seg_name in seg_list:
             
             sub_vol_LO_his[seg_name][int(mon_num)], sub_thick_LO_his[seg_name][int(mon_num)] = vfun.getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val)
         
-        
-        surf_casts_array[seg_name][int(mon_num)] = vfun.assignSurfaceToCasts(info_df_use, jjj, iii)
-        
-
-       # sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+            if Ldir['year'] == 2017:
+                
+                vfun.extractLOCasts(Ldir, info_df_use, fn_his)
+                
+                sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
         sub_vol_obs[seg_name][int(mon_num)], sub_thick_obs[seg_name][int(mon_num)], sub_casts_array_obs[seg_name][int(mon_num)] = vfun.getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+        
+        cid_dict[seg_name][int(mon_num)] = np.array(info_df_use.index)
         
         print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']))
         
 # %%
 
-dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
+if Ldir['testing'] == False:
 
-fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
-
-if fn_his.exists():
+    dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
     
-    with open((str(save_dir) + '/' + 'sub_thick_LO_his.pkl'), 'wb') as f: 
-        pickle.dump(sub_thick_LO_his, f)  
+    fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
     
-    with open((str(save_dir) + '/' +  'sub_vol_LO_his.pkl'), 'wb') as f: 
-        pickle.dump(sub_vol_LO_his, f)
-
-
-
-# with open((save_dir + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
-#     pickle.dump(sub_casts_array_LO_casts, f)
-
-with open((str(save_dir) + '/' + 'sub_casts_array_obs.pkl'), 'wb') as f: 
-    pickle.dump(sub_casts_array_obs, f)      
-
-# with open((str(save_dir) + '/' +  'sub_thick_LO_casts.pkl'), 'wb') as f: 
-#     pickle.dump(sub_thick_LO_casts, f)
-
-# with open((str(save_dir) + '/' +  'sub_thick_LO_his.pkl'), 'wb') as f: 
-#     pickle.dump(sub_thick_LO_his, f)  
+    if fn_his.exists():
+        
+        with open((str(save_dir) + '/' + 'sub_thick_LO_his.pkl'), 'wb') as f: 
+            pickle.dump(sub_thick_LO_his, f)  
+        
+        with open((str(save_dir) + '/' +  'sub_vol_LO_his.pkl'), 'wb') as f: 
+            pickle.dump(sub_vol_LO_his, f)
     
-with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
-    pickle.dump(sub_thick_obs, f)
-
-# with open((str(save_dir) + '/' +  'sub_vol_LO_casts.pkl'), 'wb') as f: 
-#     pickle.dump(sub_vol_LO_casts, f)      
-
-# with open((str(save_dir) + '/' +  'sub_vol_LO_his.pkl'), 'wb') as f: 
-#     pickle.dump(sub_vol_LO_his, f)
-
-with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
-    pickle.dump(sub_vol_obs, f)  
+    if Ldir['year'] == 2017:
     
-with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
-    pickle.dump(surf_casts_array, f)  
+        with open((save_dir + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
+            pickle.dump(sub_casts_array_LO_casts, f)
+            
+        with open((str(save_dir) + '/' +  'sub_thick_LO_casts.pkl'), 'wb') as f: 
+            pickle.dump(sub_thick_LO_casts, f)
+            
+        with open((str(save_dir) + '/' +  'sub_vol_LO_casts.pkl'), 'wb') as f: 
+            pickle.dump(sub_vol_LO_casts, f)
+        
+        
+    with open((str(save_dir) + '/' + 'sub_casts_array_obs.pkl'), 'wb') as f: 
+        pickle.dump(sub_casts_array_obs, f)       
+        
+    with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
+        pickle.dump(sub_thick_obs, f)
     
-with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
-    pickle.dump(jj_casts, f)
-
-with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
-    pickle.dump(ii_casts, f)  
+    with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
+        pickle.dump(sub_vol_obs, f)  
+        
+    with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
+        pickle.dump(surf_casts_array, f)  
+        
+    with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
+        pickle.dump(jj_casts, f)
     
-with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
-    pickle.dump(cid_dict, f)
+    with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
+        pickle.dump(ii_casts, f)  
+        
+    with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
+        pickle.dump(cid_dict, f)

@@ -643,7 +643,7 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
         
     surf_casts_array_full = np.empty(np.shape(land_mask))
     surf_casts_array_full.fill(np.nan)
-        
+    
     surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array)
 
     sub_thick_array = np.empty(np.shape(z_rho_grid))
@@ -665,25 +665,44 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
         
         sub_casts_array = sub_casts_array_full[jjj,iii]
         
-        print('no LO casts')
+        print('no casts')
 
         
     else: #if there are casts in this time and region
     
-        domain_flag = False
+        LO_casts_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' / (str(Ldir['year'])) / (str(info_df_use['segment'].iloc[0]) + '_' + str(info_df_use['time'].dt.date.min()) + '_' + str(info_df_use['time'].dt.date.max()) ) )
+    
+        df0 = pd.DataFrame()
+    
+        df0['cid'] = []
+            
+        df0['z_rho'] = []
+    
+        df0[var] = []
     
         for cid in info_df_use.index:
             
-            test = np.where(surf_casts_array == cid)
+            df_temp = pd.DataFrame()    
             
-            if (np.size(test) > 0.5*np.size(jjj)) & (len(info_df_use.index) > 2):
+            fn = (LO_casts_dir) / (str(cid) + '.nc')
+            
+            if fn.exists(): 
+            
+                z_rho, var_out = getLOCastsAttrs(fn) #need to generalize
+                        
+                df_temp['z_rho'] = z_rho
                 
-                if domain_flag == False:
-                    
-                    domain_flag = True
+                df_temp[var] = var_out
+                
+                df_temp['cid'] = cid
+                
+                df0 = pd.concat([df0, df_temp])
+                
+        df_sub = df0[df0[var] < threshold_val]
         
-        if domain_flag: #if too few casts for domain
         
+        if df_sub.empty: # if no subthreshold values
+            
             sub_vol = 0
             
             sub_thick_array.fill(0)
@@ -696,122 +715,71 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
         
             sub_casts_array = sub_casts_array_full[jjj,iii]
             
-            print('not enough spatial coverage LO casts')
+            print('no sub')
+
             
-            
-        else: #if enough spatial coverage
-            
-    
-            LO_casts_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' / (str(Ldir['year'])) / (str(info_df_use['segment'].iloc[0]) + '_' + str(info_df_use['time'].dt.date.min()) + '_' + str(info_df_use['time'].dt.date.max()) ) )
-        
-            df0 = pd.DataFrame()
-        
-            df0['cid'] = []
-                
-            df0['z_rho'] = []
-        
-            df0[var] = []
-        
-            for cid in info_df_use.index:
-                
-                df_temp = pd.DataFrame()    
-                
-                fn = (LO_casts_dir) / (str(cid) + '.nc')
-                
-                if fn.exists(): 
-                
-                    z_rho, var_out = getLOCastsAttrs(fn) #need to generalize
-                            
-                    df_temp['z_rho'] = z_rho
-                    
-                    df_temp[var] = var_out
-                    
-                    df_temp['cid'] = cid
-                    
-                    df0 = pd.concat([df0, df_temp])
-                    
-            df_sub = df0[df0[var] < threshold_val]
-            
-            
-            if df_sub.empty: # if no subthreshold values
-                
-                sub_vol = 0
-                
-                sub_thick_array.fill(0)
-                
-                sub_thick = np.sum(sub_thick_array, axis=0)
-                
-                sub_thick = sub_thick[jjj,iii]
-                            
-                sub_casts_array_full.fill(np.nan)
-            
-                sub_casts_array = sub_casts_array_full[jjj,iii]
-                
-                print('no sub LO casts')
-    
-                
-            else: # if subthreshold values!
-                                       
-                 info_df_sub = info_df_use.copy(deep=True)
+        else: # if subthreshold values!
+                                   
+             info_df_sub = info_df_use.copy(deep=True)
+         
+             for cid in info_df_use.index:
+                 
+                 if cid not in df_sub['cid'].unique():
+                     
+                     info_df_sub = info_df_sub.drop(cid)
              
-                 for cid in info_df_use.index:
-                     
-                     if cid not in df_sub['cid'].unique():
-                         
-                         info_df_sub = info_df_sub.drop(cid)
-                 
-                 sub_casts_array = copy.deepcopy(surf_casts_array)
-         
-                 sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
-         
-                 sub_casts_array = np.array(sub_casts_array)
-         
-                 sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
-                 
-                 sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
-                 
-                 sub_array = np.empty(np.shape(z_rho_grid))
-                 sub_array.fill(0)
-    
-                 sub_thick_array.fill(0)
-                              
-                 
+             sub_casts_array = copy.deepcopy(surf_casts_array)
      
-                 for cid in info_df_sub.index:
+             sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
+     
+             sub_casts_array = np.array(sub_casts_array)
+     
+             sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
+             
+             sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
+             
+             sub_array = np.empty(np.shape(z_rho_grid))
+             sub_array.fill(0)
+
+             sub_thick_array.fill(0)
+                          
+             
+ 
+             for cid in info_df_sub.index:
+                 
+                 df_temp = df_sub[df_sub['cid']==cid]
+                 
+                 z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid,'ii_cast'])].copy()
+                 
+                 n = 0
+                 
+                 for depth in z_rho_array:
                      
-                     df_temp = df_sub[df_sub['cid']==cid]
-                     
-                     z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid,'ii_cast'])].copy()
-                     
-                     n = 0
-                     
-                     for depth in z_rho_array:
+                     if depth not in np.asarray(df_temp['z_rho']):
                          
-                         if depth not in np.asarray(df_temp['z_rho']):
-                             
-                             z_rho_array[n] = np.nan
-                             
-                         n +=1
-                             
-                     z_rho_array_full = np.repeat(z_rho_array[:,np.newaxis], np.size(z_rho_grid, axis=1), axis=1)
-                     
-                     z_rho_array_full_3d = np.repeat(z_rho_array_full[:,:,np.newaxis], np.size(z_rho_grid, axis=2), axis=2)
-                     
-                     sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], np.size(z_rho_grid, axis=0), axis=0)
-                                                       
-                     sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
-                     
-                     sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
-                                                       
-                     
-                        
-                 sub_vol = np.sum(sub_array)
+                         z_rho_array[n] = np.nan
+                         
+                     n +=1
+                         
+                 z_rho_array_full = np.repeat(z_rho_array[:,np.newaxis], np.size(z_rho_grid, axis=1), axis=1)
                  
-                 sub_thick_temp = np.sum(sub_thick_array, axis=0)
+                 z_rho_array_full_3d = np.repeat(z_rho_array_full[:,:,np.newaxis], np.size(z_rho_grid, axis=2), axis=2)
                  
-                 sub_thick = sub_thick_temp[jjj,iii]
+                 sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], np.size(z_rho_grid, axis=0), axis=0)
+                                                   
+                 sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
                  
-                 sub_casts_array = sub_casts_array_full[jjj,iii]
+                 sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
+                                                   
+                 
+                    
+             sub_vol = np.sum(sub_array)
+             
+             sub_thick_temp = np.sum(sub_thick_array, axis=0)
+             
+             sub_thick = sub_thick_temp[jjj,iii]
+             
+             sub_casts_array = sub_casts_array_full[jjj,iii]
              
 
              
@@ -870,25 +838,13 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
         sub_casts_array_full.fill(np.nan)
         
         sub_casts_array = sub_casts_array_full[jjj,iii]
-        
-        print('no obs casts')
                         
         
     else: # if there ARE casts in this time period
             
-        domain_flag = False
+        df_sub = df_use[df_use[var] < threshold_val]
     
-        for cid in info_df_use.index:
-            
-            test = np.where(surf_casts_array == cid)
-            
-            if (np.size(test) > 0.5*np.size(jjj)) & (len(info_df_use.index) > 2):
-                
-                if domain_flag == False:
-                    
-                    domain_flag = True
-        
-        if domain_flag: #if too few casts for domain
+        if df_sub.empty: # if there are no subthreshold volumes
         
             sub_vol = 0
             
@@ -901,223 +857,199 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
             sub_casts_array_full.fill(np.nan)
         
             sub_casts_array = sub_casts_array_full[jjj,iii]
-            
-            print('not enough spatial coverage obs')
-            
-            
-        else: #if enough spatial coverage
-        
-        
-            df_sub = df_use[df_use[var] < threshold_val]
-        
-            if df_sub.empty: # if there are no subthreshold volumes
-            
-                sub_vol = 0
-                
-                sub_thick_array.fill(0)
-                
-                sub_thick = np.sum(sub_thick_array, axis=0)
-                
-                sub_thick = sub_thick[jjj,iii]
-                            
-                sub_casts_array_full.fill(np.nan)
-            
-                sub_casts_array = sub_casts_array_full[jjj,iii]
-                
-                print('no sub obs casts')
-                        
-            else: # if there ARE subthreshold volumes
                     
-                info_df_sub = info_df_use.copy(deep=True)
-            
-                for cid in info_df_use.index:
+        else: # if there ARE subthreshold volumes
+                
+            info_df_sub = info_df_use.copy(deep=True)
+        
+            for cid in info_df_use.index:
+                
+                if cid not in df_sub['cid'].unique():
                     
-                    if cid not in df_sub['cid'].unique():
-                        
-                        info_df_sub = info_df_sub.drop(cid) 
-                
-                sub_casts_array = copy.deepcopy(surf_casts_array)
-        
-                sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
-        
-                sub_casts_array = np.array(sub_casts_array)
-        
-                sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
-                
-                sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
-                
-                sub_array = np.empty(np.shape(z_rho_grid))
-                sub_array.fill(0)
+                    info_df_sub = info_df_sub.drop(cid) 
+            
+            sub_casts_array = copy.deepcopy(surf_casts_array)
     
-                sub_thick_array.fill(0)
-                             
+            sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
+    
+            sub_casts_array = np.array(sub_casts_array)
+    
+            sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
+            
+            sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
+            
+            sub_array = np.empty(np.shape(z_rho_grid))
+            sub_array.fill(0)
+
+            sub_thick_array.fill(0)
+                         
+            
+
+            for cid in info_df_sub.index:
                 
-    
-                for cid in info_df_sub.index:
+                #df_temp = df_sub[df_sub['cid']==cid]
+                
+                df_temp = df_use[df_use['cid'] == cid].sort_values('z').reset_index()
+                
+                cross_below_to_above = []
+                
+                cross_above_to_below = []
+                
+                for idx in df_temp.index:
                     
-                    #df_temp = df_sub[df_sub['cid']==cid]
-                    
-                    df_temp = df_use[df_use['cid'] == cid].sort_values('z').reset_index()
-                    
-                    cross_below_to_above = []
-                    
-                    cross_above_to_below = []
-                    
-                    for idx in df_temp.index:
+                    if idx < df_temp.index.max():
                         
-                        if idx < df_temp.index.max():
+                        if (df_temp.loc[idx, 'DO_mg_L'] < threshold_val) & (df_temp.loc[idx+1, 'DO_mg_L'] > threshold_val):
                             
-                            if (df_temp.loc[idx, 'DO_mg_L'] < threshold_val) & (df_temp.loc[idx+1, 'DO_mg_L'] > threshold_val):
-                                
-                                cross_point = ((df_temp.loc[idx+1, 'z'] - df_temp.loc[idx,'z'])/2) + df_temp.loc[idx,'z']
-                                
-                                cross_below_to_above.append(cross_point)
-                                
-                            elif (df_temp.loc[idx, 'DO_mg_L'] > threshold_val) & (df_temp.loc[idx+1, 'DO_mg_L'] < threshold_val):
-                                
-                                cross_point = ((df_temp.loc[idx+1, 'z'] - df_temp.loc[idx,'z'])/2) + df_temp.loc[idx,'z']
-                                
-                                cross_above_to_below.append(cross_point)
-                                
-                    
-                    z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid, 'ii_cast'])].copy()
-                                                    
-                    #good_depths = []
-                    
-                    
-                   # if df_sub_index == df_temp.index: #if whole cast is below threshold
-                        
-                    
-                    if (len(cross_below_to_above) > 0) & (len(cross_above_to_below) > 0):
-                        
-                        z_rho_array_temp = np.empty(np.shape(z_rho_array))
-                        
-                        z_rho_array_temp.fill(np.nan)
-                        
-                        
-                        if len(cross_below_to_above) > len(cross_above_to_below): #always going to be either equal or offset by 1 only
-                                                    
-                            for n in range(len(cross_below_to_above)):
-                                
-                                if n == 0:
-                                
-                                    z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
-                                    
-                                elif (n != 0) & (n!= len(cross_below_to_above)-1):
-                                                                                                    
-                                    z_rho_array_temp[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])]
-                                                        
-                        elif len(cross_below_to_above) < len(cross_above_to_below):
+                            cross_point = ((df_temp.loc[idx+1, 'z'] - df_temp.loc[idx,'z'])/2) + df_temp.loc[idx,'z']
                             
-                            for n in range(len(cross_above_to_below)):
-                                
-                                if n != len(cross_above_to_below)-1:
-                                
-                                    z_rho_array_temp[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])]
-                        
-                                else:
-                                    
-                                    z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]] 
-                                
-                        else:
+                            cross_below_to_above.append(cross_point)
                             
-                            if cross_below_to_above[0] < cross_above_to_below[0]:
-                                
-                                for n in range(len(cross_below_to_above)):
-                                    
-                                    if len(cross_below_to_above) > 1:
-                                    
-                                        if n==0:
-                                            
-                                            z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
-                                            
-                                        elif (n!=0) & (n != len(cross_above_to_below)-1):
-                                            
-                                            z_rho_array_temp[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])]
-        
-                                        else:
-                                            
-                                            z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
-                                    
-                                    else:
-                                        
-                                            z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
-                                            
-                                            z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
-    
-    
-                            else:
-                                
-                                for n in range(len(cross_above_to_below)):
-                                                                                                    
-                                    z_rho_array_temp[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])]
+                        elif (df_temp.loc[idx, 'DO_mg_L'] > threshold_val) & (df_temp.loc[idx+1, 'DO_mg_L'] < threshold_val):
                             
-                        z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
-                        
+                            cross_point = ((df_temp.loc[idx+1, 'z'] - df_temp.loc[idx,'z'])/2) + df_temp.loc[idx,'z']
+                            
+                            cross_above_to_below.append(cross_point)
+                            
+                
+                z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid, 'ii_cast'])].copy()
+                                                
+                #good_depths = []
+                
+                
+               # if df_sub_index == df_temp.index: #if whole cast is below threshold
                     
-                    elif (len(cross_below_to_above) > 0) & (len(cross_above_to_below) == 0):
-                        
-                        z_rho_array_temp = np.empty(np.shape(z_rho_array))
-                        
-                        z_rho_array_temp.fill(np.nan)
-                        
+                
+                if (len(cross_below_to_above) > 0) & (len(cross_above_to_below) > 0):
+                    
+                    z_rho_array_temp = np.empty(np.shape(z_rho_array))
+                    
+                    z_rho_array_temp.fill(np.nan)
+                    
+                    
+                    if len(cross_below_to_above) > len(cross_above_to_below): #always going to be either equal or offset by 1 only
+                                                
                         for n in range(len(cross_below_to_above)):
-                        
-                            z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
                             
-                        z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
-                        
-                    elif (len(cross_below_to_above) == 0) & (len(cross_above_to_below) > 0):
-                        
-                        z_rho_array_temp = np.empty(np.shape(z_rho_array))
-                        
-                        z_rho_array_temp.fill(np.nan)
+                            if n == 0:
+                            
+                                z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
+                                
+                            elif (n != 0) & (n!= len(cross_below_to_above)-1):
+                                                                                                
+                                z_rho_array_temp[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])]
+                                                    
+                    elif len(cross_below_to_above) < len(cross_above_to_below):
                         
                         for n in range(len(cross_above_to_below)):
                             
-                            z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
+                            if n != len(cross_above_to_below)-1:
                             
-                        z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
+                                z_rho_array_temp[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])]
+                    
+                            else:
+                                
+                                z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]] 
+                            
+                    else:
                         
-                    #else: #if subthreshold vals but no zero crossings
+                        if cross_below_to_above[0] < cross_above_to_below[0]:
+                            
+                            for n in range(len(cross_below_to_above)):
+                                
+                                if len(cross_below_to_above) > 1:
+                                
+                                    if n==0:
+                                        
+                                        z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
+                                        
+                                    elif (n!=0) & (n != len(cross_above_to_below)-1):
+                                        
+                                        z_rho_array_temp[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n-1]) & (z_rho_array < cross_below_to_above[n])]
     
-                    
-                    # for depth in np.asarray(df_temp['z']):
-                        
-                    #     difs = abs(depth - z_rho_array)
-                        
-                    #     good_depths.append(np.argmin(difs))
-                        
-                    # good_depths = np.asarray(good_depths)
-                    
-                    # good_depths = np.unique(good_depths)
+                                    else:
+                                        
+                                        z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
+                                
+                                else:
                                     
-                    # for n in range(len(z_rho_array)):
-                        
-                    #     if n not in good_depths:
+                                        z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
+                                        
+                                        z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
+
+
+                        else:
                             
-                    #         z_rho_array[n] = np.nan
+                            for n in range(len(cross_above_to_below)):
+                                                                                                
+                                z_rho_array_temp[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])]
                         
+                    z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
+                    
+                
+                elif (len(cross_below_to_above) > 0) & (len(cross_above_to_below) == 0):
+                    
+                    z_rho_array_temp = np.empty(np.shape(z_rho_array))
+                    
+                    z_rho_array_temp.fill(np.nan)
+                    
+                    for n in range(len(cross_below_to_above)):
+                    
+                        z_rho_array_temp[z_rho_array < cross_below_to_above[n]] = z_rho_array[z_rho_array < cross_below_to_above[n]]
                         
-                    z_rho_array_full = np.repeat(z_rho_array[:,np.newaxis], np.size(z_rho_grid, axis=1), axis=1)
+                    z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
                     
-                    z_rho_array_full_3d = np.repeat(z_rho_array_full[:,:,np.newaxis], np.size(z_rho_grid, axis=2), axis=2)
-                                    
-                    sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], np.size(z_rho_grid, axis=0), axis=0)
-                                                      
-                    sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
+                elif (len(cross_below_to_above) == 0) & (len(cross_above_to_below) > 0):
                     
-                    sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
-                                                 
+                    z_rho_array_temp = np.empty(np.shape(z_rho_array))
                     
-                       
-                sub_vol = np.sum(sub_array)
+                    z_rho_array_temp.fill(np.nan)
+                    
+                    for n in range(len(cross_above_to_below)):
+                        
+                        z_rho_array_temp[z_rho_array >= cross_above_to_below[n]] = z_rho_array[z_rho_array >= cross_above_to_below[n]]
+                        
+                    z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
+                    
+                #else: #if subthreshold vals but no zero crossings
+
                 
-                sub_thick_temp = np.sum(sub_thick_array, axis=0)
+                # for depth in np.asarray(df_temp['z']):
+                    
+                #     difs = abs(depth - z_rho_array)
+                    
+                #     good_depths.append(np.argmin(difs))
+                    
+                # good_depths = np.asarray(good_depths)
                 
-                sub_thick = sub_thick_temp[jjj,iii]
+                # good_depths = np.unique(good_depths)
+                                
+                # for n in range(len(z_rho_array)):
+                    
+                #     if n not in good_depths:
+                        
+                #         z_rho_array[n] = np.nan
+                    
+                    
+                z_rho_array_full = np.repeat(z_rho_array[:,np.newaxis], np.size(z_rho_grid, axis=1), axis=1)
                 
-                sub_casts_array = sub_casts_array_full[jjj,iii]
+                z_rho_array_full_3d = np.repeat(z_rho_array_full[:,:,np.newaxis], np.size(z_rho_grid, axis=2), axis=2)
+                                
+                sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], np.size(z_rho_grid, axis=0), axis=0)
+                                                  
+                sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
+                
+                sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
+                                             
+                
+                   
+            sub_vol = np.sum(sub_array)
+            
+            sub_thick_temp = np.sum(sub_thick_array, axis=0)
+            
+            sub_thick = sub_thick_temp[jjj,iii]
+            
+            sub_casts_array = sub_casts_array_full[jjj,iii]
 
         
     return sub_vol, sub_thick, sub_casts_array
