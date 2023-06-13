@@ -161,6 +161,9 @@ axes0[0,0].set_title('Cast Locations ' + mon_str + ' ' + str(Ldir['year']) + ' '
 
 
 pfun.add_coast(axes0[0,0])
+coast_lon, coast_lat = pfun.get_coast()
+
+axes0[0,0].fill(coast_lon, coast_lat)
 pfun.dar(axes0[0,0])
 
         
@@ -186,7 +189,7 @@ for cid in info_df_use.index:
 axes0[0,0].set_xlim([min_lon,max_lon])
 axes0[0,0].set_ylim([min_lat,max_lat])
 axes0[0,0].tick_params(labelrotation=45)
-axes0[0,0].set_title('Model Output' + mon_str + ' ' + str(Ldir['year']) + ' ' + seg_name + ' Sub-' + str(threshold_val) + ' mg/L DO')
+axes0[0,0].set_title('Model Output ' + mon_str + ' ' + str(Ldir['year']) + ' ' + seg_name + ' Sub-' + str(threshold_val) + ' mg/L DO')
 
 fig0.colorbar(c0,ax=axes0[0,0], label = 'Subthreshold Thickness [m]')
 
@@ -215,7 +218,7 @@ for cid in info_df_use.index:
 axes0[0,0].set_xlim([min_lon,max_lon])
 axes0[0,0].set_ylim([min_lat,max_lat])
 axes0[0,0].tick_params(labelrotation=45)
-axes0[0,0].set_title('Model Casts' + mon_str + ' ' + str(Ldir['year']) + ' ' + seg_name + ' Sub-' + str(threshold_val) + ' mg/L DO')
+axes0[0,0].set_title('Model Casts ' + mon_str + ' ' + str(Ldir['year']) + ' ' + seg_name + ' Sub-' + str(threshold_val) + ' mg/L DO')
 
 fig0.colorbar(c0,ax=axes0[0,0], label = 'Subthreshold Thickness [m]')
 

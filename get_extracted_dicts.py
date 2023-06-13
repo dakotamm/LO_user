@@ -39,13 +39,13 @@ if not fn_his.exists():
 
 if Ldir['testing']:
     
-    #month_num = ['02']
+    month_num = ['08']
     
-    #month_str = ['Feb']
+    month_str = ['Aug']
 
-    month_num =  ['01', '02'] #,'03','04','05','06','07','08','09','10','11','12']
+    # month_num =  ['01', '02'] #,'03','04','05','06','07','08','09','10','11','12']
      
-    month_str = ['Jan','Feb'] #,'Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    # month_str = ['Jan','Feb'] #,'Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     
 else:
     
@@ -57,7 +57,7 @@ threshold_val = 2 #mg/L DO
 
 var = 'DO_mg_L'
 
-segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
+segments = 'sound_straits' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
 # seg_build_list = optional
     
@@ -85,7 +85,7 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 
 if Ldir['testing']:
 
-    seg_list = ['Strait of Georgia']
+    seg_list = ['Hood Canal']
     
 # %%
 

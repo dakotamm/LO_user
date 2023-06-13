@@ -687,12 +687,12 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                 
                 if num_casts == 2:
                     
-                    if np.size(test) > np.size(jjj)*0.8:
+                    if np.size(test, axis=1) > np.size(jjj)*0.8:
                         
                         domain_flag = True
                 else:
                     
-                    if np.size(test) > np.size(jjj)*0.5:
+                    if np.size(test, axis=1) > np.size(jjj)*0.5:
                                             
                         domain_flag = True
         
@@ -902,12 +902,12 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                 
                 if num_casts == 2:
                     
-                    if np.size(test) > np.size(jjj)*0.8:
+                    if np.size(test, axis=1) > np.size(jjj)*0.8:
                         
                         domain_flag = True
                 else:
                     
-                    if np.size(test) > np.size(jjj)*0.5:
+                    if np.size(test,axis=1) > np.size(jjj)*0.5:
                                             
                         domain_flag = True
                         
