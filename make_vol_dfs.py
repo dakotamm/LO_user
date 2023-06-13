@@ -84,9 +84,11 @@ if Ldir['year'] == 2017:
     
     with open((file_dir + '/' + 'sub_vol_LO_casts.pkl'), 'rb') as f: 
         sub_vol_LO_casts = pickle.load(f)
-    
-with open((file_dir + '/' + 'sub_vol_obs.pkl'), 'rb') as f: 
-    sub_vol_obs = pickle.load(f)  
+        
+if info_fn.exists() & fn.exists():
+        
+    with open((file_dir + '/' + 'sub_vol_obs.pkl'), 'rb') as f: 
+        sub_vol_obs = pickle.load(f)  
 
 # %%
 
@@ -145,13 +147,16 @@ for seg_name in seg_list:
             df_temp1['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
             
             vol_df = pd.concat([vol_df, df_temp1], ignore_index=True)
+            
+            
+        if info_fn.exists() & fn.exists():    
         
         
-        df_temp['data_type'] = ['OBS']
-        
-        df_temp['vol_km3'] = [sub_vol_obs[seg_name][int(mon_num)]*1e-9]
-        
-        vol_df = pd.concat([vol_df, df_temp], ignore_index=True)
+            df_temp['data_type'] = ['OBS']
+            
+            df_temp['vol_km3'] = [sub_vol_obs[seg_name][int(mon_num)]*1e-9]
+            
+            vol_df = pd.concat([vol_df, df_temp], ignore_index=True)
         
         
 vol_df.to_pickle((file_dir + '/' + 'vol_df.p'))       
@@ -167,15 +172,17 @@ if fn_his.exists():
     LO_his_ranges = LO_his_maxs - LO_his_mins
     
     LO_his_ranges = LO_his_ranges.to_frame().reset_index()
+    
 
+if info_fn.exists() & fn.exists():
 
-obs_mins = vol_df[vol_df['data_type'] == 'OBS'].groupby(['segment', 'data_type'])['vol_km3'].min()
-
-obs_maxs = vol_df[vol_df['data_type'] == 'OBS'].groupby(['segment', 'data_type'])['vol_km3'].max()
-
-obs_ranges = obs_maxs - obs_mins
-
-obs_ranges = obs_ranges.to_frame().reset_index()
+    obs_mins = vol_df[vol_df['data_type'] == 'OBS'].groupby(['segment', 'data_type'])['vol_km3'].min()
+    
+    obs_maxs = vol_df[vol_df['data_type'] == 'OBS'].groupby(['segment', 'data_type'])['vol_km3'].max()
+    
+    obs_ranges = obs_maxs - obs_mins
+    
+    obs_ranges = obs_ranges.to_frame().reset_index()
 
 
 vol_df_wide = vol_df.pivot(index=['month', 'segment'], columns = 'data_type', values='vol_km3').reset_index()
@@ -188,23 +195,30 @@ if fn_his.exists():
 
     vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'LO_his_ranges'})
     
+if info_fn.exists() & fn.exists():
 
-vol_df_wide = pd.merge(vol_df_wide, obs_ranges, how='left', on='segment')
-
-vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'obs_ranges'})
+    vol_df_wide = pd.merge(vol_df_wide, obs_ranges, how='left', on='segment')
+    
+    vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'obs_ranges'})
 
 
 if fn_his.exists():
+    
+    if info_fn.exists() & fn.exists():
 
-    if Ldir['year'] == 2017:
-        vol_df_wide = vol_df_wide[['month','segment','LO Casts','LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
-    else:
-
-        vol_df_wide = vol_df_wide[['month','segment', 'LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
+        if Ldir['year'] == 2017:
+            vol_df_wide = vol_df_wide[['month','segment','LO Casts','LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
+            
+        else:
+    
+            vol_df_wide = vol_df_wide[['month','segment', 'LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
     
 else:
     
+    info_fn.exists() & fn.exists():
+        
     vol_df_wide = vol_df_wide[['month','segment', 'OBS', 'obs_ranges']]
+    
 # %%
 
 if fn_his.exists():
