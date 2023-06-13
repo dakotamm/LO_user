@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run get_extracted_dicts -gtx cas6_v0_live -year 2008 -test False
+run get_extracted_dicts -gtx cas6_v0_live -year 2018 -test True
 
 """
 
@@ -38,13 +38,13 @@ if not fn_his.exists():
 
 if Ldir['testing']:
     
-    month_num = ['02']
+    #month_num = ['02']
     
-    month_str = ['Feb']
+    #month_str = ['Feb']
 
-    # month_num =  ['01', '02','03','04','05','06','07','08','09','10','11','12']
+    month_num =  ['01', '02','03','04','05','06','07','08','09','10','11','12']
      
-    # month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     
 else:
     

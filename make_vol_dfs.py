@@ -114,22 +114,37 @@ for seg_name in seg_list:
         
         df_temp['month'] = [int(mon_num)]
         
-        if fn_his.exists():
+        dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
+        fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
         
-            df_temp['data_type'] = ['LO His']
+        if fn_his.exists():
             
-            df_temp['vol_km3'] = [sub_vol_LO_his[seg_name][int(mon_num)]*1e-9] #convert to km^3
+            df_temp0 = pd.DataFrame()
             
-            vol_df = pd.concat([vol_df, df_temp], ignore_index=True)
+            df_temp0['segment'] = [seg_name]
+            
+            df_temp0['month'] = [int(mon_num)]
+        
+            df_temp0['data_type'] = ['LO His']
+            
+            df_temp0['vol_km3'] = [sub_vol_LO_his[seg_name][int(mon_num)]*1e-9] #convert to km^3
+            
+            vol_df = pd.concat([vol_df, df_temp0], ignore_index=True)
+            
             
         if Ldir['year'] == 2017:
-
+            
+            df_temp1 = pd.DataFrame()
+            
+            df_temp1['segment'] = [seg_name]
+            
+            df_temp1['month'] = [int(mon_num)]
         
-            df_temp['data_type'] = ['LO Casts']
+            df_temp1['data_type'] = 'LO Casts'
             
-            df_temp['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
+            df_temp1['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
             
-            vol_df = pd.concat([vol_df, df_temp], ignore_index=True)
+            vol_df = pd.concat([vol_df, df_temp1], ignore_index=True)
         
         
         df_temp['data_type'] = ['OBS']
@@ -137,6 +152,7 @@ for seg_name in seg_list:
         df_temp['vol_km3'] = [sub_vol_obs[seg_name][int(mon_num)]*1e-9]
         
         vol_df = pd.concat([vol_df, df_temp], ignore_index=True)
+        
         
 vol_df.to_pickle((file_dir + '/' + 'vol_df.p'))       
         

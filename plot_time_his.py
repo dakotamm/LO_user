@@ -29,7 +29,9 @@ threshold_val = 2
 
 seg_str = ['sound_straits']
 
-years = [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
+#years = [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021]
+
+years = [2018]
 
 vol_df = pd.DataFrame()
 
@@ -54,7 +56,7 @@ vol_df['date'] = pd.to_datetime(dict(year=vol_df.year, month=vol_df.month, day=v
 
 vol_df['date_ordinal'] = vol_df['date'].apply(lambda date: date.toordinal())
 
-# vol_df.loc[vol_df['vol_km3'] > 100, 'vol_km3'] = np.nan
+vol_df.loc[vol_df['vol_km3'] > 100, 'vol_km3'] = np.nan
 
 # %%
 

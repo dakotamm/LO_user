@@ -819,11 +819,11 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                      
                         
                  sub_vol = np.sum(sub_array)
-                 
+                
                  sub_thick_temp = np.sum(sub_thick_array, axis=0)
-                 
+                
                  sub_thick = sub_thick_temp[jjj,iii]
-                 
+                
                  sub_casts_array = sub_casts_array_full[jjj,iii]
              
 
@@ -1007,12 +1007,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                                 
                     
                     z_rho_array = z_rho_grid[:, int(info_df_use.loc[cid,'jj_cast']), int(info_df_use.loc[cid, 'ii_cast'])].copy()
-                                                    
-                    #good_depths = []
-                    
-                    
-                   # if df_sub_index == df_temp.index: #if whole cast is below threshold
-                        
+                                                                        
                     
                     if (len(cross_below_to_above) > 0) & (len(cross_above_to_below) > 0):
                         
@@ -1078,6 +1073,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                                                                                                     
                                     z_rho_array_temp[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])] = z_rho_array[(z_rho_array >= cross_above_to_below[n]) & (z_rho_array < cross_below_to_above[n])]
                             
+                            
                         z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
                         
                     
@@ -1105,26 +1101,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                             
                         z_rho_array[np.isnan(z_rho_array_temp)] = np.nan
                         
-                    #else: #if subthreshold vals but no zero crossings
-    
-                    
-                    # for depth in np.asarray(df_temp['z']):
-                        
-                    #     difs = abs(depth - z_rho_array)
-                        
-                    #     good_depths.append(np.argmin(difs))
-                        
-                    # good_depths = np.asarray(good_depths)
-                    
-                    # good_depths = np.unique(good_depths)
-                                    
-                    # for n in range(len(z_rho_array)):
-                        
-                    #     if n not in good_depths:
-                            
-                    #         z_rho_array[n] = np.nan
-                        
-                        
+
                     z_rho_array_full = np.repeat(z_rho_array[:,np.newaxis], np.size(z_rho_grid, axis=1), axis=1)
                     
                     z_rho_array_full_3d = np.repeat(z_rho_array_full[:,:,np.newaxis], np.size(z_rho_grid, axis=2), axis=2)
@@ -1134,9 +1111,9 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                     sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
                     
                     sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
-                                                 
-                    
-                       
+
+
+
                 sub_vol = np.sum(sub_array)
                 
                 sub_thick_temp = np.sum(sub_thick_array, axis=0)
