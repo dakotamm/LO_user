@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run create_obs_data_structures -gtx cas6_v0_live -source ecology -otype ctd -year 2017 -test False
+run create_obs_data_structures -gtx cas6_v0_live -source ecology -otype ctd -year 2002 -test False
 
 """
 
@@ -42,7 +42,7 @@ elif Ldir['lo_env'] == 'dm_perigee':
     
     info_fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/info_' + str(Ldir['year']) + '.p')
     
-if info_fn_in.exists:
+if info_fn_in.exists():
 
     info_fn = (info_df_dir / ('info_' + str(Ldir['year']) + '.p'))
 
@@ -58,7 +58,7 @@ elif Ldir['lo_env'] == 'dm_perigee':
 
     fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/' + str(Ldir['year']) + '.p')
     
-if fn_in.exists:
+if fn_in.exists():
 
     fn = (df_dir / (str(Ldir['year']) + '.p'))
 
