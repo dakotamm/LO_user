@@ -56,7 +56,7 @@ vol_df['date'] = pd.to_datetime(dict(year=vol_df.year, month=vol_df.month, day=v
 
 vol_df['date_ordinal'] = vol_df['date'].apply(lambda date: date.toordinal())
 
-vol_df.loc[vol_df['vol_km3'] > 100, 'vol_km3'] = np.nan
+#vol_df.loc[vol_df['vol_km3'] > 100, 'vol_km3'] = np.nan
 
 # %%
 
