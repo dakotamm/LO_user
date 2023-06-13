@@ -215,9 +215,9 @@ if fn_his.exists():
     
 else:
     
-    info_fn.exists() & fn.exists():
+    if info_fn.exists() & fn.exists():
         
-    vol_df_wide = vol_df_wide[['month','segment', 'OBS', 'obs_ranges']]
+        vol_df_wide = vol_df_wide[['month','segment', 'OBS', 'obs_ranges']]
     
 # %%
 
