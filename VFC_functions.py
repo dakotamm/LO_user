@@ -684,10 +684,15 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                 
                 test = np.where(surf_casts_array == cid)
                 
-                if np.size(test) > np.size(jjj)/(num_casts-1):
+                if num_casts == 2:
                     
-                    if domain_flag == False:
+                    if np.size(test) > np.size(jjj)*0.8:
                         
+                        domain_flag = True
+                else:
+                    
+                    if np.size(test) > np.size(jjj)*0.5:
+                                            
                         domain_flag = True
         
         if domain_flag: #if too few casts for domain
@@ -898,10 +903,15 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                 
                 test = np.where(surf_casts_array == cid)
                 
-                if np.size(test) > np.size(jjj)/(num_casts-1):
+                if num_casts == 2:
                     
-                    if domain_flag == False:
+                    if np.size(test) > np.size(jjj)*0.8:
                         
+                        domain_flag = True
+                else:
+                    
+                    if np.size(test) > np.size(jjj)*0.5:
+                                            
                         domain_flag = True
                         
         if domain_flag: #if too few casts for domain
