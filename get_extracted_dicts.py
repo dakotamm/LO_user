@@ -39,9 +39,9 @@ if not fn_his.exists():
 
 if Ldir['testing']:
     
-    month_num = ['08']
+    month_num = ['02']
     
-    month_str = ['Aug']
+    month_str = ['Feb']
 
     # month_num =  ['01', '02'] #,'03','04','05','06','07','08','09','10','11','12']
      
@@ -85,7 +85,7 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 
 if Ldir['testing']:
 
-    seg_list = ['Hood Canal']
+    seg_list = ['Strait of Georgia']
     
 # %%
 

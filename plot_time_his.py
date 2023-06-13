@@ -81,18 +81,18 @@ ax.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1))
 # ax.set_xticklabels(['','2017','','2018','','2019',''], rotation=0,
 #     fontdict={'horizontalalignment':'center'})
 
-#new_labels = [date.fromordinal(int(item)) for item in ax.get_xticks()]
+# new_labels = [date.fromordinal(int(item)) for item in ax.get_xticks()]
 
-new_labels =[date(2017,1,1),date(2017,7,1),date(2018,1,1),
-     date(2018,7,1),date(2019,1,1),date(2019,7,1),date(2019,12,31)]
+# new_labels =[date(2017,1,1),date(2017,7,1),date(2018,1,1),
+#      date(2018,7,1),date(2019,1,1),date(2019,7,1),date(2019,12,31)]
 
-ax.set(xticklabels=new_labels)
+# ax.set(xticklabels=new_labels)
 
 
-ax.set_xticklabels(['','2017','','2018','','2019',''], rotation=0,
-    fontdict={'horizontalalignment':'center'})
+# ax.set_xticklabels(['','2017','','2018','','2019',''], rotation=0,
+#     fontdict={'horizontalalignment':'center'})
 
-#ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment= 'right')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment= 'right')
 
 plt.legend() #title = 'Basin [Order of Increasing Volume]')
 
