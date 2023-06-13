@@ -181,9 +181,11 @@ max_lon = [-122.25,-122.4]
 
 
 
-min_lon_sect = Lon[min(iii)]
-max_lon_sect = Lon[max(iii)]
-max_lat_sect = Lat[max(jjj)]
+min_lon_sect = Lon[498]
+max_lon_sect = Lon[523]
+min_lat_sect = Lat[704]
+max_lat_sect = Lat[744]
+
 
 vn = 'oxygen'
 
