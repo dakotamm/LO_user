@@ -546,9 +546,9 @@ def getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val):
     
     """
     
-    dv_sliced = dv[:, jjj, iii]
+    dv_sliced = dv[:, jjj, iii].copy()
     
-    dz_sliced = dz[:, jjj, iii]
+    dz_sliced = dz[:, jjj, iii].copy()
     
     ds_his = xr.open_dataset(fn_his)
     
@@ -650,6 +650,9 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
     
     sub_casts_array_full = np.empty(np.shape(surf_casts_array_full))
     
+    sub_casts_array_full.fill(np.nan)
+
+    
         
     if info_df_use.empty: #if no casts in this time period and region
         
@@ -660,9 +663,7 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
         sub_thick = sub_thick_temp[jjj,iii]
                             
         sub_vol = np.nan
-        
-        sub_casts_array_full.fill(np.nan)
-        
+                
         sub_casts_array = sub_casts_array_full[jjj,iii]
         
         print('no LO casts')
@@ -704,9 +705,7 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
             sub_thick = sub_thick_temp[jjj,iii]
                                 
             sub_vol = np.nan
-            
-            sub_casts_array_full.fill(np.nan)
-            
+                        
             sub_casts_array = sub_casts_array_full[jjj,iii]
             
             print('not enough spatial coverage LO casts')
@@ -752,12 +751,10 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                 
                 sub_thick_array.fill(0)
                 
-                sub_thick = np.sum(sub_thick_array, axis=0)
+                sub_thick_temp = np.sum(sub_thick_array, axis=0)
                 
-                sub_thick = sub_thick[jjj,iii]
-                            
-                sub_casts_array_full.fill(np.nan)
-            
+                sub_thick = sub_thick_temp[jjj,iii]
+                                        
                 sub_casts_array = sub_casts_array_full[jjj,iii]
                 
                 print('no sub LO casts')
@@ -773,15 +770,15 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                          
                          info_df_sub = info_df_sub.drop(cid)
                  
-                 sub_casts_array = copy.deepcopy(surf_casts_array)
+                 sub_casts_array_temp = copy.deepcopy(surf_casts_array)
          
-                 sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
+                 sub_casts_array_temp0 = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array_temp]
          
-                 sub_casts_array = np.array(sub_casts_array)
+                 sub_casts_array_temp1 = np.array(sub_casts_array_temp0)
          
-                 sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
+                 sub_casts_array =np.ma.masked_array(sub_casts_array_temp1,sub_casts_array_temp1==-99)
                  
-                 sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
+                 sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array.copy()
                  
                  sub_array = np.empty(np.shape(z_rho_grid))
                  sub_array.fill(0)
@@ -812,10 +809,10 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                      
                      sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], np.size(z_rho_grid, axis=0), axis=0)
                                                        
-                     sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
+                     sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))].copy()
                      
-                     sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
-                                                       
+                     sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))].copy()
+                              
                      
                         
                  sub_vol = np.sum(sub_array)
@@ -869,6 +866,8 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
     
     sub_casts_array_full = np.empty(np.shape(surf_casts_array_full))
     
+    sub_casts_array_full.fill(np.nan)
+    
     
     if info_df_use.empty: # if there are no casts in this time period
     
@@ -879,9 +878,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
         sub_thick = sub_thick_temp[jjj,iii]
                             
         sub_vol = np.nan
-        
-        sub_casts_array_full.fill(np.nan)
-        
+                
         sub_casts_array = sub_casts_array_full[jjj,iii]
         
         print('no obs casts')
@@ -923,16 +920,13 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
             sub_thick = sub_thick_temp[jjj,iii]
                                 
             sub_vol = np.nan
-            
-            sub_casts_array_full.fill(np.nan)
-            
+                        
             sub_casts_array = sub_casts_array_full[jjj,iii]
             
             print('not enough spatial coverage obs')
             
             
         else: #if enough spatial coverage
-        
         
             df_sub = df_use[df_use[var] < threshold_val]
         
@@ -942,12 +936,10 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                 
                 sub_thick_array.fill(0)
                 
-                sub_thick = np.sum(sub_thick_array, axis=0)
+                sub_thick_temp = np.sum(sub_thick_array, axis=0)
                 
-                sub_thick = sub_thick[jjj,iii]
-                            
-                sub_casts_array_full.fill(np.nan)
-            
+                sub_thick = sub_thick_temp[jjj,iii]
+                                        
                 sub_casts_array = sub_casts_array_full[jjj,iii]
                 
                 print('no sub obs casts')
@@ -962,15 +954,15 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                         
                         info_df_sub = info_df_sub.drop(cid) 
                 
-                sub_casts_array = copy.deepcopy(surf_casts_array)
+                sub_casts_array_temp = copy.deepcopy(surf_casts_array)
         
-                sub_casts_array = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array]
+                sub_casts_array_temp0 = [[ele if ele in df_sub['cid'].unique() else -99 for ele in line] for line in sub_casts_array_temp]
         
-                sub_casts_array = np.array(sub_casts_array)
+                sub_casts_array_temp1 = np.array(sub_casts_array_temp0)
         
-                sub_casts_array =np.ma.masked_array(sub_casts_array,sub_casts_array==-99)
+                sub_casts_array =np.ma.masked_array(sub_casts_array_temp1,sub_casts_array_temp1==-99)
                 
-                sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array
+                sub_casts_array_full[min(jjj):max(jjj)+1, min(iii):max(iii)+1] = sub_casts_array.copy()
                 
                 sub_array = np.empty(np.shape(z_rho_grid))
                 sub_array.fill(0)
@@ -1108,9 +1100,9 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                                     
                     sub_casts_array_full_3d = np.repeat(sub_casts_array_full[np.newaxis,:,:], np.size(z_rho_grid, axis=0), axis=0)
                                                       
-                    sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
+                    sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))].copy()
                     
-                    sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))]
+                    sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))].copy()
 
 
 

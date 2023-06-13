@@ -23,15 +23,17 @@ import seaborn as sns
 
 from matplotlib import cm
 
+from datetime import datetime
+
 # %%
 
 threshold_val = 2
 
 seg_str = ['sound_straits']
 
-years = [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021]
+#years = [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021]
 
-#years = [2021]
+years = [2017, 2018, 2019]
 
 vol_df = pd.DataFrame()
 
@@ -70,11 +72,27 @@ ax.set_title(str(years[0]) +'-'+ str(years[-1])+ ' Sub-' +str(threshold_val) + '
 
 ax.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1))
 
-new_labels = [date.fromordinal(int(item)) for item in ax.get_xticks()]
+
+# ax.set_xticks([])
+# ax.set_xticks([], minor=True)
+# ax.vlines([datetime.datetime(2018,1,1),datetime.datetime(2019,1,1)],0,15, alpha=.5)
+# ax.set_xticks([datetime.datetime(2017,1,1),datetime.datetime(2017,7,1),datetime.datetime(2018,1,1),
+#     datetime.datetime(2018,7,1),datetime.datetime(2019,1,1),datetime.datetime(2019,7,1),datetime.datetime(2019,12,31)])
+# ax.set_xticklabels(['','2017','','2018','','2019',''], rotation=0,
+#     fontdict={'horizontalalignment':'center'})
+
+#new_labels = [date.fromordinal(int(item)) for item in ax.get_xticks()]
+
+new_labels =[date(2017,1,1),date(2017,7,1),date(2018,1,1),
+     date(2018,7,1),date(2019,1,1),date(2019,7,1),date(2019,12,31)]
 
 ax.set(xticklabels=new_labels)
 
-ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment= 'right')
+
+ax.set_xticklabels(['','2017','','2018','','2019',''], rotation=0,
+    fontdict={'horizontalalignment':'center'})
+
+#ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment= 'right')
 
 plt.legend() #title = 'Basin [Order of Increasing Volume]')
 

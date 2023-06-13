@@ -18,6 +18,7 @@ import VFC_functions as vfun
 
 
 
+
 # %%
 
 
@@ -38,13 +39,13 @@ if not fn_his.exists():
 
 if Ldir['testing']:
     
-    month_num = ['02']
+    #month_num = ['02']
     
-    month_str = ['Feb']
+    #month_str = ['Feb']
 
-    # month_num =  ['01', '02','03','04','05','06','07','08','09','10','11','12']
+    month_num =  ['01', '02'] #,'03','04','05','06','07','08','09','10','11','12']
      
-    # month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    month_str = ['Jan','Feb'] #,'Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     
 else:
     
@@ -88,13 +89,14 @@ if Ldir['testing']:
     
 # %%
 
-info_df, df = vfun.getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, iii_dict, var)
-
-# %%
-
-info_df['month'] = info_df['time'].dt.month
-
-df['month'] = df['time'].dt.month
+if info_fn.exists() & fn.exists():
+    
+    info_df, df = vfun.getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, iii_dict, var)
+    
+    
+    info_df['month'] = info_df['time'].dt.month
+    
+    df['month'] = df['time'].dt.month
 
 # %%
 
@@ -156,13 +158,15 @@ for seg_name in seg_list:
     sub_casts_array_LO_casts[seg_name] = {}
     
     
-    for (mon_num, mon_str) in zip(month_num, month_str):
+    for mon_num, mon_str in zip(month_num, month_str):
         
-        info_df_use = info_df[(info_df['segment'] == seg_name) & (info_df['month'] == int(mon_num))]
+        if info_fn.exists() & fn.exists():
         
-        df_use = df[(df['segment'] == seg_name) & (df['month'] == int(mon_num))]
+            info_df_use = info_df[(info_df['segment'] == seg_name) & (info_df['month'] == int(mon_num))]
+            
+            df_use = df[(df['segment'] == seg_name) & (df['month'] == int(mon_num))]
         
-        surf_casts_array[seg_name][int(mon_num)] = vfun.assignSurfaceToCasts(info_df_use, jjj, iii)
+            surf_casts_array[seg_name][int(mon_num)] = vfun.assignSurfaceToCasts(info_df_use, jjj, iii)
         
         
         dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
@@ -192,13 +196,16 @@ for seg_name in seg_list:
                 sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
-        sub_vol_obs[seg_name][int(mon_num)], sub_thick_obs[seg_name][int(mon_num)], sub_casts_array_obs[seg_name][int(mon_num)] = vfun.getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+        if info_fn.exists() & fn.exists():
         
-        cid_dict[seg_name][int(mon_num)] = np.array(info_df_use.index)
-        
-        jj_casts[seg_name][int(mon_num)] = np.array(info_df_use['jj_cast'])
-        
-        ii_casts[seg_name][int(mon_num)] = np.array(info_df_use['ii_cast'])
+            sub_vol_obs[seg_name][int(mon_num)], sub_thick_obs[seg_name][int(mon_num)], sub_casts_array_obs[seg_name][int(mon_num)] = vfun.getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+            
+            cid_dict[seg_name][int(mon_num)] = np.array(info_df_use.index)
+            
+            jj_casts[seg_name][int(mon_num)] = np.array(info_df_use['jj_cast'])
+            
+            ii_casts[seg_name][int(mon_num)] = np.array(info_df_use['ii_cast'])
+            
                 
         print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']))
         
@@ -228,25 +235,26 @@ if Ldir['testing'] == False:
             
         with open((str(save_dir) + '/' +  'sub_vol_LO_casts.pkl'), 'wb') as f: 
             pickle.dump(sub_vol_LO_casts, f)
-        
-        
-    with open((str(save_dir) + '/' + 'sub_casts_array_obs.pkl'), 'wb') as f: 
-        pickle.dump(sub_casts_array_obs, f)       
-        
-    with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
-        pickle.dump(sub_thick_obs, f)
     
-    with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
-        pickle.dump(sub_vol_obs, f)  
+    if info_fn.exists() & fn.exists():
+
+        with open((str(save_dir) + '/' + 'sub_casts_array_obs.pkl'), 'wb') as f: 
+            pickle.dump(sub_casts_array_obs, f)       
+            
+        with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
+            pickle.dump(sub_thick_obs, f)
         
-    with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
-        pickle.dump(surf_casts_array, f)  
+        with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
+            pickle.dump(sub_vol_obs, f)  
+            
+        with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
+            pickle.dump(surf_casts_array, f)  
+            
+        with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
+            pickle.dump(jj_casts, f)
         
-    with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
-        pickle.dump(jj_casts, f)
-    
-    with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
-        pickle.dump(ii_casts, f)  
-        
-    with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
-        pickle.dump(cid_dict, f)
+        with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
+            pickle.dump(ii_casts, f)  
+            
+        with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
+            pickle.dump(cid_dict, f)

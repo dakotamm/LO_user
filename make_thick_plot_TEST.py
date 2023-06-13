@@ -141,7 +141,7 @@ for seg_name in seg_list:
                 
         df_use = df[(df['segment'] == seg_name) & (df['month'] == int(mon_num))]
         
-        cmap0 = cm.get_cmap('viridis', lut= len(info_df_use.index))
+        #cmap0 = cm.get_cmap('viridis', lut= len(info_df_use.index))
 
         
         
