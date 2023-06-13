@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run make_thick_plot_TEST -gtx cas6_v0_live -year 2018 -test True
+run make_thick_plot_TEST -gtx cas6_v0_live -year 2021 -test True
 
 """
 
