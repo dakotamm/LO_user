@@ -84,7 +84,7 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 
 if Ldir['testing']:
 
-    seg_list = ['Strait of Georgia']
+    seg_list = ['Strait of Juan de Fuca']
     
 # %%
 
