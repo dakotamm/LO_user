@@ -42,13 +42,13 @@ fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
 
 if Ldir['testing']:
     
-    month_num = ['08']
+    # month_num = ['08']
     
-    month_str = ['Aug']
+    # month_str = ['Aug']
 
-    # month_num =  ['01', '02','03','04','05','06','07','08','09','10','11','12']
+    month_num =  ['01', '02','03','04','05','06','07','08','09','10','11','12']
     
-    # month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     
 else:
     

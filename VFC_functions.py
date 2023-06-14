@@ -917,7 +917,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                                             
                             domain_flag = True
                             
-                    if np.size(test,axis=1) > np.size(jjj)*0.1:
+                    if np.size(test,axis=1) > np.size(jjj)*0.4:
                         
                         domain_flag = True
 
