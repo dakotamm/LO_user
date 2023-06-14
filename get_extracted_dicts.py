@@ -39,9 +39,9 @@ if not fn_his.exists():
 
 if Ldir['testing']:
     
-    month_num = ['02']
+    month_num = ['08']
     
-    month_str = ['Feb']
+    month_str = ['Aug']
 
     # month_num =  ['01', '02'] #,'03','04','05','06','07','08','09','10','11','12']
      
