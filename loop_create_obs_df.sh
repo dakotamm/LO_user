@@ -12,7 +12,7 @@ do
     for tp in ctd bottle
 	do
         
-        for yr in 2000 2001 2002 2003 2004 2005 2006 2007 2018 2019 2020 2021 2022
+        for yr in {1930..1999}
 		
 		do
 		
