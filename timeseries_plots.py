@@ -43,12 +43,12 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 threshold_val = 2
 
-seg_str = ['sound_straits']
+seg_str = ['basins']
 
 #years = [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2020]
 
 
-years = np.arange(1930,2000)
+years = np.arange(1930,2023)
 
 # %%
 
