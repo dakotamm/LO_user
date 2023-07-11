@@ -937,9 +937,6 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
             print('not enough spatial coverage obs')
             
             
-        # NEED CONDITION TO ACCOUNT FOR IF THERE IS NO DO DATA, perhaps separate than the below condition handling
-        
-        
         else: #if enough spatial coverage
         
             df_sub = df_use[df_use[var] < threshold_val]

@@ -7,7 +7,7 @@
 
 # note this doesn't handle different segmentations - for a later time
 
-for yr in {1930..1999}
+for yr in {1930..2022}
 
 do
 	python ./get_extracted_dicts.py -gtx cas6_v0_live -year $yr -test False &
