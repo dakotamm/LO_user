@@ -60,7 +60,7 @@ threshold_val = 2 #mg/L DO
 
 var = 'DO_mg_L'
 
-segments = 'sound_straits' #custom (specify string list and string build list), basins, whole domain, sound and strait
+segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
 # seg_build_list = optional
     
@@ -84,7 +84,7 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 
 if Ldir['testing']:
 
-    seg_list = ['Strait of Georgia']
+    seg_list = ['Whidbey Basin', 'Hood Canal']
     
 # %%
 
@@ -108,10 +108,10 @@ with open((file_dir + '/' + 'sub_thick_obs.pkl'), 'rb') as f:
     sub_thick_obs = pickle.load(f)  
     
 with open((file_dir + '/' + 'sub_thick_obs.pkl'), 'rb') as f: 
-    sub_thick_obs = pickle.load(f)  
+    sub_thick_LO_his = pickle.load(f)  
     
 with open((file_dir + '/' + 'sub_thick_obs.pkl'), 'rb') as f: 
-    sub_thick_obs = pickle.load(f)  
+    sub_thick_LO_casts = pickle.load(f)  
     
 with open((file_dir + '/' + 'cid_dict.pkl'), 'rb') as f: 
     cid_dict = pickle.load(f)  
