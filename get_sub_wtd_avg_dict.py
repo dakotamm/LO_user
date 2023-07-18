@@ -87,7 +87,7 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 
 if Ldir['testing']:
 
-    seg_list = ['Strait of Georgia']
+    seg_list = ['Whidbey Basin']
     
 # %%
 
@@ -175,50 +175,50 @@ for seg_name in seg_list:
         
 # %%
 
-if Ldir['testing'] == False:
+#if Ldir['testing'] == False:
 
-    dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
-    
-    fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
-    
-    # if fn_his.exists():
-        
-    #     with open((str(save_dir) + '/' + 'sub_thick_LO_his.pkl'), 'wb') as f: 
-    #         pickle.dump(sub_thick_LO_his, f)  
-        
-    #     with open((str(save_dir) + '/' +  'sub_vol_LO_his.pkl'), 'wb') as f: 
-    #         pickle.dump(sub_vol_LO_his, f)
-    
-    # if Ldir['year'] == 2017:
-    
-    #     with open((str(save_dir) + '/' + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
-    #         pickle.dump(sub_casts_array_LO_casts, f)
-            
-    #     with open((str(save_dir) + '/' +  'sub_thick_LO_casts.pkl'), 'wb') as f: 
-    #         pickle.dump(sub_thick_LO_casts, f)
-            
-    #     with open((str(save_dir) + '/' +  'sub_vol_LO_casts.pkl'), 'wb') as f: 
-    #         pickle.dump(sub_vol_LO_casts, f)
-    
-    if info_fn.exists() & fn.exists():
+dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
 
-        with open((str(save_dir) + '/' + 'sub_wtd_avg_obs.pkl'), 'wb') as f: 
-            pickle.dump(sub_wtd_avg_obs, f)       
-            
-        # with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
-        #     pickle.dump(sub_thick_obs, f)
+fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
+
+# if fn_his.exists():
+    
+#     with open((str(save_dir) + '/' + 'sub_thick_LO_his.pkl'), 'wb') as f: 
+#         pickle.dump(sub_thick_LO_his, f)  
+    
+#     with open((str(save_dir) + '/' +  'sub_vol_LO_his.pkl'), 'wb') as f: 
+#         pickle.dump(sub_vol_LO_his, f)
+
+# if Ldir['year'] == 2017:
+
+#     with open((str(save_dir) + '/' + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
+#         pickle.dump(sub_casts_array_LO_casts, f)
         
-        # with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
-        #     pickle.dump(sub_vol_obs, f)  
-            
-        # with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
-        #     pickle.dump(surf_casts_array, f)  
-            
-        # with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
-        #     pickle.dump(jj_casts, f)
+#     with open((str(save_dir) + '/' +  'sub_thick_LO_casts.pkl'), 'wb') as f: 
+#         pickle.dump(sub_thick_LO_casts, f)
         
-        # with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
-        #     pickle.dump(ii_casts, f)  
-            
-        # with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
-        #     pickle.dump(cid_dict, f)
+#     with open((str(save_dir) + '/' +  'sub_vol_LO_casts.pkl'), 'wb') as f: 
+#         pickle.dump(sub_vol_LO_casts, f)
+
+if info_fn.exists() & fn.exists():
+
+    with open((str(save_dir) + '/' + 'sub_wtd_avg_obs.pkl'), 'wb') as f: 
+        pickle.dump(sub_wtd_avg_obs, f)       
+        
+    # with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
+    #     pickle.dump(sub_thick_obs, f)
+    
+    # with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
+    #     pickle.dump(sub_vol_obs, f)  
+        
+    # with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
+    #     pickle.dump(surf_casts_array, f)  
+        
+    # with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
+    #     pickle.dump(jj_casts, f)
+    
+    # with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
+    #     pickle.dump(ii_casts, f)  
+        
+    # with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
+    #     pickle.dump(cid_dict, f)

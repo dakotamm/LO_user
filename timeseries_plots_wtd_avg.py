@@ -336,6 +336,80 @@ fig.tight_layout()
 plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_wtd_avg_below_40m_'+ seg_str[0]+ '_PS.png', transparent=False, dpi=500)
 
 
+# %%
+
+fig, ax = plt.subplots(1,1,figsize=(18,8))
+
+
+
+# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Admiralty Inlet'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Admiralty Inlet'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Admiralty Inlet'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
+
+# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Main Basin'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Main Basin'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Main Basin'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
+
+plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Hood Canal'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Hood Canal'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Hood Canal'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
+
+# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Whidbey Basin'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Whidbey Basin'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Whidbey Basin'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
+
+# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Tacoma Narrows'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Tacoma Narrows'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Tacoma Narrows'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
+
+# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'South Sound'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'South Sound'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'South Sound'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
+
+
+
+ax = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Hood Canal')], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', size='num_casts', sizes=(30,300))# , style = 'data_type')
+
+
+ax2 = plt.twinx()
+
+sns.scatterplot(data = wtd_avg_df[(wtd_avg_df['data_type'] == 'OBS') & (wtd_avg_df['segment'] == 'Hood Canal')], x = 'date_ordinal', y = 'DO_wtd_avg_mg_L', hue = 'segment', size='num_casts', sizes=(30,300), ax = ax2)# , style = 'data_type')
+
+
+ax.set(xlim=(date.toordinal(date(1999,1,1)), date.toordinal(date(2019,12,31))),ylim=(0,4))
+
+
+
+
+
+
+labels = [date(1999,1,1),  date(2000,1,1), 
+              date(2001,1,1),  date(2002,1,1), 
+              date(2003,1,1),  date(2004,1,1), 
+              date(2005,1,1),  date(2006,1,1), 
+              date(2007,1,1), date(2008,1,1), 
+              date(2009,1,1), 
+              date(2010,1,1),  date(2011,1,1), 
+              date(2012,1,1),  date(2013,1,1), 
+              date(2014,1,1),  date(2015,1,1), 
+              date(2016,1,1), date(2017,1,1), 
+              date(2018,1,1), date(2019,1,1)]
+
+
+new_labels = [date.toordinal(item) for item in labels]
+
+ax.set_xticks(new_labels)
+
+
+ax.set_xticklabels(['1999','2000','2001','2002','2003','2004','2005','2006','2007',
+                    '2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019'], rotation=0,
+    fontdict={'horizontalalignment':'center'})
+
+plt.legend() #title = 'Basin [Order of Increasing Volume]')
+
+
+ax.set(xlabel = 'Date', ylabel = 'Hypoxic Volume [$km^3$]')
+
+ax2.set(ylabel = 'DO Wtd Avg Sub-40m [mg/L]')
+
+plt.legend(title=False, loc='upper left') #, ncol =2)
+
+
+
+
+plt.grid(alpha=0.3)
+
+fig.tight_layout()
+
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_wtd_avg_below_40m_'+ seg_str[0]+ '_HC.png', transparent=False, dpi=500)
 
 
 

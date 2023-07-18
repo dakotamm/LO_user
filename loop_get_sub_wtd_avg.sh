@@ -10,7 +10,7 @@
 for yr in {1930..2022}
 
 do
-	python ./get_sub_wtd_avg_dict.py -gtx cas6_v0_live -year $yr -test False &
+	python ./get_sub_wtd_avg_dict.py -gtx cas6_v0_live -year $yr -test True &
 	
 done
 	
