@@ -1178,9 +1178,9 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid
                 
         if df_sub.empty: # if it isn't deep enough
         
-            df_wtd_avg['DO_wtd_mg_L'] = df_wtd_avg['DO_mg_L']*df_wtd_avg['vol_km_3']    
+            df_wtd_avg['DO_wtd_mg_L'] = df_wtd_avg['DO_mg_L']*df_wtd_avg['vol_m_3']    
         
-            sub_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_km_3'])
+            sub_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_m_3'])
             
             print('not deep enough obs')
         
@@ -1230,14 +1230,14 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid
                                               
                 sub_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dv[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))].copy()
             
-                df_wtd_avg.loc[df_wtd_avg.index == cid, 'vol_km_3'] = np.sum(sub_array)/1000
+                df_wtd_avg.loc[df_wtd_avg.index == cid, 'vol_m_3'] = np.sum(sub_array)
             
             # sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))].copy()
 
-            df_wtd_avg['DO_wtd_mg_L'] = df_wtd_avg['DO_mg_L']*df_wtd_avg['vol_km_3']
+            df_wtd_avg['DO_wtd_mg_L'] = df_wtd_avg['DO_mg_L']*df_wtd_avg['vol_m_3']
             
             
-            sub_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_km_3'])
+            sub_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_m_3'])
 
             # sub_vol = np.sum(sub_array)
             
