@@ -1249,4 +1249,40 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid
 
     
     return sub_avg
+
+
+
+def getOBSAvgBelow(info_df_use, df_use, var, threshold_depth):
+    
+    """
+    
+    """
+    
+    if info_df_use.empty: # if there are no casts in this time period
+    
+        # sub_thick_array.fill(np.nan)
+    
+        # sub_thick_temp = np.sum(sub_thick_array, axis=0)
         
+        # sub_thick = sub_thick_temp[jjj,iii]
+                            
+        sub_avg = np.nan
+                
+        # sub_casts_array = sub_casts_array_full[jjj,iii]
+        
+        print('no obs casts')
+        
+        
+    else: # if casts in time period
+        
+        df_sub = df_use[df_use['z'] < threshold_depth]
+        
+        if df_sub.empty: # if it isn't deep enough
+        
+            df_sub = np.nan
+                    
+        else:  #if it is deep enough
+        
+            sub_avg = df_sub['DO_mg_L'].mean()
+            
+    return sub_avg
