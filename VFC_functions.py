@@ -1279,7 +1279,7 @@ def getOBSAvgBelow(info_df_use, df_use, var, threshold_depth):
         
         if df_sub.empty: # if it isn't deep enough
         
-            df_sub = np.nan
+            sub_avg = np.nan
                     
         else:  #if it is deep enough
         
