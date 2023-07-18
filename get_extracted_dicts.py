@@ -55,6 +55,8 @@ else:
 
 threshold_val = 2 #mg/L DO
 
+threshold_depth = -40 #m GOTTA BE NEGATIVE
+
 var = 'DO_mg_L'
 
 segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
@@ -124,6 +126,10 @@ sub_casts_array_obs = {}
 
 sub_casts_array_LO_casts = {}
 
+sub_avg_obs = {}
+
+sub_wtd_avg_obs = {}
+
 # %%
 
 for seg_name in seg_list:
@@ -156,6 +162,10 @@ for seg_name in seg_list:
     sub_casts_array_obs[seg_name] = {}
     
     sub_casts_array_LO_casts[seg_name] = {}
+    
+    sub_avg_obs[seg_name] = {}
+
+    sub_wtd_avg_obs[seg_name] = {}
     
     
     for mon_num, mon_str in zip(month_num, month_str):
@@ -205,6 +215,10 @@ for seg_name in seg_list:
             jj_casts[seg_name][int(mon_num)] = np.array(info_df_use['jj_cast'])
             
             ii_casts[seg_name][int(mon_num)] = np.array(info_df_use['ii_cast'])
+            
+            sub_avg_obs[seg_name][int(mon_num)] = vfun.getOBSAvgBelow(info_df_use, df_use, var, threshold_depth)
+            
+            sub_wtd_avg_obs[seg_name][int(mon_num)] = vfun.getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array)
             
                 
         print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']))
@@ -258,3 +272,10 @@ if Ldir['testing'] == False:
             
         with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
             pickle.dump(cid_dict, f)
+            
+        with open((str(save_dir) + '/' + 'sub_avg_obs.pkl'), 'wb') as f: 
+            pickle.dump(sub_avg_obs, f)
+            
+        with open((str(save_dir) + '/' + 'sub_wtd_avg_obs.pkl'), 'wb') as f: 
+            pickle.dump(sub_wtd_avg_obs, f)
+            

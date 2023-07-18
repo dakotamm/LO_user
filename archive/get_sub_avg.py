@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run avg_conc_plot -gtx cas6_v0_live -year 2000 -test True
+run get_sub_avg -gtx cas6_v0_live -year 2000 -test True
 
 """
 
@@ -55,7 +55,7 @@ else:
 
 threshold_val = 2 #mg/L DO
 
-threshold_depth = 40
+threshold_depth = -40 #m
 
 var = 'DO_mg_L'
 
@@ -124,15 +124,21 @@ for seg_name in seg_list:
             
             sub_avg[seg_name][int(mon_num)] = vfun.getOBSAvgBelow(info_df_use, df_use, var, threshold_depth)
             
+            print('avg done')
+            
+            sub_avg[seg_name][int(mon_num)] = vfun.getOBSAvgBelow(info_df_use, df_use, var, threshold_depth)
+            
             
         print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']))
             
 # %%
 
-if info_fn.exists() & fn.exists():
+if Ldir['testing'] == False:
 
-    with open((str(save_dir) + '/' + 'sub_avg.pkl'), 'wb') as f: 
-        pickle.dump(sub_avg, f)
+    if info_fn.exists() & fn.exists():
+    
+        with open((str(save_dir) + '/' + 'sub_avg.pkl'), 'wb') as f: 
+            pickle.dump(sub_avg, f)
             
     
     

@@ -46,6 +46,7 @@ elif Ldir['lo_env'] == 'dm_perigee':
     
     fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/' + str(Ldir['year']) + '.p')
     
+    # UNLESS YOU MAKE YOUR OWN - CHECK THIS
     
 if info_fn_in.exists() & fn_in.exists():
 
