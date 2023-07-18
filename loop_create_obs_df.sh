@@ -12,7 +12,7 @@ do
     for tp in ctd bottle
 	do
         
-        for yr in {1930..1999}
+        for yr in {1999..2007}
 		
 		do
 		
