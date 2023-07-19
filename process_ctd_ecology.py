@@ -11,13 +11,23 @@ import gsw
 import sys
 from time import time as Time
 
+from pathlib import PosixPath
+
+
 from lo_tools import Lfun, obs_functions
 Ldir = Lfun.Lstart()
 
 # BOTTLE
 source = 'ecology'
 otype = 'ctd'
-in_dir0 = Ldir['data'] / 'obs' / source
+
+if Ldir['lo_env'] == 'dm_mac':
+    
+    in_dir0 = Ldir['data'] / 'obs' / source
+    
+elif Ldir['lo_env'] == 'dm_perigee':
+    
+    in_dir0 = PosixPath('/agdat1/parker/LO_data/obs/' + Ldir['source'])
 
 testing = False
 
