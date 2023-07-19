@@ -12,6 +12,9 @@ from lo_tools import Lfun
 from lo_tools import extract_argfun as exfun
 import pickle
 
+from time import time as Time
+
+
 import numpy as np
 
 import VFC_functions as vfun
@@ -24,7 +27,7 @@ import VFC_functions as vfun
 
 Ldir = exfun.intro() # this handles the argument passing
 
-
+tt1 = Time()
 # %%
 
 dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
@@ -170,13 +173,20 @@ for seg_name in seg_list:
     
     for mon_num, mon_str in zip(month_num, month_str):
         
+        tt0 = Time()
+        
         if info_fn.exists() & fn.exists():
+            
         
             info_df_use = info_df[(info_df['segment'] == seg_name) & (info_df['month'] == int(mon_num))]
             
             df_use = df[(df['segment'] == seg_name) & (df['month'] == int(mon_num))]
         
             surf_casts_array[seg_name][int(mon_num)] = vfun.assignSurfaceToCasts(info_df_use, jjj, iii)
+            
+        else:
+            
+            print('no obs data for ' + str(Ldir['year']))
         
         
         dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
@@ -191,6 +201,8 @@ for seg_name in seg_list:
             fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
         
             G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
+            
+            print('no LO data for ' + month_str + ' ' + str(Ldir['year']))
         
         
         else:
@@ -199,11 +211,11 @@ for seg_name in seg_list:
             
             sub_vol_LO_his[seg_name][int(mon_num)], sub_thick_LO_his[seg_name][int(mon_num)] = vfun.getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val)
         
-            if Ldir['year'] == 2017:
+            # if Ldir['year'] == 2017:
                 
-                vfun.extractLOCasts(Ldir, info_df_use, fn_his)
-                
-                sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+            vfun.extractLOCasts(Ldir, info_df_use, fn_his)
+            
+            sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
         if info_fn.exists() & fn.exists():
@@ -219,10 +231,10 @@ for seg_name in seg_list:
             sub_avg_obs[seg_name][int(mon_num)] = vfun.getOBSAvgBelow(info_df_use, df_use, var, threshold_depth)
             
             sub_wtd_avg_obs[seg_name][int(mon_num)] = vfun.getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
-            
-                
-        print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']))
         
+        
+        print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']) + ' completed after %d sec' % (int(Time()-tt0)))
+            
 # %%
 
 if Ldir['testing'] == False:
@@ -239,7 +251,7 @@ if Ldir['testing'] == False:
         with open((str(save_dir) + '/' +  'sub_vol_LO_his.pkl'), 'wb') as f: 
             pickle.dump(sub_vol_LO_his, f)
     
-    if Ldir['year'] == 2017:
+    # if Ldir['year'] == 2017:
     
         with open((str(save_dir) + '/' + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
             pickle.dump(sub_casts_array_LO_casts, f)
@@ -278,4 +290,9 @@ if Ldir['testing'] == False:
             
         with open((str(save_dir) + '/' + 'sub_wtd_avg_obs.pkl'), 'wb') as f: 
             pickle.dump(sub_wtd_avg_obs, f)
+
+# %%
+
+print(str(Ldir['year']) + ' completed after %d sec' % (int(Time()-tt1)))
+
             

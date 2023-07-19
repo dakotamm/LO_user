@@ -18,7 +18,7 @@ from lo_tools import plotting_functions as pfun
 import tef_fun as tfun
 import pickle
 
-from time import time
+from time import time as Time
 from subprocess import Popen as Po
 from subprocess import PIPE as Pi
 
@@ -43,6 +43,7 @@ from datetime import timedelta
 
 def get_his_fn_from_dt(Ldir, dt): # RIPPED FROM CFUN to support perigee usage
     # This creates the Path of a history file from its datetime
+    tt0 = Time()
     if dt.hour == 0:
         # perfect restart does not write the 0001 file
         dt = dt - timedelta(days=1)
@@ -58,12 +59,15 @@ def get_his_fn_from_dt(Ldir, dt): # RIPPED FROM CFUN to support perigee usage
     elif Ldir['lo_env'] == 'dm_perigee':
         
         fn = (PosixPath('/data1/parker/LO_roms/') / Ldir['gtagex'] / ('f' + date_string) / ('ocean_his_' + his_num + '.nc'))
+    
+    print('get_his_fn_from_dt = %d sec' % (int(Time()-tt0)))
               
     return fn
     
 
 def getGridInfo(fn):
     
+    tt0 = Time()
     G, S, T = zrfun.get_basic_info(fn)
     land_mask = G['mask_rho']
     Lon = G['lon_rho'][0,:]
@@ -74,22 +78,29 @@ def getGridInfo(fn):
     dv = dz*G['DX']*G['DY']
     h = G['h']
     
+    print('getGridInfo = %d sec' % (int(Time()-tt0)))
+    
     return G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h
 
     
     
 def getSegmentInfo(Ldir):
     
+    tt0 = Time()
     vol_dir = Ldir['LOo'] / 'extract' / 'tef' / ('volumes_' + Ldir['gridname'])
     v_df = pd.read_pickle(vol_dir / 'volumes.p')
     j_dict = pickle.load(open(vol_dir / 'j_dict.p', 'rb'))
     i_dict = pickle.load(open(vol_dir / 'i_dict.p', 'rb'))
     seg_list = list(v_df.index)
     
+    print('getSegmentInfo = %d sec' % (int(Time()-tt0)))
+    
     return vol_dir, v_df, j_dict, i_dict, seg_list
 
 
 def buildInfoDF(Ldir, info_fn_in, info_fn):
+    
+    tt0 = Time()
     
     info_df_temp = pd.read_pickle(info_fn_in)
         
@@ -134,10 +145,15 @@ def buildInfoDF(Ldir, info_fn_in, info_fn):
         info_df.to_pickle(info_fn)
         
         
+    print('buildInfoDF = %d sec' % (int(Time()-tt0)))
+        
+        
     return info_df
 
 
 def buildDF(Ldir, fn_in, fn, info_df):
+    
+    tt0 = Time()
     
     df_temp = pd.read_pickle(fn_in)
         
@@ -180,6 +196,9 @@ def buildDF(Ldir, fn_in, fn, info_df):
         
         df.to_pickle(fn)
         
+    
+    print('buildDF = %d sec' % (int(Time()-tt0)))
+        
         
     return df
 
@@ -202,6 +221,8 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):
         - iii_dict
         
     """
+    
+    tt0 = Time()
     
     if seg_str_list == 'all':
         
@@ -261,6 +282,7 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):
                 jjj_dict[seg_str] = j_dict[seg_name]
                 iii_dict[seg_str] = i_dict[seg_name]
             
+    print('defineSegmentIndices = %d sec' % (int(Time()-tt0)))
     
     return jjj_dict, iii_dict, seg_str_list
 
@@ -283,6 +305,8 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
         - iii_dict:
     
     """
+    
+    tt0=Time()
     
     depth_threshold = 0.2 # percentage of bathymetry the cast can be from the bottom to be accepted
     
@@ -369,6 +393,8 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
         df = df.drop(df.loc[df['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
             
     
+    print('getCleanDataFrames = %d sec' % (int(Time()-tt0)))
+    
     return info_df, df
     
     
@@ -391,6 +417,7 @@ def extractLOCasts(Ldir, info_df_use, fn_his):
         - NONE: saves to output directory for future use
         
     """   
+    tt0 = Time()
     
     if not info_df_use.empty:
         
@@ -466,7 +493,14 @@ def extractLOCasts(Ldir, info_df_use, fn_his):
                     # ======================================
                     ii += 1
         else:
-            print('cast extraction exists')
+            print('LO cast extraction exists')
+        
+        print('LO casts extracted')
+        
+    else:
+        print('no casts to extract in LO')
+        
+    print('extractLOCasts = %d sec' % (int(Time()-tt0)))
         
 
     
@@ -487,6 +521,7 @@ def assignSurfaceToCasts(info_df_use, jjj, iii):
             
     """
     
+    tt0 = Time()
     
     xx = np.arange(min(iii), max(iii)+1)
     yy = np.arange(min(jjj), max(jjj)+1)
@@ -495,6 +530,8 @@ def assignSurfaceToCasts(info_df_use, jjj, iii):
         
         surf_casts_array = np.empty([len(yy),len(xx)])
         surf_casts_array.fill(np.nan)
+        
+        print('no casts for surface assignment')
                 
     else:
         
@@ -523,7 +560,11 @@ def assignSurfaceToCasts(info_df_use, jjj, iii):
         surf_casts_array = copy.deepcopy(a)
         
         surf_casts_array[~a.mask] = b[~c.mask][tree_query]
+        
+        print('surface assigned to casts')
             
+    print('assignSurfaceToCasts = %d sec' % (int(Time()-tt0)))
+    
     return surf_casts_array
 
 
@@ -546,6 +587,10 @@ def getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val):
         - var_array: for use in matching to casts
     
     """
+    
+    tt0 = Time()
+    
+    print('LO His available')
     
     dv_sliced = dv[:, jjj, iii].copy()
     
@@ -574,6 +619,8 @@ def getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val):
     dz_sub[var_array > threshold_val] = 0
     
     sub_thick_sum = np.sum(dz_sub, axis=0) #units of m...how thick hypoxic column is...depth agnostic
+    
+    print('getLOHisSubVolThick = %d sec' % (int(Time()-tt0)))
     
     return sub_vol_sum, sub_thick_sum
 
@@ -605,11 +652,15 @@ def getLOCastsAttrs(fn):
     
     """
     
+    tt0 = Time()
+    
     ds = xr.open_dataset(fn)
     z_rho = ds.z_rho.values
     oxygen = ds.oxygen.values*32/1000  # mg/L
     ds.close()
-        
+    
+    print('getLOCastsAttrs within getLOCastsSubVolThick = %d sec' % (int(Time()-tt0)))
+    
     return z_rho, oxygen
         
         
@@ -641,7 +692,11 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
     GENERALIZE TO OTHER VARIABLES
     
     """
-        
+    
+    tt0 = Time()
+    
+    print('LO His available for LO VFC attempt')
+    
     surf_casts_array_full = np.empty(np.shape(land_mask))
     surf_casts_array_full.fill(np.nan)
         
@@ -679,23 +734,43 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
         if num_casts == 1:
             
             domain_flag = True
+            
+            print('too few LO casts')
         
         else:
      
             for cid in info_df_use.index:
-                
+
                 test = np.where(surf_casts_array == cid)
                 
                 if num_casts == 2:
                     
+                    if (48.48498053545606 < info_df_use.loc[cid,'lat'] < 48.68777542575437) & (-123.58171407533055 < info_df_use.loc[cid,'lon'] < -123.44409346988729):
+                        
+                        domain_flag = True
+                        
+                        print('bad - only two LO casts and in Saanich Inlet')
+                    
                     if np.size(test, axis=1) > np.size(jjj)*0.8:
                         
                         domain_flag = True
+                        
+                        print('bad - only two LO casts and one exceeds 80% of surface')
                 else:
                     
-                    if np.size(test, axis=1) > np.size(jjj)*0.5:
+                    if (48.48498053545606 < info_df_use.loc[cid,'lat'] < 48.68777542575437) & (-123.58171407533055 < info_df_use.loc[cid,'lon'] < -123.44409346988729):
+
+                        if np.size(test,axis=1) > np.size(jjj)*0.1:
                                             
+                            domain_flag = True
+                            
+                            print('bad - Saanich Inlet LO casts take up more than 10% of surface')
+                            
+                    if np.size(test,axis=1) > np.size(jjj)*0.5:
+                        
                         domain_flag = True
+                        
+                        print('bad - one LO cast takes up more than 50% of domain')
         
         if domain_flag: #if too few casts for domain
         
@@ -709,10 +784,12 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                         
             sub_casts_array = sub_casts_array_full[jjj,iii]
             
-            print('not enough spatial coverage LO casts')
+            #print('not enough spatial coverage LO casts')
             
             
         else: #if enough spatial coverage
+        
+            print('sufficient spatial coverage LO casts')
             
     
             LO_casts_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' / (str(Ldir['year'])) / (str(info_df_use['segment'].iloc[0]) + '_' + str(info_df_use['time'].dt.date.min()) + '_' + str(info_df_use['time'].dt.date.max()) ) )
@@ -758,10 +835,12 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                                         
                 sub_casts_array = sub_casts_array_full[jjj,iii]
                 
-                print('no sub LO casts')
+                print('no subthreshold value LO casts')
     
                 
             else: # if subthreshold values!
+            
+                 print('subthreshold value LO casts exist')
                                        
                  info_df_sub = info_df_use.copy(deep=True)
              
@@ -823,6 +902,9 @@ def getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, lan
                  sub_thick = sub_thick_temp[jjj,iii]
                 
                  sub_casts_array = sub_casts_array_full[jjj,iii]
+    
+    print('getLOCastsSubVolThick = %d sec' % (int(Time()-tt0)))
+
              
 
              
@@ -857,6 +939,7 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
     
     """
 
+    tt0 = Time()
     
     surf_casts_array_full = np.empty(np.shape(land_mask))
     surf_casts_array_full.fill(np.nan)
@@ -894,6 +977,8 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
         if num_casts == 1:
             
             domain_flag = True
+            
+            print('too few obs casts')
         
         else:
      
@@ -906,10 +991,14 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                     if (48.48498053545606 < info_df_use.loc[cid,'lat'] < 48.68777542575437) & (-123.58171407533055 < info_df_use.loc[cid,'lon'] < -123.44409346988729):
                         
                         domain_flag = True
+                        
+                        print('bad - only two obs casts and in Saanich Inlet')
                     
                     if np.size(test, axis=1) > np.size(jjj)*0.8:
                         
                         domain_flag = True
+                        
+                        print('bad - only two obs casts and one exceeds 80% of surface')
                 else:
                     
                     if (48.48498053545606 < info_df_use.loc[cid,'lat'] < 48.68777542575437) & (-123.58171407533055 < info_df_use.loc[cid,'lon'] < -123.44409346988729):
@@ -918,9 +1007,14 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                                             
                             domain_flag = True
                             
-                    if np.size(test,axis=1) > np.size(jjj)*0.4:
+                            print('bad - Saanich Inlet obs casts take up more than 10% of surface')
+                            
+                    if np.size(test,axis=1) > np.size(jjj)*0.5:
                         
                         domain_flag = True
+                        
+                        print('bad - one obs cast takes up more than 50% of domain')
+                
 
                         
         if domain_flag: #if too few casts for domain
@@ -935,13 +1029,15 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                         
             sub_casts_array = sub_casts_array_full[jjj,iii]
             
-            print('not enough spatial coverage obs')
+            # print('not enough spatial coverage obs')
             
             
         # NEED CONDITION TO ACCOUNT FOR IF THERE IS NO DO DATA, perhaps separate than the below condition handling
         
         
         else: #if enough spatial coverage
+        
+            print('sufficient spatial coverage obs casts')
         
             df_sub = df_use[df_use[var] < threshold_val]
         
@@ -957,9 +1053,11 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                                         
                 sub_casts_array = sub_casts_array_full[jjj,iii]
                 
-                print('no sub obs casts')
+                print('no subthreshold value obs casts')
                         
             else: # if there ARE subthreshold volumes
+            
+                print('subthreshold value obs casts exist')
                     
                 info_df_sub = info_df_use.copy(deep=True)
             
@@ -1129,7 +1227,9 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
                 
                 sub_casts_array = sub_casts_array_full[jjj,iii]
 
-        
+    print('getOBSCastsSubVolThick = %d sec' % (int(Time()-tt0)))
+
+    
     return sub_vol, sub_thick, sub_casts_array
 
 
@@ -1140,6 +1240,8 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid
     THRESHOLD DEPTH GOTTA BE NEGATIVE
     
     """
+    
+    tt0 = Time()
 
     surf_casts_array_full = np.empty(np.shape(land_mask))
     surf_casts_array_full.fill(np.nan)
@@ -1165,7 +1267,7 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid
                 
         # sub_casts_array = sub_casts_array_full[jjj,iii]
         
-        print('no obs casts')
+        print('no obs casts for wtd avg')
                         
         
     else: # if casts in time period
@@ -1182,10 +1284,12 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid
         
             sub_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_m_3'])
             
-            print('not deep enough obs')
+            print('not deep enough obs casts for wtd avg')
         
         
         else: # if it is deep enough
+        
+            print('obs casts deep enough for wtd avg')
                 
             info_df_sub = info_df_use.copy(deep=True)
         
@@ -1247,6 +1351,7 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid
             
             # sub_casts_array = sub_casts_array_full[jjj,iii]
 
+    print('getOBSCastsWtdAvgBelow = %d sec' % (int(Time()-tt0)))
     
     return sub_avg
 
@@ -1257,6 +1362,8 @@ def getOBSAvgBelow(info_df_use, df_use, var, threshold_depth):
     """
     
     """
+    
+    tt0 = Time()
     
     if info_df_use.empty: # if there are no casts in this time period
     
@@ -1270,19 +1377,27 @@ def getOBSAvgBelow(info_df_use, df_use, var, threshold_depth):
                 
         # sub_casts_array = sub_casts_array_full[jjj,iii]
         
-        print('no obs casts')
+        print('no obs casts for sub-depth avg')
         
         
     else: # if casts in time period
-        
+            
         df_sub = df_use[df_use['z'] < threshold_depth]
         
         if df_sub.empty: # if it isn't deep enough
+        
+            print('not deep enough obs casts for sub-depth avg')
         
             sub_avg = np.nan
                     
         else:  #if it is deep enough
         
+            print('obs casts deep enoug for sub-depth avg')
+        
             sub_avg = df_sub['DO_mg_L'].mean()
+            
+            
+            
+    print('getOBSAvgBelow = %d sec' % (int(Time()-tt0)))
             
     return sub_avg
