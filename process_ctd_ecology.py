@@ -27,7 +27,7 @@ if Ldir['lo_env'] == 'dm_mac':
     
 elif Ldir['lo_env'] == 'dm_perigee':
     
-    in_dir0 = PosixPath('/agdat1/parker/LO_data/obs/' + Ldir['source'])
+    in_dir0 = PosixPath('/agdat1/parker/LO_data/obs/' + source)
 
 testing = False
 
