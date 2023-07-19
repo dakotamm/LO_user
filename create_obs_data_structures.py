@@ -34,17 +34,17 @@ Lfun.make_dir(df_dir, clean=False)
 
 # %%
 
-if Ldir['lo_env'] == 'dm_mac':
+# if Ldir['lo_env'] == 'dm_mac':
 
-    info_fn_in = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / ('info_' + str(Ldir['year']) + '.p')
+info_fn_in = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / ('info_' + str(Ldir['year']) + '.p')
+
+fn_in = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / (str(Ldir['year']) + '.p')
     
-    fn_in = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / (str(Ldir['year']) + '.p')
+# elif Ldir['lo_env'] == 'dm_perigee':
     
-elif Ldir['lo_env'] == 'dm_perigee':
+#     info_fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/info_' + str(Ldir['year']) + '.p')
     
-    info_fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/info_' + str(Ldir['year']) + '.p')
-    
-    fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/' + str(Ldir['year']) + '.p')
+#     fn_in = PosixPath('/data1/parker/LO_output/obs/' + Ldir['source'] + '/' + Ldir['otype'] + '/' + str(Ldir['year']) + '.p')
     
     # UNLESS YOU MAKE YOUR OWN - CHECK THIS
     
