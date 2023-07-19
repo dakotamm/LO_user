@@ -202,7 +202,7 @@ for seg_name in seg_list:
         
             G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
             
-            print('no LO data for ' + month_str + ' ' + str(Ldir['year']))
+            print('no LO data for ' + mon_str + ' ' + str(Ldir['year']))
         
         
         else:

@@ -1392,7 +1392,7 @@ def getOBSAvgBelow(info_df_use, df_use, var, threshold_depth):
                     
         else:  #if it is deep enough
         
-            print('obs casts deep enoug for sub-depth avg')
+            print('obs casts deep enough for sub-depth avg')
         
             sub_avg = df_sub['DO_mg_L'].mean()
             
