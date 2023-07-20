@@ -1283,9 +1283,9 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid
                 
         if df_sub.empty: # if it isn't deep enough
         
-            df_wtd_avg['DO_wtd_mg_L'] = df_wtd_avg['DO_mg_L']*df_wtd_avg['vol_m_3']    
+            df_wtd_avg['DO_wtd_mg_L'] = np.nan  
         
-            sub_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_m_3'])
+            sub_avg = np.nan
             
             print('not deep enough obs casts for wtd avg')
         
