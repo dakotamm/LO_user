@@ -167,61 +167,61 @@ vol_df.to_pickle((file_dir + '/' + 'vol_df.p'))
         
 # %%
 
-if fn_his.exists():
+# if fn_his.exists():
 
-    LO_his_mins = vol_df[vol_df['data_type'] == 'LO His'].groupby(['segment', 'data_type'])['vol_km3'].min()
+#     LO_his_mins = vol_df[vol_df['data_type'] == 'LO His'].groupby(['segment', 'data_type'])['vol_km3'].min()
     
-    LO_his_maxs = vol_df[vol_df['data_type'] == 'LO His'].groupby(['segment', 'data_type'])['vol_km3'].max()
+#     LO_his_maxs = vol_df[vol_df['data_type'] == 'LO His'].groupby(['segment', 'data_type'])['vol_km3'].max()
 
-    LO_his_ranges = LO_his_maxs - LO_his_mins
+#     LO_his_ranges = LO_his_maxs - LO_his_mins
     
-    LO_his_ranges = LO_his_ranges.to_frame().reset_index()
+#     LO_his_ranges = LO_his_ranges.to_frame().reset_index()
     
 
-if info_fn.exists() & fn.exists():
+# if info_fn.exists() & fn.exists():
 
-    obs_mins = vol_df[vol_df['data_type'] == 'OBS'].groupby(['segment', 'data_type'])['vol_km3'].min()
+#     obs_mins = vol_df[vol_df['data_type'] == 'OBS'].groupby(['segment', 'data_type'])['vol_km3'].min()
     
-    obs_maxs = vol_df[vol_df['data_type'] == 'OBS'].groupby(['segment', 'data_type'])['vol_km3'].max()
+#     obs_maxs = vol_df[vol_df['data_type'] == 'OBS'].groupby(['segment', 'data_type'])['vol_km3'].max()
     
-    obs_ranges = obs_maxs - obs_mins
+#     obs_ranges = obs_maxs - obs_mins
     
-    obs_ranges = obs_ranges.to_frame().reset_index()
+#     obs_ranges = obs_ranges.to_frame().reset_index()
 
 
-vol_df_wide = vol_df.pivot(index=['month', 'segment'], columns = 'data_type', values='vol_km3').reset_index()
+# vol_df_wide = vol_df.pivot(index=['month', 'segment'], columns = 'data_type', values='vol_km3').reset_index()
 
 
-if fn_his.exists():
+# if fn_his.exists():
     
-    vol_df_wide = pd.merge(vol_df_wide, LO_his_ranges, how='left', on='segment')
+#     vol_df_wide = pd.merge(vol_df_wide, LO_his_ranges, how='left', on='segment')
 
 
-    vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'LO_his_ranges'})
+#     vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'LO_his_ranges'})
     
-if info_fn.exists() & fn.exists():
+# if info_fn.exists() & fn.exists():
 
-    vol_df_wide = pd.merge(vol_df_wide, obs_ranges, how='left', on='segment')
+#     vol_df_wide = pd.merge(vol_df_wide, obs_ranges, how='left', on='segment')
     
-    vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'obs_ranges'})
+#     vol_df_wide = vol_df_wide.rename(columns = {'vol_km3':'obs_ranges'})
 
 
-if fn_his.exists():
+# if fn_his.exists():
     
-    if info_fn.exists() & fn.exists():
+#     if info_fn.exists() & fn.exists():
 
-      #  if Ldir['year'] == 2017:
-        vol_df_wide = vol_df_wide[['month','segment','LO Casts','LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
+#       #  if Ldir['year'] == 2017:
+#         vol_df_wide = vol_df_wide[['month','segment','LO Casts','LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
             
-        # else:
+#         # else:
     
-        #     vol_df_wide = vol_df_wide[['month','segment', 'LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
+#         #     vol_df_wide = vol_df_wide[['month','segment', 'LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
     
-else:
+# else:
     
-    if info_fn.exists() & fn.exists():
+#     if info_fn.exists() & fn.exists():
         
-        vol_df_wide = vol_df_wide[['month','segment', 'OBS', 'obs_ranges']]
+#         vol_df_wide = vol_df_wide[['month','segment', 'OBS', 'obs_ranges']]
     
 # %%
 
