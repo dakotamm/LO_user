@@ -11,9 +11,8 @@ import xarray as xr
 import numpy as np
 from datetime import datetime
 
-from lo_tools import zfun, zrfun #original LO tools
+from lo_tools import Lfun, zfun, zrfun #original LO tools
 import extract_argfun_DM as exfun
-import Lfun_DM as Lfun
 import cast_functions_DM as cfun
 from lo_tools import plotting_functions as pfun #original LO tools
 import tef_fun_DM as tfun
