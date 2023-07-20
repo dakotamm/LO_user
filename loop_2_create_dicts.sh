@@ -10,7 +10,7 @@
 for yr in {1930..2022}
 
 do
-	python ./get_extracted_dicts.py -gtx cas6_v0_live -year $yr -test False &
+	python ./create_dicts.py -gtx cas6_v0_live -year $yr -test False &
 done
 	
 

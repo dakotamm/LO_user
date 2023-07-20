@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run get_extracted_dicts -gtx cas6_v0_live -year 2000 -test True
+run create_dicts -gtx cas6_v0_live -year 2000 -test True
 
 """
 

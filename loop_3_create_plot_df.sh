@@ -7,10 +7,10 @@
 
 # note this doesn't handle different segmentations - for a later time
 
-for yr in {1999..2007}
+for yr in {1930..2022}
 
 do
-	python ./make_vol_dfs.py -gtx cas6_v0_live -year $yr -test False &
+	python ./create_plot_df.py -gtx cas6_v0_live -year $yr -test False &
 	
 done
 	

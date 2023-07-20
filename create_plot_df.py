@@ -2,7 +2,7 @@
 Blah
 
 Test on mac in ipython:
-run make_vol_dfs -gtx cas6_v0_live -year 2017 -test False
+run create_plot_df -gtx cas6_v0_live -year 2017 -test False
 
 """
 
@@ -79,8 +79,6 @@ if fn_his.exists():
 
     with open((file_dir + '/' +'sub_vol_LO_his.pkl'), 'rb') as f: 
         sub_vol_LO_his = pickle.load(f) 
-        
-if Ldir['year'] == 2017:
     
     with open((file_dir + '/' + 'sub_vol_LO_casts.pkl'), 'rb') as f: 
         sub_vol_LO_casts = pickle.load(f)
@@ -88,7 +86,13 @@ if Ldir['year'] == 2017:
 if info_fn.exists() & fn.exists():
         
     with open((file_dir + '/' + 'sub_vol_obs.pkl'), 'rb') as f: 
-        sub_vol_obs = pickle.load(f)  
+        sub_vol_obs = pickle.load(f)
+        
+    with open((file_dir + '/' + 'sub_avg_obs.pkl'), 'rb') as f: 
+        sub_avg_obs = pickle.load(f)
+        
+    with open((file_dir + '/' + 'sub_wtd_avg_obs.pkl'), 'rb') as f: 
+        sub_wtd_avg_obs = pickle.load(f)
 
 # %%
 
@@ -206,12 +210,12 @@ if fn_his.exists():
     
     if info_fn.exists() & fn.exists():
 
-        if Ldir['year'] == 2017:
-            vol_df_wide = vol_df_wide[['month','segment','LO Casts','LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
+      #  if Ldir['year'] == 2017:
+        vol_df_wide = vol_df_wide[['month','segment','LO Casts','LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
             
-        else:
+        # else:
     
-            vol_df_wide = vol_df_wide[['month','segment', 'LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
+        #     vol_df_wide = vol_df_wide[['month','segment', 'LO His', 'OBS', 'LO_his_ranges', 'obs_ranges']]
     
 else:
     
@@ -223,20 +227,20 @@ else:
 
 if fn_his.exists():
     
-    if Ldir['year'] == 2017:
+    # if Ldir['year'] == 2017:
 
 
-        vol_df_wide['SE_LO_his_LO_casts'] = np.square(vol_df_wide['LO His'] - vol_df_wide['LO Casts'])
-        
-        temp1 = vol_df_wide.groupby(['segment'])['SE_LO_his_LO_casts'].mean().to_frame().reset_index()
-        
-        temp1 = temp1.rename(columns = {'SE_LO_his_LO_casts':'MSE_LO_his_LO_casts'})
-        
-        temp1['RMSE_LO_his_LO_casts'] = np.sqrt(temp1['MSE_LO_his_LO_casts'])
-        
-        vol_df_wide = pd.merge(vol_df_wide, temp1, how='left', on='segment')
-        
-        vol_df_wide['norm_RMSE_LO_his_LO_casts'] = vol_df_wide['RMSE_LO_his_LO_casts'] / vol_df_wide['LO_his_ranges']
+    vol_df_wide['SE_LO_his_LO_casts'] = np.square(vol_df_wide['LO His'] - vol_df_wide['LO Casts'])
+    
+    temp1 = vol_df_wide.groupby(['segment'])['SE_LO_his_LO_casts'].mean().to_frame().reset_index()
+    
+    temp1 = temp1.rename(columns = {'SE_LO_his_LO_casts':'MSE_LO_his_LO_casts'})
+    
+    temp1['RMSE_LO_his_LO_casts'] = np.sqrt(temp1['MSE_LO_his_LO_casts'])
+    
+    vol_df_wide = pd.merge(vol_df_wide, temp1, how='left', on='segment')
+    
+    vol_df_wide['norm_RMSE_LO_his_LO_casts'] = vol_df_wide['RMSE_LO_his_LO_casts'] / vol_df_wide['LO_his_ranges']
 
         
     
@@ -263,5 +267,143 @@ if fn_his.exists():
 
 
 vol_df_wide.to_pickle((file_dir + '/' + 'vol_df_wide.p'))
+
+# %%
+
+avg_df = pd.DataFrame()
+
+
+avg_df['segment'] = []
+
+avg_df['month'] = []
+
+avg_df['data_type'] = []
+
+avg_df['DO_avg_below_mg_L'] = []
+
+for seg_name in seg_list:
+    
+    
+    for (mon_num, mon_str) in zip(month_num,month_str):
+        
+        df_temp = pd.DataFrame()
+                
+        df_temp['segment'] = [seg_name]
+        
+        df_temp['month'] = [int(mon_num)]
+        
+        # dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
+        # fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+        
+        # if fn_his.exists():
+            
+        #     df_temp0 = pd.DataFrame()
+            
+        #     df_temp0['segment'] = [seg_name]
+            
+        #     df_temp0['month'] = [int(mon_num)]
+        
+        #     df_temp0['data_type'] = ['LO His']
+            
+        #     df_temp0['vol_km3'] = [sub_vol_LO_his[seg_name][int(mon_num)]*1e-9] #convert to km^3
+            
+        #     vol_df = pd.concat([vol_df, df_temp0], ignore_index=True)
+            
+            
+        # if Ldir['year'] == 2017:
+            
+        #     df_temp1 = pd.DataFrame()
+            
+        #     df_temp1['segment'] = [seg_name]
+            
+        #     df_temp1['month'] = [int(mon_num)]
+        
+        #     df_temp1['data_type'] = 'LO Casts'
+            
+        #     df_temp1['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
+            
+        #     vol_df = pd.concat([vol_df, df_temp1], ignore_index=True)
+            
+            
+        if info_fn.exists() & fn.exists():    
+        
+        
+            df_temp['data_type'] = ['OBS']
+            
+            df_temp['DO_avg_below_mg_L'] = [sub_avg_obs[seg_name][int(mon_num)]]
+            
+            avg_df = pd.concat([avg_df, df_temp], ignore_index=True)
+        
+        
+vol_df.to_pickle((file_dir + '/' + 'avg_df.p'))
+
+# %%
+
+wtd_avg_df = pd.DataFrame()
+
+
+wtd_avg_df['segment'] = []
+
+wtd_avg_df['month'] = []
+
+wtd_avg_df['data_type'] = []
+
+wtd_avg_df['DO_wtd_avg_below_mg_L'] = []
+
+for seg_name in seg_list:
+    
+    
+    for (mon_num, mon_str) in zip(month_num,month_str):
+        
+        df_temp = pd.DataFrame()
+                
+        df_temp['segment'] = [seg_name]
+        
+        df_temp['month'] = [int(mon_num)]
+        
+        # dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
+        # fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+        
+        # if fn_his.exists():
+            
+        #     df_temp0 = pd.DataFrame()
+            
+        #     df_temp0['segment'] = [seg_name]
+            
+        #     df_temp0['month'] = [int(mon_num)]
+        
+        #     df_temp0['data_type'] = ['LO His']
+            
+        #     df_temp0['vol_km3'] = [sub_vol_LO_his[seg_name][int(mon_num)]*1e-9] #convert to km^3
+            
+        #     vol_df = pd.concat([vol_df, df_temp0], ignore_index=True)
+            
+            
+        # if Ldir['year'] == 2017:
+            
+        #     df_temp1 = pd.DataFrame()
+            
+        #     df_temp1['segment'] = [seg_name]
+            
+        #     df_temp1['month'] = [int(mon_num)]
+        
+        #     df_temp1['data_type'] = 'LO Casts'
+            
+        #     df_temp1['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
+            
+        #     vol_df = pd.concat([vol_df, df_temp1], ignore_index=True)
+            
+            
+        if info_fn.exists() & fn.exists():    
+        
+        
+            df_temp['data_type'] = ['OBS']
+            
+            df_temp['DO_wtd_avg_below_mg_L'] = [sub_wtd_avg_obs[seg_name][int(mon_num)]]
+            
+            wtd_avg_df = pd.concat([wtd_avg_df, df_temp], ignore_index=True)
+        
+        
+vol_df.to_pickle((file_dir + '/' + 'wtd_avg_df.p'))
 
 

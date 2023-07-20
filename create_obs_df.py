@@ -2,7 +2,7 @@
 IDK YET
 
 Test on mac in ipython:
-run create_obs_data_structures -gtx cas6_v0_live -source ecology -otype ctd -year 2002 -test False
+run create_obs_df -gtx cas6_v0_live -source ecology -otype ctd -year 2002 -test False
 
 """
 

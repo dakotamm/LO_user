@@ -1,7 +1,7 @@
 """
 Functions for DM's VFC method! REVISED AGAIN
 
-Created 2023/06/02.
+Created 2023/06/13.
 
 """
 

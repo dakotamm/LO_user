@@ -1,7 +1,7 @@
 """
 Functions for DM's VFC method! REVISED AGAIN
 
-Created 2023/06/02.
+Created 2023/07/20.
 
 """
 
@@ -11,11 +11,12 @@ import xarray as xr
 import numpy as np
 from datetime import datetime
 
-from lo_tools import Lfun, zfun, zrfun
-from lo_tools import extract_argfun as exfun
-import cast_functions as cfun
-from lo_tools import plotting_functions as pfun
-import tef_fun as tfun
+from lo_tools import zfun, zrfun #original LO tools
+import extract_argfun_DM as exfun
+import Lfun_DM as Lfun
+import cast_functions_DM as cfun
+from lo_tools import plotting_functions as pfun #original LO tools
+import tef_fun_DM as tfun
 import pickle
 
 from time import time as Time
@@ -39,6 +40,9 @@ from datetime import timedelta
     # error catching
     # fix extract cast - maybe check to see if the cast is already there? probably inefficient to have duplicate casts in different folders; revert to original cast extraction idea
     # underprediction or overprediction based on if cutoff is inclusive or not
+    
+    
+
 
 
 def get_his_fn_from_dt(Ldir, dt): # RIPPED FROM CFUN to support perigee usage
@@ -469,7 +473,7 @@ def extractLOCasts(Ldir, info_df_use, fn_his):
                                     
                     # Nproc controls how many subprocesses we allow to stack up
                     # before we require them all to finish.
-                    cmd_list = ['python','cast_worker.py',
+                    cmd_list = ['python','cast_worker_DM.py',
                     '-out_fn',str(out_fn),
                     '-fn',str(fn_his),
                     '-lon',str(lon),
