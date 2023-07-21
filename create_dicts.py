@@ -213,9 +213,11 @@ for seg_name in seg_list:
         
             # if Ldir['year'] == 2017:
                 
-            vfun.extractLOCasts(Ldir, info_df_use, fn_his)
-            
-            sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+            if info_fn.exists() & fn.exists():
+                
+                vfun.extractLOCasts(Ldir, info_df_use, fn_his)
+                
+                sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
         if info_fn.exists() & fn.exists():
