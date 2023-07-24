@@ -47,7 +47,7 @@ threshold_val = 2
 
 threshold_depth = -40
 
-seg_str = ['sound_straits']
+seg_str = ['basins']
 
 #years = [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2020]
 
@@ -129,7 +129,15 @@ for year in years:
             avg_df_temp.loc[avg_df_temp['num_casts'] == 0, 'num_casts'] = np.nan
 
             avg_df = pd.concat([avg_df, avg_df_temp], ignore_index=True)
-        
+            
+if seg_str[0] == 'basins':
+    
+    vol_df = vol_df[(vol_df['segment'] != 'Strait of Georgia') & (vol_df['segment'] != 'Strait of Juan de Fuca')]
+
+    wtd_avg_df = wtd_avg_df[(wtd_avg_df['segment'] != 'Strait of Georgia') & (wtd_avg_df['segment'] != 'Strait of Juan de Fuca')]
+    
+    avg_df = avg_df[(avg_df['segment'] != 'Strait of Georgia') & (avg_df['segment'] != 'Strait of Juan de Fuca')]
+    
     
 vol_df['date'] = pd.to_datetime(dict(year=vol_df.year, month=vol_df.month, day=vol_df.day))
 
@@ -143,9 +151,6 @@ avg_df['date'] = pd.to_datetime(dict(year=avg_df.year, month=avg_df.month, day=a
 
 avg_df['date_ordinal'] = avg_df['date'].apply(lambda date: date.toordinal())
 
-
-    
-# %%
 
 
 
@@ -211,319 +216,302 @@ avg_df['date_ordinal'] = avg_df['date'].apply(lambda date: date.toordinal())
 
 # vol_df_wide.loc[vol_df_wide['lower'] < 0, 'lower'] = 0
 
+# %%
+
+wtd_avg_df_filt = wtd_avg_df[wtd_avg_df['DO_wtd_avg_below_mg_L'] <20]
+
+avg_df_filt = avg_df[avg_df['DO_avg_below_mg_L'] <20]
 
 
 
 # %%
 
-fig, ax = plt.subplots(3,1,figsize=(18,27))
+if seg_str[0] == 'sound_straits':
 
+    fig, ax = plt.subplots(3,1,figsize=(18,27))
+    
+    
+    ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax =ax[0], s=100)# , style = 'data_type') size='num_casts',sizes=(30,300),
+    
+    
+    ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
+    
+    ax1 = sns.scatterplot(data = wtd_avg_df_filt[wtd_avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax=ax[1], s=100)# , style = 'data_type')
+    
+    
+    ax2 = sns.scatterplot(data = avg_df_filt[avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax = ax[2], s=100)# , style = 'data_type')
+    
+    labels = [date(1930,1,1), date(1935,1,1), date(1940,1,1), date(1945,1,1),  
+                  date(1950,1,1), date(1955,1,1), 
+                  date(1960,1,1), date(1965,1,1), 
+                  date(1970,1,1),  date(1975,1,1), 
+                  date(1980,1,1),  date(1985,1,1), 
+                  date(1990,1,1),  date(1995,1,1), 
+                  date(2000,1,1),  date(2005,1,1), 
+                  date(2010,1,1), date(2015,1,1), 
+                  date(2020,1,1), date(2025,1,1)] # , date(2019,1,1), 
+                  #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
+    
+    new_labels = [date.toordinal(item) for item in labels]
+    
+    ax0.set_xticks(new_labels)
+    
+    ax1.set_xticks(new_labels)
+    
+    ax2.set_xticks(new_labels)
+    
+    
+    
+    ax0.set_xticklabels(['1930','1935','1940', '1945','1950','1955','1960','1965',
+                        '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax0.set_facecolor("white")
+    
 
+    
+    ax0.set(xlabel = 'Date')
+    
+    ax1.set_xticklabels(['1930','1935','1940', '1945','1950','1955','1960','1965',
+                        '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax1.set_facecolor("white")
+    
 
+    
+    ax1.set(xlabel = 'Date')
+    
+    
+    ax2.set_xticklabels(['1930','1935','1940', '1945','1950','1955','1960','1965',
+                        '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax2.set_facecolor("white")
+    
 
-#plot = sns.pointplot(ax=ax, data = vol_df_plot[vol_df_plot['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound']) #, style = 'data_type')
-
-
-#ax.set_xticklabels([])
-
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle='None')
-
-
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'),'E_LO_His_LO_casts']),capsize =3,  c='gray', alpha=0.5, linestyle ='None')
-
-
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Admiralty Inlet'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Main Basin'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-
-
-
-ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket_r', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], size='num_casts',sizes=(30,300), alpha =0.7, ax =ax[0])# , style = 'data_type')
-
-
-ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
-
-sns.scatterplot(data = wtd_avg_df[wtd_avg_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket_r', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], size='num_casts',sizes=(30,300), alpha =0.7, ax=ax[1])# , style = 'data_type')
-
-
-sns.scatterplot(data = avg_df[wtd_avg_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket_r', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], size='num_casts',sizes=(30,300), alpha =0.7, ax = ax[2])# , style = 'data_type')
-
-
-labels = [date(1930,1,1), date(1935,1,1), date(1940,1,1), date(1945,1,1),  
-              date(1950,1,1), date(1955,1,1), 
-              date(1960,1,1), date(1965,1,1), 
-              date(1970,1,1),  date(1975,1,1), 
-              date(1980,1,1),  date(1985,1,1), 
-              date(1990,1,1),  date(1995,1,1), 
-              date(2000,1,1),  date(2005,1,1), 
-              date(2010,1,1), date(2015,1,1), 
-              date(2020,1,1), date(2025,1,1)] # , date(2019,1,1), 
-              #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
-
-new_labels = [date.toordinal(item) for item in labels]
-
-ax0.set_xticks(new_labels)
-
-
-
-
-ax0.set_xticklabels(['1930','1935','1940', '1945','1950','1955','1960','1965',
-                    '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
-    fontdict={'horizontalalignment':'center'})
-
-
-ax0.set_facecolor("white")
-
-plt.legend() #title = 'Basin [Order of Increasing Volume]')
-
-
-ax0.set(xlabel = 'Date')
-
-ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
-
-ax[1].set(ylabel = 'Sub-40m Wtd Avg DO[$mg/L$]')
-
-ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L]')
-
-
-plt.legend(title=False, loc='upper left')#, ncol =3)
-
-
-
-
-plt.grid(alpha=0.3)
-
-fig.tight_layout()
-
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ 'vol_wtd_avg_avg.png', transparent=False, dpi=500)
-
+    
+    ax2.set(xlabel = 'Date')
+    
+    
+    ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
+    
+    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO[$mg/L$]')
+    
+    ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    
+    
+    ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    
+    ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    
+    ax[2].legend(title=False, loc='upper left')#, ncol =3)
+    
+    
+    
+    ax[0].grid(alpha=0.3)
+    
+    ax[1].grid(alpha=0.3)
+    
+    ax[2].grid(alpha=0.3)
+    
+    plt.legend() #title = 'Basin [Order of Increasing Volume]')
+     
+    fig.tight_layout()
+    
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ 'vol_wtd_avg_avg.png', transparent=False, dpi=500)
 
 # %%
 
-fig, ax = plt.subplots(1,1,figsize=(18,8))
+if seg_str[0] == 'basins':
 
+    fig, ax = plt.subplots(3,1,figsize=(18,27))
+        
+    
+    ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r',  hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax =ax[0], s = 100)# , style = 'data_type')size='num_casts',sizes=(30,300),
+    
+    
+    #ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
+    
+    ax1 = sns.scatterplot(data = wtd_avg_df_filt[wtd_avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax=ax[1], s =100)# , style = 'data_type')
+    
+    
+    ax2 = sns.scatterplot(data = avg_df_filt[avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax = ax[2], s= 100)# , style = 'data_type')
+    
+    
+    labels = [date(1995,1,1), 
+                  date(2000,1,1),  date(2005,1,1), 
+                  date(2010,1,1), date(2015,1,1), 
+                  date(2020,1,1), date(2025,1,1)] # , date(2019,1,1), 
+                  #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
+    
+    new_labels = [date.toordinal(item) for item in labels]
+    
+    ax0.set_xticks(new_labels)
+    
+    ax1.set_xticks(new_labels)
+    
+    ax2.set_xticks(new_labels)
+    
+    
+    
+    ax0.set_xticklabels(['1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax0.set_facecolor("white")
+    
 
+    
+    ax0.set(xlabel = 'Date')
+    
+    ax1.set_xticklabels(['1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax1.set_facecolor("white")
+    
 
+    
+    ax1.set(xlabel = 'Date')
+    
+    
+    ax2.set_xticklabels(['1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax2.set_facecolor("white")
+    
 
+    
+    ax2.set(xlabel = 'Date')
+    
+    ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
+    
+    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO[$mg/L$]')
+    
+    ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    
+    
+    ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    
+    ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    
+    ax[2].legend(title=False, loc='upper left')#, ncol =3)
+    
+    
+    
+    ax[0].grid(alpha=0.3)
+    
+    ax[1].grid(alpha=0.3)
+    
+    ax[2].grid(alpha=0.3)
+    
+    
+    plt.legend() #title = 'Basin [Order of Increasing Volume]')
 
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle='None')
-
-
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'),'E_LO_His_LO_casts']),capsize =3,  c='gray', alpha=0.5, linestyle ='None')
-
-
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-
-plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Admiralty Inlet'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Admiralty Inlet'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Admiralty Inlet'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Main Basin'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Main Basin'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Main Basin'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Hood Canal'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Hood Canal'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Hood Canal'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Whidbey Basin'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Whidbey Basin'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Whidbey Basin'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Tacoma Narrows'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Tacoma Narrows'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Tacoma Narrows'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'South Sound'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'South Sound'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'South Sound'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-
-
-#ax = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Whidbey Basin') | (vol_df['segment'] == 'Hood Canal')], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket_r', size='num_casts', sizes=(30,300), alpha =0.7)# , style = 'data_type')
-
-
-ax = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] != 'Strait of Georgia') & (vol_df['segment'] != 'Strait of Juan de Fuca')], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket_r', size='num_casts', sizes=(30,300), alpha =0.7)# , style = 'data_type')
-
-
-
-ax.set(xlim=(date.toordinal(date(2008,1,1)), date.toordinal(date(2019,12,31))),ylim=(0,4))
-
-
-
-
-
-
-labels = [date(2008,1,1),  date(2009,1,1), 
-              date(2010,1,1),  date(2011,1,1), 
-              date(2012,1,1),  date(2013,1,1), 
-              date(2014,1,1),  date(2015,1,1), 
-              date(2016,1,1), date(2017,1,1), 
-              date(2018,1,1), date(2019,1,1)]
-
-
-new_labels = [date.toordinal(item) for item in labels]
-
-ax.set_xticks(new_labels)
-
-
-ax.set_xticklabels([
-                    '2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019'], rotation=0,
-    fontdict={'horizontalalignment':'center'})
-
-plt.legend() #title = 'Basin [Order of Increasing Volume]')
-
-
-ax.set(xlabel = 'Date', ylabel = 'Hypoxic Volume [$km^3$]')
-
-plt.legend(title=False, loc='upper left') #, ncol =2)
-
-
-
-
-plt.grid(alpha=0.3)
-
-fig.tight_layout()
-
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_PS.png', transparent=False, dpi=500)
-
-
-
-
-
+    fig.tight_layout()
+    
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ 'vol_wtd_avg_avg.png', transparent=False, dpi=500)
 
 # %%
 
-# vol_df_plot = vol_df[(vol_df['segment'] == 'Puget Sound') & (vol_df['data_type'] == 'OBS')]
-
-# fig, ax = plt.subplots(1,1,figsize=(14,6))
-
-# #plt.rcParams['text.usetex'] = True
-
-
-
-# #plot = sns.pointplot(ax=ax, data = vol_df_plot[vol_df_plot['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound']) #, style = 'data_type')
-
-
-# #ax.set_xticklabels([])
-
-# # plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Juan de Fuca'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle='None')
-
-
-# # plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Strait of Georgia'),'E_LO_His_LO_casts']),capsize =3,  c='gray', alpha=0.5, linestyle ='None')
-
-
-# plt.errorbar(np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'), 'date_ordinal']), np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'vol_km3']),yerr=np.array(vol_df.loc[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound'),'E_LO_His_LO_casts']),capsize =3, c ='gray', alpha=0.5, linestyle ='None')
-
-# ax = sns.lineplot(data = vol_df_plot, x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket_r', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], linewidth=3)# , style = 'data_type')
-
-
-# ax.set(xlim=(date.toordinal(date(2008,1,1)), date.toordinal(date(2019,12,31))),ylim=(0,8))
-
-
-
-
-
-
-# labels = [date(2008,1,1),  date(2009,1,1), 
-#               date(2010,1,1),  date(2011,1,1), 
-#               date(2012,1,1),  date(2013,1,1), 
-#               date(2014,1,1),  date(2015,1,1), 
-#               date(2016,1,1), date(2017,1,1), 
-#               date(2018,1,1), date(2019,1,1)]
-
-
-# new_labels = [date.toordinal(item) for item in labels]
-
-# ax.set_xticks(new_labels)
-
-
-# ax.set_xticklabels([
-#                     '2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019'], rotation=0,
-#     fontdict={'horizontalalignment':'center'})
-
-# ax.set_facecolor("white")
-
-# #plt.legend() #title = 'Basin [Order of Increasing Volume]')
-
-
-# ax.set(xlabel = 'Date', ylabel = 'Hypoxic Volume [km^3]')
-
-# plt.legend([],[], frameon=False)
-
-
-
-
-# plt.grid(alpha=0.2)
-
-# fig.tight_layout()
-
-# plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_PS.png', transparent=True, dpi=500)
-
-
-# # %%
-
-# vol_df_plot = vol_df[(vol_df['year'] == 2017) & (vol_df['data_type'] != 'OBS')]
-
-# vol_df_plot.loc[vol_df_plot['data_type'] =='LO His', 'data_type'] = 'Model Output'
-
-# vol_df_plot.loc[vol_df_plot['data_type'] =='LO Casts', 'data_type'] = 'Model Volume-From-Casts'
-
-
-# # %%
-
-# fig, ax = plt.subplots(1,1,figsize=(13,5))
-
-
-
-# ax.fill_between(x=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Strait of Juan de Fuca') & (vol_df_plot['data_type'] =='Model Output'), 'date_ordinal']),
-#                 y1=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Strait of Juan de Fuca') & (vol_df_plot['data_type'] =='Model Output'),'vol_km3']),
-#                 y2=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Strait of Juan de Fuca') & (vol_df_plot['data_type'] =='Model Volume-From-Casts'), 'vol_km3']), color='pink', alpha=0.3)
-
-# ax.fill_between(x=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Strait of Georgia') & (vol_df_plot['data_type'] =='Model Output'), 'date_ordinal']),
-#                 y1=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Strait of Georgia') & (vol_df_plot['data_type'] =='Model Output'),'vol_km3']),
-#                 y2=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Strait of Georgia') & (vol_df_plot['data_type'] =='Model Volume-From-Casts'), 'vol_km3']), color='orange', alpha=0.3)
-
-
-# ax.fill_between(x=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Puget Sound') & (vol_df_plot['data_type'] =='Model Output'), 'date_ordinal']),
-#                 y1=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Puget Sound') & (vol_df_plot['data_type'] =='Model Output'),'vol_km3']),
-#                 y2=np.array(vol_df_plot.loc[(vol_df_plot['segment'] == 'Puget Sound') & (vol_df_plot['data_type'] =='Model Volume-From-Casts'), 'vol_km3']), color='purple', alpha=0.3)
-
-
-
-
-
-
-# ax = sns.lineplot(data = vol_df_plot, x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'rocket_r', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'] , style = 'data_type')
-
-# ax.set(xlim=(date.toordinal(date(2017,1,1)), date.toordinal(date(2017,12,31))))
-
-
-
-
-
-
-# labels = [date(2017,1,1),  date(2017,4,1), 
-#               date(2017,7,1),  date(2017,10,1), 
-#               date(2017,12,31)]
-
-
-# new_labels = [date.toordinal(item) for item in labels]
-
-# ax.set_xticks(new_labels)
-
-
-# ax.set_xticklabels(['','April','July','October',''], rotation=0,
-#     fontdict={'horizontalalignment':'center'})
-
-# # ax.set_facecolor("white")
-
-# #plt.legend() #title = 'Basin [Order of Increasing Volume]')
-
-
-# ax.set(xlabel = '2017', ylabel = 'Hypoxic Volume [$km^3$]')
-
-# h, l = ax.get_legend_handles_labels()
-
-# legend = plt.legend(h[5:7], l[5:7], loc='upper left', ncol =1, )
-
-
-
-
-# plt.grid(alpha=0.2)
-
-# fig.tight_layout()
-
-# plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_errors.png', transparent=True, dpi=500)
+#ADHOC JUST WHIDBEY & HOOD CANAL
+
+
+spots = ['Whidbey Basin', 'Hood Canal']
+
+
+if seg_str[0] == 'basins':
+
+    fig, ax = plt.subplots(3,1,figsize=(18,27))
+        
+    
+    ax0 = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'].isin(spots))], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'], ax =ax[0], s = 100)# , style = 'data_type')size='num_casts',sizes=(30,300),
+    
+    
+    #ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
+    
+    ax1 = sns.scatterplot(data = wtd_avg_df_filt[(wtd_avg_df_filt['data_type'] == 'OBS') & (wtd_avg_df_filt['segment'].isin(spots))], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', hue_order =['Whidbey Basin', 'Hood Canal'],palette = 'Set2_r',  ax=ax[1], s =100)# , style = 'data_type')
+    
+    
+    ax2 = sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'].isin(spots))], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'],ax = ax[2], s= 100)# , style = 'data_type')
+    
+    
+    labels = [date(1995,1,1), 
+                  date(2000,1,1),  date(2005,1,1), 
+                  date(2010,1,1), date(2015,1,1), 
+                  date(2020,1,1), date(2025,1,1)] # , date(2019,1,1), 
+                  #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
+    
+    new_labels = [date.toordinal(item) for item in labels]
+    
+    ax0.set_xticks(new_labels)
+    
+    ax1.set_xticks(new_labels)
+    
+    ax2.set_xticks(new_labels)
+    
+    
+    
+    ax0.set_xticklabels(['1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax0.set_facecolor("white")
+    
+
+    
+    ax0.set(xlabel = 'Date')
+    
+    ax1.set_xticklabels(['1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax1.set_facecolor("white")
+    
+
+    
+    ax1.set(xlabel = 'Date')
+    
+    
+    ax2.set_xticklabels(['1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax2.set_facecolor("white")
+    
+
+    
+    ax2.set(xlabel = 'Date')
+    
+    ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
+    
+    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO[$mg/L$]')
+    
+    ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    
+    
+    ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    
+    ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    
+    ax[2].legend(title=False, loc='upper left')#, ncol =3)
+    
+    
+    
+    ax[0].grid(alpha=0.3)
+    
+    ax[1].grid(alpha=0.3)
+    
+    ax[2].grid(alpha=0.3)
+    
+    
+    plt.legend() #title = 'Basin [Order of Increasing Volume]')
+
+    fig.tight_layout()
+    
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ 'vol_wtd_avg_avg_WBHConly.png', transparent=False, dpi=500)
