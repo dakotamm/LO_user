@@ -47,7 +47,7 @@ threshold_val = 2
 
 threshold_depth = -40
 
-seg_str = ['basins']
+seg_str = ['sound_straits']
 
 #years = [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2020]
 
@@ -152,6 +152,43 @@ avg_df['date'] = pd.to_datetime(dict(year=avg_df.year, month=avg_df.month, day=a
 avg_df['date_ordinal'] = avg_df['date'].apply(lambda date: date.toordinal())
 
 
+# %%
+
+vol_df['season'] = np.nan
+
+wtd_avg_df['season'] = np.nan
+
+avg_df['season'] = np.nan
+
+
+vol_df.loc[vol_df['month'].isin([1,2,3]), 'season'] = 'winter'
+
+vol_df.loc[vol_df['month'].isin([4,5,6]), 'season'] = 'spring'
+
+vol_df.loc[vol_df['month'].isin([7,8,9]), 'season'] = 'summer'
+
+vol_df.loc[vol_df['month'].isin([10,11,12]), 'season'] = 'fall'
+
+
+wtd_avg_df.loc[wtd_avg_df['month'].isin([1,2,3]), 'season'] = 'winter'
+
+wtd_avg_df.loc[wtd_avg_df['month'].isin([4,5,6]), 'season'] = 'spring'
+
+wtd_avg_df.loc[wtd_avg_df['month'].isin([7,8,9]), 'season'] = 'summer'
+
+wtd_avg_df.loc[wtd_avg_df['month'].isin([10,11,12]), 'season'] = 'fall'
+
+
+avg_df.loc[avg_df['month'].isin([1,2,3]), 'season'] = 'winter'
+
+avg_df.loc[avg_df['month'].isin([4,5,6]), 'season'] = 'spring'
+
+avg_df.loc[avg_df['month'].isin([7,8,9]), 'season'] = 'summer'
+
+avg_df.loc[avg_df['month'].isin([10,11,12]), 'season'] = 'fall'
+
+
+
 
 
 
@@ -222,6 +259,29 @@ wtd_avg_df_filt = wtd_avg_df[wtd_avg_df['DO_wtd_avg_below_mg_L'] <20]
 
 avg_df_filt = avg_df[avg_df['DO_avg_below_mg_L'] <20]
 
+vol_df_filt = vol_df[vol_df['data_type'] == 'OBS']
+
+# %%
+
+vol_df_temp_avg= vol_df_filt[['segment','year','season','vol_km3','date_ordinal']].groupby(by=['segment','year','season']).mean().reset_index()
+
+wtd_avg_df_temp_avg= wtd_avg_df_filt[['segment','year','season','DO_wtd_avg_below_mg_L','date_ordinal']].groupby(by=['segment','year','season']).mean().reset_index()
+
+avg_df_temp_avg= avg_df_filt[['segment','year','season','DO_avg_below_mg_L','date_ordinal']].groupby(by=['segment','year','season']).mean().reset_index()
+
+
+vol_df_temp_sum= vol_df_filt[['segment','year','season','num_casts']].groupby(by=['segment','year','season']).sum().reset_index()
+
+wtd_avg_df_temp_sum= wtd_avg_df_filt[['segment','year','season','num_casts']].groupby(by=['segment','year','season']).sum().reset_index()
+
+avg_df_temp_sum= avg_df_filt[['segment','year','season','num_casts']].groupby(by=['segment','year','season']).sum().reset_index()
+
+
+vol_df_seasonal = pd.merge(vol_df_temp_avg, vol_df_temp_sum, how='left', on=['segment','year','season'])
+
+wtd_avg_df_seasonal = pd.merge(wtd_avg_df_temp_avg, wtd_avg_df_temp_sum, how='left', on=['segment','year','season'])
+
+avg_df_seasonal = pd.merge(avg_df_temp_avg, avg_df_temp_sum, how='left', on=['segment','year','season'])
 
 
 # %%
@@ -231,15 +291,15 @@ if seg_str[0] == 'sound_straits':
     fig, ax = plt.subplots(3,1,figsize=(18,27))
     
     
-    ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type') size='num_casts',sizes=(30,300),
+    ax0 = sns.scatterplot(data = vol_df_seasonal, x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax =ax[0], size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter']) #size='num_casts',sizes=(30,300),
     
     
-    ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
+    #ax0.set(xlim=(vol_df_seasonal['date_ordinal'].min()-1, vol_df_seasonal['date_ordinal'].max()+1),ylim=(0,150))
     
-    ax1 = sns.scatterplot(data = wtd_avg_df_filt[wtd_avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    ax1 = sns.scatterplot(data = wtd_avg_df_seasonal, x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax=ax[1], size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter'])# , style = 'data_type')
     
     
-    ax2 = sns.scatterplot(data = avg_df_filt[avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    ax2 = sns.scatterplot(data = avg_df_seasonal, x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax = ax[2], size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter'])# , style = 'data_type')
     
     labels = [date(1910,1,1), date(1915,1,1), date(1920,1,1), date(1925,1,1,), date(1930,1,1), date(1935,1,1), date(1940,1,1), date(1945,1,1),  
                   date(1950,1,1), date(1955,1,1), 
@@ -303,12 +363,11 @@ if seg_str[0] == 'sound_straits':
     ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
     
     
-    ax[0].legend(title=False, loc='upper left')#, ncol =3) plt.legend(bbox_to_anchor=(1.02, 0.55), loc='upper left', borderaxespad=0)
-
+    ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    
     ax[1].legend(title=False, loc='upper left')#, ncol =3)
     
     ax[2].legend(title=False, loc='upper left')#, ncol =3)
-    
     
     
     
@@ -318,11 +377,11 @@ if seg_str[0] == 'sound_straits':
     
     ax[2].grid(alpha=0.3)
     
-    plt.legend() #title = 'Basin [Order of Increasing Volume]')
+  #  plt.legend() #title = 'Basin [Order of Increasing Volume]')
      
     fig.tight_layout()
     
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_w_casts.png', transparent=False, dpi=500)
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_seasonal.png', transparent=False, dpi=500)
 
 # %%
 
@@ -331,15 +390,15 @@ if seg_str[0] == 'basins':
     fig, ax = plt.subplots(3,1,figsize=(18,27))
         
     
-    ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r',  hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type')size='num_casts',sizes=(30,300),
+    ax0 = sns.scatterplot(data = vol_df_seasonal, x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r',  hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax =ax[0],size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter'])# , style = 'data_type')size='num_casts',sizes=(30,300),
     
     
     #ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
     
-    ax1 = sns.scatterplot(data = wtd_avg_df_filt[wtd_avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    ax1 = sns.scatterplot(data = wtd_avg_df_seasonal, x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax=ax[1],size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter'])# , style = 'data_type')
     
     
-    ax2 = sns.scatterplot(data = avg_df_filt[avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    ax2 = sns.scatterplot(data = avg_df_seasonal, x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax = ax[2], size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter'])# , style = 'data_type')
     
     
     labels = [date(1990,1,1,), date(1995,1,1), 
@@ -391,7 +450,7 @@ if seg_str[0] == 'basins':
     
     ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
     
-    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO [$mg/L$]')
+    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO[$mg/L$]')
     
     ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
     
@@ -402,7 +461,6 @@ if seg_str[0] == 'basins':
     
     ax[2].legend(title=False, loc='upper left')#, ncol =3)
     
-    plt.legend(loc='upper left')
     
     
     ax[0].grid(alpha=0.3)
@@ -412,11 +470,11 @@ if seg_str[0] == 'basins':
     ax[2].grid(alpha=0.3)
     
     
-    plt.legend() #title = 'Basin [Order of Increasing Volume]')
+   # plt.legend() #title = 'Basin [Order of Increasing Volume]')
 
     fig.tight_layout()
     
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_w_casts.png', transparent=False, dpi=500)
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_seasonal.png', transparent=False, dpi=500)
 
 # %%
 
@@ -431,18 +489,18 @@ if seg_str[0] == 'basins':
     fig, ax = plt.subplots(3,1,figsize=(18,27))
         
     
-    ax0 = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'].isin(spots))], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type')size='num_casts',sizes=(30,300),
+    ax0 = sns.scatterplot(data = vol_df_seasonal[vol_df_seasonal['segment'].isin(spots)], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'], ax =ax[0], size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter'])# , style = 'data_type')size='num_casts',sizes=(30,300),
     
     
     #ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
     
-    ax1 = sns.scatterplot(data = wtd_avg_df_filt[(wtd_avg_df_filt['data_type'] == 'OBS') & (wtd_avg_df_filt['segment'].isin(spots))], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', hue_order =['Whidbey Basin', 'Hood Canal'],palette = 'Set2_r',  ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    ax1 = sns.scatterplot(data = wtd_avg_df_seasonal[wtd_avg_df_seasonal['segment'].isin(spots)], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', hue_order =['Whidbey Basin', 'Hood Canal'],palette = 'Set2_r',  ax=ax[1], size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter'])# , style = 'data_type')
     
     
-    ax2 = sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'].isin(spots))], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'],ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    ax2 = sns.scatterplot(data = avg_df_seasonal[avg_df_seasonal['segment'].isin(spots)], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'],ax = ax[2], size='num_casts',sizes=(50,500),style = 'season', style_order=['spring','summer','fall','winter'])# , style = 'data_type')
     
     
-    labels = [date(1990,1,1), date(1995,1,1), 
+    labels = [date(1990,1,1,), date(1995,1,1), 
                   date(2000,1,1),  date(2005,1,1), 
                   date(2010,1,1), date(2015,1,1), 
                   date(2020,1,1), date(2025,1,1)] 
@@ -491,7 +549,7 @@ if seg_str[0] == 'basins':
     
     ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
     
-    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO [$mg/L$]')
+    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO[$mg/L$]')
     
     ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
     
@@ -501,8 +559,6 @@ if seg_str[0] == 'basins':
     ax[1].legend(title=False, loc='upper left')#, ncol =3)
     
     ax[2].legend(title=False, loc='upper left')#, ncol =3)
-    
-    #sns.move_legend(ax2, "upper left")
     
     
     
@@ -517,4 +573,4 @@ if seg_str[0] == 'basins':
 
     fig.tight_layout()
     
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_WBHConly_w_casts.png', transparent=False, dpi=500)
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_WBHConly_seasonal.png', transparent=False, dpi=500)
