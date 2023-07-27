@@ -58,7 +58,7 @@ else:
 
 threshold_val = 2 #mg/L DO
 
-threshold_depth = -40 #m GOTTA BE NEGATIVE
+threshold_pct = 0.2 #m GOTTA BE PERCENT
 
 var = 'DO_mg_L'
 
@@ -209,30 +209,30 @@ for seg_name in seg_list:
             
             G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
             
-            sub_vol_LO_his[seg_name][int(mon_num)], sub_thick_LO_his[seg_name][int(mon_num)] = vfun.getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val)
+            # sub_vol_LO_his[seg_name][int(mon_num)], sub_thick_LO_his[seg_name][int(mon_num)] = vfun.getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val)
         
             # if Ldir['year'] == 2017:
                 
-            if info_fn.exists() & fn.exists():
+            # if info_fn.exists() & fn.exists():
                 
-                vfun.extractLOCasts(Ldir, info_df_use, fn_his)
+                # vfun.extractLOCasts(Ldir, info_df_use, fn_his)
                 
-                sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+                # sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
         if info_fn.exists() & fn.exists():
         
-            sub_vol_obs[seg_name][int(mon_num)], sub_thick_obs[seg_name][int(mon_num)], sub_casts_array_obs[seg_name][int(mon_num)] = vfun.getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+            # sub_vol_obs[seg_name][int(mon_num)], sub_thick_obs[seg_name][int(mon_num)], sub_casts_array_obs[seg_name][int(mon_num)] = vfun.getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
             
-            cid_dict[seg_name][int(mon_num)] = np.array(info_df_use.index)
+            # cid_dict[seg_name][int(mon_num)] = np.array(info_df_use.index)
             
-            jj_casts[seg_name][int(mon_num)] = np.array(info_df_use['jj_cast'])
+            # jj_casts[seg_name][int(mon_num)] = np.array(info_df_use['jj_cast'])
             
-            ii_casts[seg_name][int(mon_num)] = np.array(info_df_use['ii_cast'])
+            # ii_casts[seg_name][int(mon_num)] = np.array(info_df_use['ii_cast'])
             
-            sub_avg_obs[seg_name][int(mon_num)] = vfun.getOBSAvgBelow(info_df_use, df_use, var, threshold_depth)
+            sub_avg_obs[seg_name][int(mon_num)] = vfun.getOBSAvgBelow(info_df_use, df_use, var, threshold_pct)
             
-            sub_wtd_avg_obs[seg_name][int(mon_num)] = vfun.getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+            sub_wtd_avg_obs[seg_name][int(mon_num)] = vfun.getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, land_mask, dv, dz, h, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
         print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']) + ' completed after %d sec' % (int(Time()-tt0)))
@@ -245,52 +245,52 @@ if Ldir['testing'] == False:
     
     fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
     
-    if fn_his.exists():
+    # if fn_his.exists():
         
-        with open((str(save_dir) + '/' + 'sub_thick_LO_his.pkl'), 'wb') as f: 
-            pickle.dump(sub_thick_LO_his, f)  
+    #     with open((str(save_dir) + '/' + 'sub_thick_LO_his.pkl'), 'wb') as f: 
+    #         pickle.dump(sub_thick_LO_his, f)  
         
-        with open((str(save_dir) + '/' +  'sub_vol_LO_his.pkl'), 'wb') as f: 
-            pickle.dump(sub_vol_LO_his, f)
+    #     with open((str(save_dir) + '/' +  'sub_vol_LO_his.pkl'), 'wb') as f: 
+    #         pickle.dump(sub_vol_LO_his, f)
     
-    # if Ldir['year'] == 2017:
+    # # if Ldir['year'] == 2017:
     
-        with open((str(save_dir) + '/' + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
-            pickle.dump(sub_casts_array_LO_casts, f)
+    #     with open((str(save_dir) + '/' + 'sub_casts_array_LO_casts.pkl'), 'wb') as f: 
+    #         pickle.dump(sub_casts_array_LO_casts, f)
             
-        with open((str(save_dir) + '/' +  'sub_thick_LO_casts.pkl'), 'wb') as f: 
-            pickle.dump(sub_thick_LO_casts, f)
+    #     with open((str(save_dir) + '/' +  'sub_thick_LO_casts.pkl'), 'wb') as f: 
+    #         pickle.dump(sub_thick_LO_casts, f)
             
-        with open((str(save_dir) + '/' +  'sub_vol_LO_casts.pkl'), 'wb') as f: 
-            pickle.dump(sub_vol_LO_casts, f)
+    #     with open((str(save_dir) + '/' +  'sub_vol_LO_casts.pkl'), 'wb') as f: 
+    #         pickle.dump(sub_vol_LO_casts, f)
     
     if info_fn.exists() & fn.exists():
 
-        with open((str(save_dir) + '/' + 'sub_casts_array_obs.pkl'), 'wb') as f: 
-            pickle.dump(sub_casts_array_obs, f)       
+        # with open((str(save_dir) + '/' + 'sub_casts_array_obs.pkl'), 'wb') as f: 
+        #     pickle.dump(sub_casts_array_obs, f)       
             
-        with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
-            pickle.dump(sub_thick_obs, f)
+        # with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
+        #     pickle.dump(sub_thick_obs, f)
         
-        with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
-            pickle.dump(sub_vol_obs, f)  
+        # with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
+        #     pickle.dump(sub_vol_obs, f)  
             
-        with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
-            pickle.dump(surf_casts_array, f)  
+        # with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
+        #     pickle.dump(surf_casts_array, f)  
             
-        with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
-            pickle.dump(jj_casts, f)
+        # with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
+        #     pickle.dump(jj_casts, f)
         
-        with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
-            pickle.dump(ii_casts, f)  
+        # with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
+        #     pickle.dump(ii_casts, f)  
             
-        with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
-            pickle.dump(cid_dict, f)
+        # with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
+        #     pickle.dump(cid_dict, f)
             
-        with open((str(save_dir) + '/' + 'sub_avg_obs.pkl'), 'wb') as f: 
+        with open((str(save_dir) + '/' + 'sub_avg_obs_NEW.pkl'), 'wb') as f: 
             pickle.dump(sub_avg_obs, f)
             
-        with open((str(save_dir) + '/' + 'sub_wtd_avg_obs.pkl'), 'wb') as f: 
+        with open((str(save_dir) + '/' + 'sub_wtd_avg_obs_NEW.pkl'), 'wb') as f: 
             pickle.dump(sub_wtd_avg_obs, f)
 
 # %%

@@ -1,7 +1,7 @@
 """
 Functions for DM's VFC method! REVISED AGAIN
 
-Created 2023/07/27.
+Created 2023/07/20.
 
 """
 
@@ -1237,10 +1237,10 @@ def getOBSCastsSubVolThick(info_df_use, df_use, var, threshold_val, z_rho_grid, 
 
 
 
-def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, land_mask, dv, dz, h, jjj, iii, surf_casts_array):
+def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_depth, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array):
     
     """
-    THRESHOLD DEPTH IS NOW PERCENTAGE
+    THRESHOLD DEPTH GOTTA BE NEGATIVE
     
     """
     
@@ -1274,18 +1274,9 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, 
                         
         
     else: # if casts in time period
-            
-          
         
-        df_max_z = df_use[['cid','z']].groupby('cid').min().reset_index()
+        df_sub = df_use[df_use['z'] < threshold_depth]
         
-        df_max_z['max_z'] = df_max_z['z']
-                          
-        df_temp = pd.merge(df_use, df_max_z[['cid','max_z']], how='left', on = 'cid')
-        
-        df_sub = df_temp[df_temp['z'] < (1-threshold_pct)*df_temp['max_z']]
-        
-        ###
         df_wtd_avg = df_sub[['cid', 'DO_mg_L']].groupby('cid').mean()
         
         df_wtd_avg['vol_km_3'] = np.nan
@@ -1329,8 +1320,6 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, 
             
             for cid in info_df_use.index:
                 
-                threshold_depth = (1-threshold_pct)*-h[info_df_use.loc[cid, 'jj_cast'].astype('int64'), info_df_use.loc[cid,'ii_cast'].astype('int64')]
-                
                 sub_array = np.empty(np.shape(z_rho_grid))
                 sub_array.fill(0)
                 
@@ -1350,12 +1339,20 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, 
             
                 df_wtd_avg.loc[df_wtd_avg.index == cid, 'vol_m_3'] = np.sum(sub_array)
             
+            # sub_thick_array[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))] = dz[(sub_casts_array_full_3d == cid) & ~(np.isnan(z_rho_array_full_3d))].copy()
 
             df_wtd_avg['DO_wtd_mg_L'] = df_wtd_avg['DO_mg_L']*df_wtd_avg['vol_m_3']
             
             
             sub_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_m_3'])
 
+            # sub_vol = np.sum(sub_array)
+            
+            # sub_thick_temp = np.sum(sub_thick_array, axis=0)
+            
+            # sub_thick = sub_thick_temp[jjj,iii]
+            
+            # sub_casts_array = sub_casts_array_full[jjj,iii]
 
     print('getOBSCastsWtdAvgBelow = %d sec' % (int(Time()-tt0)))
     
@@ -1363,7 +1360,7 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, 
 
 
 
-def getOBSAvgBelow(info_df_use, df_use, var, threshold_pct):
+def getOBSAvgBelow(info_df_use, df_use, var, threshold_depth):
     
     """
     
@@ -1388,15 +1385,7 @@ def getOBSAvgBelow(info_df_use, df_use, var, threshold_pct):
         
     else: # if casts in time period
             
-        df_max_z = df_use[['cid','z']].groupby('cid').min().reset_index()
-        
-        df_max_z['max_z'] = df_max_z['z']
-                          
-        df_temp = pd.merge(df_use, df_max_z[['cid','max_z']], how='left', on = 'cid')
-        
-        # should I use the absolute depth? should be close but for next time
-        
-        df_sub = df_temp[df_temp['z'] < (1-threshold_pct)*df_temp['max_z']]
+        df_sub = df_use[df_use['z'] < threshold_depth]
         
         if df_sub.empty: # if it isn't deep enough
         
