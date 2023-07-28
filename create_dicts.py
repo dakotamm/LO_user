@@ -62,7 +62,7 @@ threshold_pct = 0.2 #m GOTTA BE PERCENT
 
 var = 'DO_mg_L'
 
-segments = 'sound_straits' #custom (specify string list and string build list), basins, whole domain, sound and strait
+segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
 # seg_build_list = optional
     
