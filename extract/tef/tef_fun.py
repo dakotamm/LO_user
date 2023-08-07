@@ -20,7 +20,7 @@ def get_sect_df(gridname):
     # either x0=x1 or y0=y1
     sect_df = pd.DataFrame(columns=['x0', 'x1', 'y0', 'y1'])
     
-    if gridname == 'cas6':
+    if gridname == 'cas7':
         # Juan de Fuca
         sect_df.loc['jdf1',:] = [-124.673, -124.673,   48.371,   48.632]
         sect_df.loc['jdf2',:] = [-124.276, -124.276,   48.213,   48.542]
