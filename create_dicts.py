@@ -60,7 +60,7 @@ threshold_val = 2 #mg/L DO
 
 threshold_pct = 0.2 #m GOTTA BE PERCENT
 
-var = 'T_deg_C'
+var = 'S_g_kg'
 
 segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
@@ -301,7 +301,7 @@ if Ldir['testing'] == False:
         # with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
         #     pickle.dump(cid_dict, f)
             
-        with open((str(save_dir) + '/' + 'sub_avg_obs_T.pkl'), 'wb') as f: 
+        with open((str(save_dir) + '/' + 'sub_avg_obs_S.pkl'), 'wb') as f: 
             pickle.dump(sub_avg_obs, f)
             
         # with open((str(save_dir) + '/' + 'sub_wtd_avg_obs_NEW.pkl'), 'wb') as f: 
