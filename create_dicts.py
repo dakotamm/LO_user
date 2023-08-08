@@ -60,9 +60,9 @@ threshold_val = 2 #mg/L DO
 
 threshold_pct = 0.2 #m GOTTA BE PERCENT
 
-var = 'DO_mg_L'
+var = 'T_deg_C'
 
-segments = 'sound_straits' #custom (specify string list and string build list), basins, whole domain, sound and strait
+segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
 # seg_build_list = optional
     
@@ -91,6 +91,14 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 if Ldir['testing']:
 
     seg_list = ['Strait of Georgia']
+    
+# %%
+
+oneoff = True
+
+if oneoff == True:
+    
+    seg_list = ['Hood Canal', 'Whidbey Basin', 'Main Basin','Admiralty Inlet', 'South Sound']
     
 # %%
 
@@ -170,6 +178,12 @@ for seg_name in seg_list:
 
     sub_wtd_avg_obs[seg_name] = {}
     
+    # if oneoff == True:
+    
+    #     dt = pd.Timestamp('2017-01-01 01:30:00')
+    #     fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+    
+    #     G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
     
     for mon_num, mon_str in zip(month_num, month_str):
         
@@ -189,35 +203,35 @@ for seg_name in seg_list:
             print('no obs data for ' + str(Ldir['year']))
         
         
-        dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
+        # dt = pd.Timestamp(str(Ldir['year']) + '-'+mon_num+'-01 01:30:00')
         
-        fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
+        # fn_his = vfun.get_his_fn_from_dt(Ldir, dt) #note change from cfun
         
         
         
-        if not fn_his.exists():
+        # if not fn_his.exists():
             
-            dt = pd.Timestamp('2017-01-01 01:30:00')
-            fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+        #     dt = pd.Timestamp('2017-01-01 01:30:00')
+        #     fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
         
-            G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
+        #     G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
             
-            print('no LO data for ' + mon_str + ' ' + str(Ldir['year']))
+        #     print('no LO data for ' + mon_str + ' ' + str(Ldir['year']))
         
         
-        else:
+        # else:
             
-            G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
+        #     G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
             
-            # sub_vol_LO_his[seg_name][int(mon_num)], sub_thick_LO_his[seg_name][int(mon_num)] = vfun.getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val)
+        #     # sub_vol_LO_his[seg_name][int(mon_num)], sub_thick_LO_his[seg_name][int(mon_num)] = vfun.getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val)
         
-            # if Ldir['year'] == 2017:
+        #     # if Ldir['year'] == 2017:
                 
-            # if info_fn.exists() & fn.exists():
+        #     # if info_fn.exists() & fn.exists():
                 
-                # vfun.extractLOCasts(Ldir, info_df_use, fn_his)
+        #         # vfun.extractLOCasts(Ldir, info_df_use, fn_his)
                 
-                # sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+        #         # sub_vol_LO_casts[seg_name][int(mon_num)], sub_thick_LO_casts[seg_name][int(mon_num)], sub_casts_array_LO_casts[seg_name][int(mon_num)] = vfun.getLOCastsSubVolThick(Ldir, info_df_use, var, threshold_val, z_rho_grid, land_mask, dv, dz, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
         if info_fn.exists() & fn.exists():
@@ -232,7 +246,7 @@ for seg_name in seg_list:
             
             sub_avg_obs[seg_name][int(mon_num)] = vfun.getOBSAvgBelow(info_df_use, df_use, var, threshold_pct)
             
-            sub_wtd_avg_obs[seg_name][int(mon_num)] = vfun.getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, land_mask, dv, dz, h, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
+            # sub_wtd_avg_obs[seg_name][int(mon_num)] = vfun.getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, land_mask, dv, dz, h, jjj, iii, surf_casts_array[seg_name][int(mon_num)])
         
         
         print(seg_name + ' ' + mon_str + ' ' + str(Ldir['year']) + ' completed after %d sec' % (int(Time()-tt0)))
@@ -287,11 +301,11 @@ if Ldir['testing'] == False:
         # with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
         #     pickle.dump(cid_dict, f)
             
-        with open((str(save_dir) + '/' + 'sub_avg_obs_NEW.pkl'), 'wb') as f: 
+        with open((str(save_dir) + '/' + 'sub_avg_obs_T.pkl'), 'wb') as f: 
             pickle.dump(sub_avg_obs, f)
             
-        with open((str(save_dir) + '/' + 'sub_wtd_avg_obs_NEW.pkl'), 'wb') as f: 
-            pickle.dump(sub_wtd_avg_obs, f)
+        # with open((str(save_dir) + '/' + 'sub_wtd_avg_obs_NEW.pkl'), 'wb') as f: 
+        #     pickle.dump(sub_wtd_avg_obs, f)
 
 # %%
 

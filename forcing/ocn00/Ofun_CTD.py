@@ -11,15 +11,30 @@ from scipy.spatial import cKDTree
 from datetime import datetime, timedelta
 
 import Ofun
-from lo_tools import zfun, Lfun
+from lo_tools import zfun, Lfun, zrfun, pfun
 
 
 # D functions
 
 from dateutil.relativedelta import relativedelta
 
+import VFC_functions as vfun
+
 
 def build_dfs(Ldir, source_list):
+    
+    dt = pd.Timestamp('2017-01-01 01:30:00')
+    fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+    
+    G, S, T = zrfun.get_basic_info(fn_his)
+    land_mask = G['mask_rho']
+    Lon = G['lon_rho'][0,:]
+    Lat = G['lat_rho'][:,0]
+    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
+    # z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
+    # dz = np.diff(z_w_grid,axis=0)
+    # dv = dz*G['DX']*G['DY']
+    # h = G['h']
     
     info_df_rough = pd.DataFrame()
     

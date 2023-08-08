@@ -1,7 +1,7 @@
 """
 Functions for DM's VFC method! REVISED AGAIN
 
-Created 2023/08/08.
+Created 2023/07/27.
 
 """
 
@@ -358,18 +358,8 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
     df = pd.merge(df, info_df[['ix','iy','ii_cast','jj_cast','segment']], how='left', on=['cid'])
     
     df = df[~(np.isnan(df['jj_cast'])) & ~(np.isnan(df['ii_cast']))]
-    
-    if var == 'DO_mg_L':
 
-        df[var] = df['DO (uM)']*32/1000
-        
-    elif var == 'T_deg_C':
-        
-        df[var] = df['CT']
-        
-    elif var == 'S_g_kg':
-        
-        df[var] = df['SA']
+    df[var] = df['DO (uM)']*32/1000
     
     
     
@@ -640,7 +630,7 @@ def getLOHisSubVolThick(dv, dz, fn_his, jjj, iii, var, threshold_val):
 
 
 
-def getLOCastsAttrs(fn, var):
+def getLOCastsAttrs(fn):
     """
     
     Gets attributes from individual casts.
@@ -669,30 +659,12 @@ def getLOCastsAttrs(fn, var):
     
     ds = xr.open_dataset(fn)
     z_rho = ds.z_rho.values
-    
-    if var == 'DO_mg_L':
-        
-        oxygen = ds.oxygen.values*32/1000  # mg/L
-        
-        return z_rho, oxygen
-    
-        ds.close()
-    
-    # elif var == 'T_deg_C':
-        
-    #     temperature = ds.temp.values # deg C
-        
-    #     return z_rho, temp
-    
-    # elif var == 'S_g_kg-1':
-        
-    #     salinity = ds.sal.values
-        
-    #     return z_rho, sal
+    oxygen = ds.oxygen.values*32/1000  # mg/L
+    ds.close()
     
     print('getLOCastsAttrs within getLOCastsSubVolThick = %d sec' % (int(Time()-tt0)))
     
-    # return z_rho, oxygen
+    return z_rho, oxygen
         
         
 
@@ -1314,25 +1286,14 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, 
         df_sub = df_temp[df_temp['z'] < (1-threshold_pct)*df_temp['max_z']]
         
         ###
-        df_wtd_avg = df_sub[['cid', var]].groupby('cid').mean()
+        df_wtd_avg = df_sub[['cid', 'DO_mg_L']].groupby('cid').mean()
         
         df_wtd_avg['vol_km_3'] = np.nan
                 
         if df_sub.empty: # if it isn't deep enough
         
-            if var == 'DO_mg_L':
+            df_wtd_avg['DO_wtd_mg_L'] = np.nan  
         
-                df_wtd_avg['DO_wtd_mg_L'] = np.nan
-            
-            elif var == 'T_deg_C':
-                
-                df_wtd_avg['T_wtd_deg_C'] = np.nan
-                
-            elif var == 'S_g_kg':
-            
-                df_wtd_avg['S_wtd_g_kg'] = np.nan
-                
-
             sub_avg = np.nan
             
             print('not deep enough obs casts for wtd avg')
@@ -1390,28 +1351,15 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, 
                 df_wtd_avg.loc[df_wtd_avg.index == cid, 'vol_m_3'] = np.sum(sub_array)
             
 
-            if var == 'DO_mg_L':
-        
-                df_wtd_avg['DO_wtd_mg_L'] = df_wtd_avg[var]*df_wtd_avg['vol_m_3']
-                
-                sub_wtd_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_m_3'])
+            df_wtd_avg['DO_wtd_mg_L'] = df_wtd_avg['DO_mg_L']*df_wtd_avg['vol_m_3']
             
-            elif var == 'T_deg_C':
-                
-                df_wtd_avg['T_wtd_deg_C'] = df_wtd_avg[var]*df_wtd_avg['vol_m_3']
-                
-                sub_wtd_avg = np.nansum(df_wtd_avg['T_wtd_deg_C'])/np.nansum(df_wtd_avg['vol_m_3'])
-                
-            elif var == 'S_g_kg':
             
-                df_wtd_avg['S_wtd_g_kg'] = df_wtd_avg[var]*df_wtd_avg['vol_m_3']
-                
-                sub_wtd_avg = np.nansum(df_wtd_avg['S_wtd_g_kg'])/np.nansum(df_wtd_avg['vol_m_3'])                       
-            
+            sub_avg = np.nansum(df_wtd_avg['DO_wtd_mg_L'])/np.nansum(df_wtd_avg['vol_m_3'])
+
 
     print('getOBSCastsWtdAvgBelow = %d sec' % (int(Time()-tt0)))
     
-    return sub_wtd_avg
+    return sub_avg
 
 
 
@@ -1460,7 +1408,7 @@ def getOBSAvgBelow(info_df_use, df_use, var, threshold_pct):
         
             print('obs casts deep enough for sub-depth avg')
         
-            sub_avg = df_sub[var].mean()
+            sub_avg = df_sub['DO_mg_L'].mean()
             
             
             
