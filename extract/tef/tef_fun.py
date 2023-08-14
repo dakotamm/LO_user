@@ -28,15 +28,15 @@ def get_sect_df(gridname):
         sect_df.loc['jdf4',:] = [-123.363, -123.363,   48.069,   48.461]
 
         # Strait of Georgia
-        sect_df.loc['sog1',:] = [-123.740, -122.663,   48.857,   48.857]
+        sect_df.loc['sog1',:] = [-123.740, -122.545,   48.857,   48.857] #change to include swinomish channel (second from -122.663)
         sect_df.loc['sog2',:] = [-124.065, -123.073,   49.184,   49.184]
         sect_df.loc['sog3',:] = [-124.223, -124.223,   49.220,   49.946]
         sect_df.loc['sog4',:] = [-125.356, -124.556,   50.002,   50.002]
         sect_df.loc['sog5',:] = [-125.600, -124.400,   50.200,   50.200]
     
         # San Juans
-        sect_df.loc['sji1',:] = [-123.350, -122.65,   48.438,   48.438]
-        sect_df.loc['sji2',:] = [-123.449, -122.425,   48.681,   48.681]
+        sect_df.loc['sji1',:] = [-123.449, -122.425,   48.438,   48.438] #change to include swinomish channel (second from -122.65)
+        sect_df.loc['sji2',:] = [-123.449, -122.425,   48.681,   48.681] #change first one from -123.449
 
         # Deception Pass
         sect_df.loc['dp',:]  = [-122.643, -122.643,   48.389,   48.425]
@@ -52,6 +52,7 @@ def get_sect_df(gridname):
         sect_df.loc['wb2',:] = [-122.504, -122.286,   48.087,   48.087]
         sect_df.loc['wb3',:] = [-122.610, -122.498,   48.173,   48.173]
         sect_df.loc['wb4',:] = [-122.524, -122.524,   48.245,   48.308]
+        sect_df.loc['wb5',:] = [-122.524, -122.478,   48.438,   48.438] #DM ADDED THIS
 
         # Hood Canal
         sect_df.loc['hc1',:] = [-122.670, -122.564,   47.912,   47.912]

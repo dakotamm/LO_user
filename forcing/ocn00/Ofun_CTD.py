@@ -11,7 +11,7 @@ from scipy.spatial import cKDTree
 from datetime import datetime, timedelta
 
 import Ofun
-from lo_tools import zfun, Lfun, zrfun, pfun
+from lo_tools import zfun, Lfun, zrfun
 
 
 # D functions
@@ -21,7 +21,7 @@ from dateutil.relativedelta import relativedelta
 import VFC_functions as vfun
 
 
-def build_dfs(Ldir, source_list):
+def setup_CTD_casts(Ldir, source_list=['ecology','dfo1','nceiSalish']):
     
     dt = pd.Timestamp('2017-01-01 01:30:00')
     fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
@@ -34,7 +34,13 @@ def build_dfs(Ldir, source_list):
     # z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
     # dz = np.diff(z_w_grid,axis=0)
     # dv = dz*G['DX']*G['DY']
-    # h = G['h']
+    h = G['h']
+    
+    vol_dir, v_df, j_dict, i_dict, seg_list = vfun.getSegmentInfo(Ldir)
+    
+    seg_str_list = 'whole'
+    
+    jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(seg_str_list, j_dict, i_dict)
     
     info_df_rough = pd.DataFrame()
     
@@ -121,43 +127,70 @@ def build_dfs(Ldir, source_list):
             
             info_df_rough.loc[cid, 'jj_cast'] = info_df_rough.loc[cid, 'iy']
     
+    for seg_name in seg_list:
+        
+        ij_pair = list(zip(iii_dict[seg_name],jjj_dict[seg_name]))
+        
+        for cid in info_df.index:        
+              
+            pair = (info_df_rough.loc[cid,'ix'].tolist(), info_df_rough.loc[cid,'iy'].tolist())
+            
+            if pair in ij_pair:
+                info_df_rough.loc[cid,'segment'] = seg_name
+    
+    info_df_rough = info_df_rough[~(np.isnan(info_df_rough['jj_cast'])) & ~(np.isnan(info_df_rough['ii_cast']))]
     
     
-    return info_df
+    df_rough = pd.merge(df_rough, info_df_rough[['ix','iy','ii_cast','jj_cast','segment']], how='left', on=['cid'])
+    
+    df_rough = df_rough[~(np.isnan(df_rough['jj_cast'])) & ~(np.isnan(df_rough['ii_cast']))]
+    
+    bad_casts = np.asarray([val for val in info_df_rough.index if val not in df_rough['cid'].unique().astype('int64')])
+    
+    for bad in bad_casts:
+        
+        info_df_rough = info_df_rough.drop(bad)
+        
+        
+    min_z = df_rough.groupby(['cid'])['z'].min().to_frame()
+    
+    min_z.index = min_z.index.astype('int64')
+    
+    
+    for cid in info_df_rough.index:
+        
+        min_z.loc[cid, 'h'] = -h[info_df_rough.loc[cid,'jj_cast'].astype('int64'),info_df_rough.loc[cid,'ii_cast'].astype('int64')]
+        
+        
+    for cid in min_z.index:
+
+        if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -depth_threshold*min_z.loc[cid, 'h']):
+            
+            info_df = info_df_rough.drop(cid)
+            
+            
+    bad_casts = np.asarray([val for val in df_rough['cid'].unique().astype('int64') if val not in info_df_rough.index])   
+         
+    for bad in bad_casts:
+        
+        df = df_rough.drop(df_rough.loc[df['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
+        
+    # gotta figure out the spatial averaging thing.........
+
+
+    surf_casts_array = vfun.assignSurfaceToCasts(info_df, jjj_dict['whole'], iii_dict['whole'])
+        
+    return info_df, df, surf_casts_array
 
 
 
 def get_casts(Ldir):
-        
-    # year = 2017
-    # month = 1
     
-    # LOAD IN PICKLED CASTS THING, essentially build data structures like in VFC !!!!!!
+    year = 2017
     
-    this_dt = datetime.strptime(Ldir['date_string'], Lfun.ds_fmt)
+    month = 1
     
-    obs_list = ['ecology', 'dfo1', 'nceiSalish']
-    
-    info_df = build_dfs(Ldir, obs_list)
-    
-    
-    
-    
-    
-    dir0 = Ldir['LOo'] / 'obs' / 'ecology' / 'ctd' #should change hard-coding
-    
-    dir1 = Ldir['LOo'] / 'obs' / 'dfo1' / 'ctd'
-    
-    dir2 = Ldir['LOo'] / 'obs' / 'nceiSalish' / 'ctd'
-    
-    
-    
-    
-    
-    
-    
-    
-    ###
+    # ^^^ double check with OG
     
     # +++ load ecology CTD cast data +++
     dir0 = Ldir['parent'] / 'ptools_data' / 'ecology'

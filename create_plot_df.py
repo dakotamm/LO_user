@@ -356,7 +356,7 @@ for seg_name in seg_list:
             avg_df = pd.concat([avg_df, df_temp], ignore_index=True)
         
         
-avg_df.to_pickle((file_dir + '/' + 'avg_df_NEW_wTS.p'))
+#avg_df.to_pickle((file_dir + '/' + 'avg_df_NEW_wTS.p'))
 
 # %%
 

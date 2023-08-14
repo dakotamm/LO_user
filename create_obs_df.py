@@ -48,6 +48,8 @@ fn_in = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / (str(Ldir['year']
     
     # UNLESS YOU MAKE YOUR OWN - CHECK THIS
     
+# %%
+
 if info_fn_in.exists() & fn_in.exists():
 
     info_fn = (info_df_dir / ('info_' + str(Ldir['year']) + '.p'))

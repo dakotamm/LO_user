@@ -509,6 +509,46 @@ def get_extrapolated(in_fn, L, M, N, X, Y, lon, lat, z, Ldir, add_CTD=False):
     V[vn] = vv
     vn_list.remove('ssh')    
     # extrapolate 3D fields
+    
+    # DM take it from here for CTDs
+    
+    if add_CTD==False:
+        for vn in vn_list:
+            v = b[vn]
+            if vn == 't3d':
+                v0 = np.nanmin(v)
+            elif vn == 's3d':
+                v0 = np.nanmax(v)
+            if vn in ['t3d', 's3d']:
+                for k in range(N):
+                    fld = v[k, :, :]
+                    fldf = extrap_nearest_to_masked(X, Y, fld, fld0=v0)
+                    V[vn][k, :, :] = fldf
+            elif vn in ['u3d', 'v3d']:
+                # print(' -- extrapolating ' + vn)
+                vv = v.copy()
+                vv = np.ma.masked_where(np.isnan(vv), vv)
+                vv[vv.mask] = 0
+                V[vn] = vv.data
+    elif add_CTD==True:
+        print(vn + ' Adding CTD data before extrapolating')
+        info_df, df, surf_casts_array = Ofun_CTD.setup_casts(Ldir)
+        
+        #stopped 8/10/2023
+        
+        for vn in vn_list:
+            v = b[vn]
+            if vn in ['u3d', 'v3d']:
+                # print(' -- extrapolating ' + vn)
+                vv = v.copy()
+                vv = np.ma.masked_where(np.isnan(vv), vv)
+                vv[vv.mask] = 0
+                V[vn] = vv.data
+            
+    ###
+    
+    
+    
     for vn in vn_list:
         v = b[vn]
         if vn == 't3d':
@@ -522,8 +562,6 @@ def get_extrapolated(in_fn, L, M, N, X, Y, lon, lat, z, Ldir, add_CTD=False):
                     fld = v[k, :, :]
                     fldf = extrap_nearest_to_masked(X, Y, fld, fld0=v0)
                     V[vn][k, :, :] = fldf
-                    
-          # THIS IS WHERE I NEED TO FILL IN
           
             elif add_CTD==True:
                 print(vn + ' Adding CTD data before extrapolating')
