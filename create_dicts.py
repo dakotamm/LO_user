@@ -94,7 +94,7 @@ if Ldir['testing']:
     
 # %%
 
-oneoff = False
+oneoff = True
 
 if oneoff == True:
     
@@ -284,25 +284,25 @@ if Ldir['testing'] == False:
 
         if var == 'DO_mg_L':        
 
-            with open((str(save_dir) + '/' + 'sub_casts_array_obs.pkl'), 'wb') as f: 
+            with open((str(save_dir) + '/' + 'sub_casts_array_obs_NEW.pkl'), 'wb') as f: 
                 pickle.dump(sub_casts_array_obs, f)       
                 
-            with open((str(save_dir) + '/' +  'sub_thick_obs.pkl'), 'wb') as f: 
+            with open((str(save_dir) + '/' +  'sub_thick_obs_NEW.pkl'), 'wb') as f: 
                 pickle.dump(sub_thick_obs, f)
             
-            with open((str(save_dir) + '/' + 'sub_vol_obs.pkl'), 'wb') as f: 
+            with open((str(save_dir) + '/' + 'sub_vol_obs_NEW.pkl'), 'wb') as f: 
                 pickle.dump(sub_vol_obs, f)  
                 
-            with open((str(save_dir) + '/' +  'surf_casts_array.pkl'), 'wb') as f: 
+            with open((str(save_dir) + '/' +  'surf_casts_array_NEW.pkl'), 'wb') as f: 
                 pickle.dump(surf_casts_array, f)  
                 
-            with open((str(save_dir) + '/' +  'jj_casts.pkl'), 'wb') as f: 
+            with open((str(save_dir) + '/' +  'jj_casts_NEW.pkl'), 'wb') as f: 
                 pickle.dump(jj_casts, f)
             
-            with open((str(save_dir) + '/' +  'ii_casts.pkl'), 'wb') as f: 
+            with open((str(save_dir) + '/' +  'ii_casts_NEW.pkl'), 'wb') as f: 
                 pickle.dump(ii_casts, f)  
                 
-            with open((str(save_dir) + '/' +  'cid_dict.pkl'), 'wb') as f: 
+            with open((str(save_dir) + '/' +  'cid_dict_NEW.pkl'), 'wb') as f: 
                 pickle.dump(cid_dict, f)
             
             with open((str(save_dir) + '/' + 'sub_avg_obs_NEW.pkl'), 'wb') as f: 
@@ -324,7 +324,7 @@ if Ldir['testing'] == False:
             with open((str(save_dir) + '/' + 'sub_avg_obs_S.pkl'), 'wb') as f: 
                 pickle.dump(sub_avg_obs, f)
             
-            with open((str(save_dir) + '/' + 'sub_wtd_avg_obs_Spkl'), 'wb') as f: 
+            with open((str(save_dir) + '/' + 'sub_wtd_avg_obs_S.pkl'), 'wb') as f: 
                 pickle.dump(sub_wtd_avg_obs, f)
 
 # %%

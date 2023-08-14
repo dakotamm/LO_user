@@ -1294,7 +1294,7 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, 
         
         # sub_thick = sub_thick_temp[jjj,iii]
                             
-        sub_avg = np.nan
+        sub_wtd_avg = np.nan
                 
         # sub_casts_array = sub_casts_array_full[jjj,iii]
         
@@ -1333,7 +1333,7 @@ def getOBSCastsWtdAvgBelow(info_df_use, df_use, var, threshold_pct, z_rho_grid, 
                 df_wtd_avg['S_wtd_g_kg'] = np.nan
                 
 
-            sub_avg = np.nan
+            sub_wtd_avg = np.nan
             
             print('not deep enough obs casts for wtd avg')
         
