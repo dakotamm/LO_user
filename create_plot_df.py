@@ -92,8 +92,8 @@ file_dir = str(save_dir)
         
 if info_fn.exists() & fn.exists():
         
-    # with open((file_dir + '/' + 'sub_vol_obs.pkl'), 'rb') as f: 
-    #     sub_vol_obs = pickle.load(f)
+    with open((file_dir + '/' + 'sub_vol_obs_NEW.pkl'), 'rb') as f: 
+        sub_vol_obs = pickle.load(f)
         
     with open((file_dir + '/' + 'sub_avg_obs_NEW.pkl'), 'rb') as f: 
         sub_avg_obs = pickle.load(f)
@@ -104,79 +104,85 @@ if info_fn.exists() & fn.exists():
     with open((file_dir + '/' + 'sub_avg_obs_S.pkl'), 'rb') as f:
         sub_avg_obs_S = pickle.load(f)
         
-    # with open((file_dir + '/' + 'sub_wtd_avg_obs_NEW.pkl'), 'rb') as f: 
-    #     sub_wtd_avg_obs = pickle.load(f)
-
-# %%
-
-# vol_df = pd.DataFrame()
-
-
-# vol_df['segment'] = []
-
-# vol_df['month'] = []
-
-# vol_df['data_type'] = []
-
-# vol_df['vol_km3'] = []
-
-
-
-# for seg_name in seg_list:
-    
-    
-#     for (mon_num, mon_str) in zip(month_num,month_str):
+    with open((file_dir + '/' + 'sub_wtd_avg_obs_NEW.pkl'), 'rb') as f: 
+        sub_wtd_avg_obs = pickle.load(f)
         
-#         df_temp = pd.DataFrame()
+    with open((file_dir + '/' + 'sub_wtd_avg_obs_T.pkl'), 'rb') as f: 
+        sub_wtd_avg_obs_T = pickle.load(f)
+        
+    with open((file_dir + '/' + 'sub_wtd_avg_obs_Spkl'), 'rb') as f: 
+        sub_wtd_avg_obs_S = pickle.load(f)
+        
+ # %%
+
+vol_df = pd.DataFrame()
+
+
+vol_df['segment'] = []
+
+vol_df['month'] = []
+
+vol_df['data_type'] = []
+
+vol_df['vol_km3'] = []
+
+
+
+for seg_name in seg_list:
+    
+    
+    for (mon_num, mon_str) in zip(month_num,month_str):
+        
+        df_temp = pd.DataFrame()
                 
-#         df_temp['segment'] = [seg_name]
+        df_temp['segment'] = [seg_name]
         
-#         df_temp['month'] = [int(mon_num)]
+        df_temp['month'] = [int(mon_num)]
         
-#         dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
-#         fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+        dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
+        fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
         
-#         if fn_his.exists():
+        # if fn_his.exists():
             
-#             df_temp0 = pd.DataFrame()
+        #     df_temp0 = pd.DataFrame()
             
-#             df_temp0['segment'] = [seg_name]
+        #     df_temp0['segment'] = [seg_name]
             
-#             df_temp0['month'] = [int(mon_num)]
+        #     df_temp0['month'] = [int(mon_num)]
         
-#             df_temp0['data_type'] = ['LO His']
+        #     df_temp0['data_type'] = ['LO His']
             
-#             df_temp0['vol_km3'] = [sub_vol_LO_his[seg_name][int(mon_num)]*1e-9] #convert to km^3
+        #     df_temp0['vol_km3'] = [sub_vol_LO_his[seg_name][int(mon_num)]*1e-9] #convert to km^3
             
-#             vol_df = pd.concat([vol_df, df_temp0], ignore_index=True)
+        #     vol_df = pd.concat([vol_df, df_temp0], ignore_index=True)
             
             
-#         if Ldir['year'] == 2017:
+        # if Ldir['year'] == 2017:
             
-#             df_temp1 = pd.DataFrame()
+        #     df_temp1 = pd.DataFrame()
             
-#             df_temp1['segment'] = [seg_name]
+        #     df_temp1['segment'] = [seg_name]
             
-#             df_temp1['month'] = [int(mon_num)]
+        #     df_temp1['month'] = [int(mon_num)]
         
-#             df_temp1['data_type'] = 'LO Casts'
+        #     df_temp1['data_type'] = 'LO Casts'
             
-#             df_temp1['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
+        #     df_temp1['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
             
-#             vol_df = pd.concat([vol_df, df_temp1], ignore_index=True)
+        #     vol_df = pd.concat([vol_df, df_temp1], ignore_index=True)
             
             
-#         if info_fn.exists() & fn.exists():    
-        
-        
-#             df_temp['data_type'] = ['OBS']
-            
-#             df_temp['vol_km3'] = [sub_vol_obs[seg_name][int(mon_num)]*1e-9]
-            
-#             vol_df = pd.concat([vol_df, df_temp], ignore_index=True)
+        if info_fn.exists() & fn.exists():    
         
         
-# vol_df.to_pickle((file_dir + '/' + 'vol_df.p'))       
+            df_temp['data_type'] = ['OBS']
+            
+            df_temp['vol_km3'] = [sub_vol_obs[seg_name][int(mon_num)]*1e-9]
+            
+            vol_df = pd.concat([vol_df, df_temp], ignore_index=True)
+        
+        
+vol_df.to_pickle((file_dir + '/' + 'vol_df_NEW.p'))       
         
 #%%
 
@@ -356,75 +362,83 @@ for seg_name in seg_list:
             avg_df = pd.concat([avg_df, df_temp], ignore_index=True)
         
         
-#avg_df.to_pickle((file_dir + '/' + 'avg_df_NEW_wTS.p'))
+avg_df.to_pickle((file_dir + '/' + 'avg_df_NEW_wTS.p'))
 
 # %%
 
-# wtd_avg_df = pd.DataFrame()
+wtd_avg_df = pd.DataFrame()
 
 
-# wtd_avg_df['segment'] = []
+wtd_avg_df['segment'] = []
 
-# wtd_avg_df['month'] = []
+wtd_avg_df['month'] = []
 
-# wtd_avg_df['data_type'] = []
+wtd_avg_df['data_type'] = []
 
-# wtd_avg_df['DO_wtd_avg_below_mg_L'] = []
+wtd_avg_df['DO_wtd_avg_below_mg_L'] = []
 
-# for seg_name in seg_list:
+wtd_avg_df['T_wtd_avg_below_deg_C'] = []
+
+wtd_avg_df['S_wtd_avg_below_g_kg'] = []
+
+for seg_name in seg_list:
     
     
-#     for (mon_num, mon_str) in zip(month_num,month_str):
+    for (mon_num, mon_str) in zip(month_num,month_str):
         
-#         df_temp = pd.DataFrame()
+        df_temp = pd.DataFrame()
                 
-#         df_temp['segment'] = [seg_name]
+        df_temp['segment'] = [seg_name]
         
-#         df_temp['month'] = [int(mon_num)]
+        df_temp['month'] = [int(mon_num)]
         
-#         # dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
-#         # fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+        # dt = pd.Timestamp(str(Ldir['year']) + '-01-01 01:30:00')
+        # fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
         
-#         # if fn_his.exists():
+        # if fn_his.exists():
             
-#         #     df_temp0 = pd.DataFrame()
+        #     df_temp0 = pd.DataFrame()
             
-#         #     df_temp0['segment'] = [seg_name]
+        #     df_temp0['segment'] = [seg_name]
             
-#         #     df_temp0['month'] = [int(mon_num)]
+        #     df_temp0['month'] = [int(mon_num)]
         
-#         #     df_temp0['data_type'] = ['LO His']
+        #     df_temp0['data_type'] = ['LO His']
             
-#         #     df_temp0['vol_km3'] = [sub_vol_LO_his[seg_name][int(mon_num)]*1e-9] #convert to km^3
+        #     df_temp0['vol_km3'] = [sub_vol_LO_his[seg_name][int(mon_num)]*1e-9] #convert to km^3
             
-#         #     vol_df = pd.concat([vol_df, df_temp0], ignore_index=True)
+        #     vol_df = pd.concat([vol_df, df_temp0], ignore_index=True)
             
             
-#         # if Ldir['year'] == 2017:
+        # if Ldir['year'] == 2017:
             
-#         #     df_temp1 = pd.DataFrame()
+        #     df_temp1 = pd.DataFrame()
             
-#         #     df_temp1['segment'] = [seg_name]
+        #     df_temp1['segment'] = [seg_name]
             
-#         #     df_temp1['month'] = [int(mon_num)]
+        #     df_temp1['month'] = [int(mon_num)]
         
-#         #     df_temp1['data_type'] = 'LO Casts'
+        #     df_temp1['data_type'] = 'LO Casts'
             
-#         #     df_temp1['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
+        #     df_temp1['vol_km3'] = [sub_vol_LO_casts[seg_name][int(mon_num)]*1e-9]
             
-#         #     vol_df = pd.concat([vol_df, df_temp1], ignore_index=True)
+        #     vol_df = pd.concat([vol_df, df_temp1], ignore_index=True)
             
             
-#         if info_fn.exists() & fn.exists():    
-        
-        
-#             df_temp['data_type'] = ['OBS']
-            
-#             df_temp['DO_wtd_avg_below_mg_L'] = [sub_wtd_avg_obs[seg_name][int(mon_num)]]
-            
-#             wtd_avg_df = pd.concat([wtd_avg_df, df_temp], ignore_index=True)
+        if info_fn.exists() & fn.exists():    
         
         
-# wtd_avg_df.to_pickle((file_dir + '/' + 'wtd_avg_df_NEW.p'))
+            df_temp['data_type'] = ['OBS']
+            
+            df_temp['DO_wtd_avg_below_mg_L'] = [sub_wtd_avg_obs[seg_name][int(mon_num)]]
+            
+            df_temp['T_wtd_avg_below_deg_C'] = [sub_wtd_avg_obs_T[seg_name][int(mon_num)]]
+
+            df_temp['S_wtd_avg_below_g_kg'] = [sub_wtd_avg_obs_S[seg_name][int(mon_num)]]
+            
+            wtd_avg_df = pd.concat([wtd_avg_df, df_temp], ignore_index=True)
+        
+        
+wtd_avg_df.to_pickle((file_dir + '/' + 'wtd_avg_df_NEW_wTS.p'))
 
 

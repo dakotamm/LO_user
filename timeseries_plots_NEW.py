@@ -68,13 +68,13 @@ for year in years:
     
     for segs in seg_str:
     
-        fn_cid = '/Users/dakotamascarenas/LO_output/extract/vfc/DO_' + str(threshold_val) + 'mgL_' + segs + '_months_' + str(year) +'/cid_dict.pkl'
+        fn_cid = '/Users/dakotamascarenas/LO_output/extract/vfc/DO_' + str(threshold_val) + 'mgL_' + segs + '_months_' + str(year) +'/cid_dict_NEW.pkl'
         
-        fn_vol_df = '/Users/dakotamascarenas/LO_output/extract/vfc/DO_' + str(threshold_val) + 'mgL_' + segs + '_months_' + str(year) +'/vol_df.p'
+        fn_vol_df = '/Users/dakotamascarenas/LO_output/extract/vfc/DO_' + str(threshold_val) + 'mgL_' + segs + '_months_' + str(year) +'/vol_df_NEW.p'
         
-        fn_wtd_avg = '/Users/dakotamascarenas/LO_output/extract/vfc/DO_' + str(threshold_val) + 'mgL_' + segs + '_months_' + str(year) +'/wtd_avg_df.p'
+        fn_wtd_avg = '/Users/dakotamascarenas/LO_output/extract/vfc/DO_' + str(threshold_val) + 'mgL_' + segs + '_months_' + str(year) +'/wtd_avg_df_NEW_wTS.p'
         
-        fn_avg = '/Users/dakotamascarenas/LO_output/extract/vfc/DO_' + str(threshold_val) + 'mgL_' + segs + '_months_' + str(year) +'/avg_df.p'
+        fn_avg = '/Users/dakotamascarenas/LO_output/extract/vfc/DO_' + str(threshold_val) + 'mgL_' + segs + '_months_' + str(year) +'/avg_df_NEW_wTS.p'
         
         if os.path.isfile(fn_cid):
             
@@ -225,6 +225,20 @@ avg_df_filt = avg_df[avg_df['DO_avg_below_mg_L'] <20]
 
 
 # %%
+
+if seg_str[0] == 'sound_straits':
+
+    fig, ax = plt.subplots(3,1,figsize=(18,27))
+    
+    ax0 = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound')], x = 'date_ordinal', y = 'vol_km3', ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type') size='num_casts',sizes=(30,300),
+
+    ax1 = sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'] == 'Puget Sound')], x = 'date_ordinal', y = 'DO_avg_below_mg_L', ax =ax[0], size='num_casts',sizes=(50,500))
+    
+    ax2 = 
+
+# %%
+
+
 
 if seg_str[0] == 'sound_straits':
 
