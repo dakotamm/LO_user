@@ -110,7 +110,7 @@ if info_fn.exists() & fn.exists():
     with open((file_dir + '/' + 'sub_wtd_avg_obs_T.pkl'), 'rb') as f: 
         sub_wtd_avg_obs_T = pickle.load(f)
         
-    with open((file_dir + '/' + 'sub_wtd_avg_obs_Spkl'), 'rb') as f: 
+    with open((file_dir + '/' + 'sub_wtd_avg_obs_S.pkl'), 'rb') as f: 
         sub_wtd_avg_obs_S = pickle.load(f)
         
  # %%
