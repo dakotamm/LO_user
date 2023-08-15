@@ -45,7 +45,7 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 threshold_val = 2
 
-threshold_depth = -40
+threshold_pct = 0.2
 
 seg_str = ['sound_straits']
 
