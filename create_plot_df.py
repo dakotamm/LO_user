@@ -70,7 +70,7 @@ if Ldir['testing']:
     
 
 # %%
-oneoff = True
+oneoff = False
 
 if oneoff == True:
     
