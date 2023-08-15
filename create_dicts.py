@@ -60,7 +60,7 @@ threshold_val = 2 #mg/L DO
 
 threshold_pct = 0.2 #m GOTTA BE PERCENT
 
-var = 'DO_mg_L'
+var = 'T_deg_C'
 
 segments = 'basins' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
