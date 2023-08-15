@@ -47,7 +47,7 @@ threshold_val = 2
 
 threshold_depth = -40
 
-seg_str = ['basins']
+seg_str = ['sound_straits']
 
 #years = [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2020]
 
@@ -234,7 +234,65 @@ if seg_str[0] == 'sound_straits':
 
     ax1 = sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'] == 'Puget Sound')], x = 'date_ordinal', y = 'DO_avg_below_mg_L', ax =ax[0], size='num_casts',sizes=(50,500))
     
-    ax2 = 
+    labels = [date(1995,1,1), 
+                  date(2000,1,1),  date(2005,1,1), 
+                  date(2010,1,1), date(2015,1,1), 
+                  date(2020,1,1), date(2025,1,1)] 
+                  #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
+    
+    new_labels = [date.toordinal(item) for item in labels]
+    
+    ax0.set_xticks(new_labels)
+    
+    ax1.set_xticks(new_labels)
+        
+    
+    
+    ax0.set_xticklabels(['','2000','2005','2010','2015','2020',''], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax0.set_facecolor("white")
+    
+
+    
+    ax0.set(xlabel = 'Date')
+    
+    ax1.set_xticklabels(['','2000','2005','2010','2015','2020',''], rotation=0,
+        fontdict={'horizontalalignment':'center'})
+    
+    
+    ax1.set_facecolor("white")
+    
+
+    
+    ax1.set(xlabel = 'Date')
+  
+    
+    ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
+    
+    ax[1].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    
+    
+    ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    
+    ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    
+    #plt.legend(loc='upper left')
+    
+    
+    ax[0].grid(alpha=0.3)
+    
+    ax[1].grid(alpha=0.3)
+    
+    ax[2].grid(alpha=0.3)
+    
+    
+    #plt.legend() #title = 'Basin [Order of Increasing Volume]')
+
+    fig.tight_layout()
+
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_sub_avg'+ seg_str[0]+ '_PS.png', transparent=False, dpi=500)
 
 # %%
 
