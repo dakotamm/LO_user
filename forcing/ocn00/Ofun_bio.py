@@ -4,9 +4,233 @@ Functions to add biogeochemical fields to a clm file.
 
 import numpy as np
 import matplotlib.path as mpath
-from lo_tools import zfun
+from lo_tools import Lfun, zfun, zrfun
 
 verbose = False
+
+# D functions
+
+from dateutil.relativedelta import relativedelta
+
+import VFC_functions as vfun
+
+import pandas as pd
+
+from datetime import datetime, timedelta
+
+import copy
+
+
+
+def setup_bio_casts(Ldir, source_list=['ecology','dfo1','nceiSalish']):
+    
+    dt = pd.Timestamp('2017-01-01 01:30:00')
+    fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+    
+    G, S, T = zrfun.get_basic_info(fn_his)
+    land_mask = G['mask_rho']
+    Lon = G['lon_rho'][0,:]
+    Lat = G['lat_rho'][:,0]
+    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
+    # z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
+    # dz = np.diff(z_w_grid,axis=0)
+    # dv = dz*G['DX']*G['DY']
+    h = G['h']
+    
+    vol_dir, v_df, j_dict, i_dict, seg_list = vfun.getSegmentInfo(Ldir)
+    
+    seg_str_list = 'whole'
+    
+    jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(seg_str_list, j_dict, i_dict)
+    
+    info_df_rough = pd.DataFrame()
+    
+    df_rough = pd.DataFrame()
+    
+    info_df = pd.DataFrame()
+    
+    df = pd.DataFrame()
+    
+    this_dt = datetime.strptime(Ldir['date_string'], Lfun.ds_fmt)
+        
+    start_dt = this_dt - relativedelta(months = 1)
+    
+    end_dt = this_dt + relativedelta(months = 1)
+    
+    if start_dt.year != end_dt.year:
+        
+        year_list = [start_dt.year, end_dt.year]
+        
+    else:
+        
+        year_list = [this_dt.year]
+    
+    for year in year_list:
+       
+        for source in source_list:
+        
+            info_fn_in =  Ldir['LOo'] / 'obs' / source / 'bottle' / ('info_' + str(year) + '.p')
+        
+            info_df_temp0 = pd.read_pickle(info_fn_in)
+        
+            info_df_temp0['time'] = info_df_temp0['time'].astype('datetime64[ns]')
+            
+            info_df_temp0['source'] = source
+            
+            info_df_temp1 = info_df_temp0[(info_df_temp0['time'] >= start_dt) & (info_df_temp0['time'] <= end_dt)]
+               
+            info_df_rough = pd.concat([info_df_rough, info_df_temp1], ignore_index=True)
+            
+            info_df.index.name = 'cid'
+            
+            
+    for year in year_list:
+       
+        for source in source_list:
+            
+            fn_in =  Ldir['LOo'] / 'obs' / source / 'bottle' / (+ str(year) + '.p')
+        
+            df_temp0 = pd.read_pickle(fn_in)
+        
+            df_temp0['time'] = df_temp0['time'].astype('datetime64[ns]')
+            
+            df_temp0['source'] = source
+            
+            df_temp1 = df_temp0[(df_temp0['time'] >= start_dt) & (df_temp0['time'] <= end_dt)]
+            
+            df_temp1['cid'] = df_temp1['cid'] + info_df_rough[info_df_rough['source'] == source].index.min() 
+               
+            df_rough = pd.concat([df_rough, df_temp1], ignore_index=True)
+            
+            
+    depth_threshold = 0.2 # percentage of bathymetry the cast can be from the bottom to be accepted
+        
+    info_df_rough['ix'] = 0
+
+    info_df_rough['iy'] = 0
+    
+    info_df_rough['segment'] = 'None'
+    
+    info_df_rough['ii_cast'] = np.nan
+
+    info_df_rough['jj_cast'] = np.nan
+    
+    
+    for cid in info_df_rough.index:
+
+        info_df_rough.loc[cid,'ix'] = zfun.find_nearest_ind(Lon, info_df_rough.loc[cid,'lon'])
+
+        info_df_rough.loc[cid,'iy'] = zfun.find_nearest_ind(Lat, info_df_rough.loc[cid,'lat'])
+        
+        if land_mask[info_df.loc[cid,'iy'], info_df_rough.loc[cid,'ix']] == 1:
+            
+            info_df_rough.loc[cid, 'ii_cast'] = info_df_rough.loc[cid, 'ix']
+            
+            info_df_rough.loc[cid, 'jj_cast'] = info_df_rough.loc[cid, 'iy']
+    
+    for seg_name in seg_list:
+        
+        ij_pair = list(zip(iii_dict[seg_name],jjj_dict[seg_name]))
+        
+        for cid in info_df.index:        
+              
+            pair = (info_df_rough.loc[cid,'ix'].tolist(), info_df_rough.loc[cid,'iy'].tolist())
+            
+            if pair in ij_pair:
+                info_df_rough.loc[cid,'segment'] = seg_name
+    
+    info_df_rough = info_df_rough[~(np.isnan(info_df_rough['jj_cast'])) & ~(np.isnan(info_df_rough['ii_cast']))]
+    
+    info_df_rough = info_df_rough[info_df_rough['segment'] == 'All Segments']
+    
+    
+    df_rough = pd.merge(df_rough, info_df_rough[['ix','iy','ii_cast','jj_cast','segment']], how='left', on=['cid'])
+    
+    df_rough = df_rough[~(np.isnan(df_rough['jj_cast'])) & ~(np.isnan(df_rough['ii_cast']))]
+    
+    bad_casts = np.asarray([val for val in info_df_rough.index if val not in df_rough['cid'].unique().astype('int64')])
+    
+    for bad in bad_casts:
+        
+        info_df_rough = info_df_rough.drop(bad)
+        
+        
+    min_z = df_rough.groupby(['cid'])['z'].min().to_frame()
+    
+    min_z.index = min_z.index.astype('int64')
+    
+    
+    for cid in info_df_rough.index:
+        
+        min_z.loc[cid, 'h'] = -h[info_df_rough.loc[cid,'jj_cast'].astype('int64'),info_df_rough.loc[cid,'ii_cast'].astype('int64')]
+        
+        
+    for cid in min_z.index:
+
+        if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -depth_threshold*min_z.loc[cid, 'h']):
+            
+            info_df = info_df_rough.drop(cid)
+            
+            
+    bad_casts = np.asarray([val for val in df_rough['cid'].unique().astype('int64') if val not in info_df_rough.index])   
+         
+    for bad in bad_casts:
+        
+        df = df_rough.drop(df_rough.loc[df['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
+        
+    # gotta figure out the spatial averaging thing.........
+
+
+    surf_casts_array = vfun.assignSurfaceToCasts(info_df, jjj_dict['All Segments'], iii_dict['All Segments'])
+        
+    return info_df, df, surf_casts_array, jjj_dict['All Segments'], iii_dict['All Segments']
+
+
+
+
+def apply_bio_casts(Ldir, info_df, df, surf_casts_array, jjj, iii, bvn):
+    
+    dt = pd.Timestamp('2017-01-01 01:30:00')
+    fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+    
+    G, S, T = zrfun.get_basic_info(fn_his)
+    land_mask = G['mask_rho']
+    #Lon = G['lon_rho'][0,:]
+    #Lat = G['lat_rho'][:,0]
+    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
+    z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
+    # dz = np.diff(z_w_grid,axis=0)
+    # dv = dz*G['DX']*G['DY']
+    #h = G['h']
+    
+    surf_casts_array_full = np.empty(np.shape(land_mask))
+    surf_casts_array_full.fill(np.nan)
+    
+    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array)
+    
+    surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array)
+    
+    for vn in bvn:
+        
+        temp = np.empty(np.shape(z_rho_grid))
+        
+        if vn == 'NO3':
+        
+        
+    # stopped 8/25/2023 - almost got this
+    
+    
+    return bio_obs
+
+
+# DM above ^^^^^^^
+
+
+
+
+
+
+
 
         
 def salish_fields(V, vn, G):
@@ -178,4 +402,5 @@ def create_bio_var(salt, vn):
     elif vn == 'LdetritusC':
         LdetritusC = 0 * salt
         return LdetritusC
-    
+        
+        

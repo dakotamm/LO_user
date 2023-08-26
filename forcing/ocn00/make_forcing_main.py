@@ -62,8 +62,9 @@ else:
 # defaults
 planB = False
 planC = False
-add_CTD = False
+add_CTD = True
 do_bio = True
+add_bottle = True # DM added
 verbose = False
 
 if Ldir['testing']:
@@ -216,7 +217,7 @@ if planC == False:
         print('-Interpolating ' + fn + ' to ROMS grid')
         b = pickle.load(open(h_out_dir / fn, 'rb'))
         dt_list.append(b['dt'])
-        c = Ofun.get_interpolated(G, S, b, lon, lat, z, N, zinds)
+        c = Ofun.get_interpolated(G, S, b, lon, lat, z, N, zinds, Ldir, add_CTD=add_CTD)
         c_dict[count] = c
         count += 1
         
@@ -304,8 +305,15 @@ if planC == False:
                 'LdetritusN', 'SdetritusN', 'LdetritusC', 'SdetritusC',
                 'TIC', 'alkalinity', 'oxygen']
         salt = V['salt'].copy()
+        
         for bvn in bvn_list:
             V[bvn] = Ofun_bio.create_bio_var(salt, bvn)
+            
+        if add_bottle = True:
+            
+            info_df, df, surf_casts_array, jjj, iii = Ofun_bio.setup_bio_casts(Ldir)
+            
+            bio_obs = 
 
 elif planC == True:
     print('**** Using planC ****')

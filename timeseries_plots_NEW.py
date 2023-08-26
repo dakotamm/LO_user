@@ -228,11 +228,11 @@ avg_df_filt = avg_df[avg_df['DO_avg_below_mg_L'] <20]
 
 if seg_str[0] == 'sound_straits':
 
-    fig, ax = plt.subplots(3,1,figsize=(18,27))
+    fig, ax = plt.subplots(2,1,figsize=(15,15))
     
     ax0 = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound')], x = 'date_ordinal', y = 'vol_km3', ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type') size='num_casts',sizes=(30,300),
 
-    ax1 = sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'] == 'Puget Sound')], x = 'date_ordinal', y = 'DO_avg_below_mg_L', ax =ax[0], size='num_casts',sizes=(50,500))
+    ax1 = sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'] == 'Puget Sound')], x = 'date_ordinal', y = 'DO_avg_below_mg_L', ax =ax[1], size='num_casts',sizes=(50,500))
     
     labels = [date(1995,1,1), 
                   date(2000,1,1),  date(2005,1,1), 
@@ -271,12 +271,12 @@ if seg_str[0] == 'sound_straits':
     
     ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
     
-    ax[1].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    ax[1].set(ylabel = '[DO] Bottom 20% [$mg/L$]')
     
     
-    ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    ax[0].legend(loc='upper left')#, ncol =3)
     
-    ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    ax[1].legend(loc='upper left')#, ncol =3)
     
     #plt.legend(loc='upper left')
     
@@ -285,7 +285,6 @@ if seg_str[0] == 'sound_straits':
     
     ax[1].grid(alpha=0.3)
     
-    ax[2].grid(alpha=0.3)
     
     
     #plt.legend() #title = 'Basin [Order of Increasing Volume]')
@@ -296,125 +295,102 @@ if seg_str[0] == 'sound_straits':
 
 # %%
 
+avg_df_PS = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'] == 'Puget Sound')]
 
+avg_df_2010_on = avg_df_PS[avg_df_PS['year'] >= 2010]
+
+avg_df_pre_2010 = avg_df_PS[avg_df_PS['year'] < 2010]
+
+avg_df_PS = avg_df_PS.set_index('date')
+
+
+
+avg_df_PS['2_year_rolling_avg'] = avg_df_PS['DO_avg_below_mg_L'].rolling(window=24, min_periods = 12).mean()
+
+
+
+avg_coef_2010_on = np.polyfit(avg_df_2010_on['date_ordinal'], avg_df_2010_on['DO_avg_below_mg_L'], 1)
+
+avg_coef_full = np.polyfit(avg_df_PS['date_ordinal'], avg_df_PS['DO_avg_below_mg_L'], 1)
+
+avg_coef_full_2 = np.polyfit(avg_df_PS['date_ordinal'], avg_df_PS['DO_avg_below_mg_L'], 3)
+
+
+avg_trendline_x_2010_on = np.linspace(avg_df_2010_on['date_ordinal'].min(), avg_df_2010_on['date_ordinal'].max(), 100)
+
+avg_trendline_y_2010_on = np.polyval(avg_coef_2010_on, avg_trendline_x_2010_on)
+
+
+avg_trendline_x_full = np.linspace(avg_df_PS['date_ordinal'].min(), avg_df_PS['date_ordinal'].max(), 100)
+
+avg_trendline_y_full = np.polyval(avg_coef_full, avg_trendline_x_full)
+
+
+avg_trendline_x_full_2 = np.linspace(avg_df_PS['date_ordinal'].min(), avg_df_PS['date_ordinal'].max(), 100)
+
+avg_trendline_y_full_2 = np.polyval(avg_coef_full_2, avg_trendline_x_full_2)
+
+# %%
+
+vol_df_PS = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound')]
+
+vol_df_PS = vol_df_PS.set_index('date')
+
+
+vol_df_coef_PS = vol_df_PS[~np.isnan(vol_df_PS['vol_km3'])]
+
+vol_df_2010_on = vol_df_coef_PS[vol_df_coef_PS['year'] >= 2010]
+
+#vol_df_pre_2010 = vol_df_PS[vol_df_PS['year'] < 2010]
+
+
+vol_df_PS['2_year_rolling_avg'] = vol_df_PS['vol_km3'].rolling(window=24, min_periods = 12).mean()
+
+
+
+vol_coef_2010_on = np.polyfit(vol_df_2010_on['date_ordinal'], vol_df_2010_on['vol_km3'], 1)
+
+vol_coef_full = np.polyfit(vol_df_coef_PS['date_ordinal'], vol_df_coef_PS['vol_km3'], 1)
+
+vol_trendline_x_2010_on = np.linspace(vol_df_2010_on['date_ordinal'].min(), vol_df_2010_on['date_ordinal'].max(), 100)
+
+vol_trendline_y_2010_on = np.polyval(vol_coef_2010_on, vol_trendline_x_2010_on)
+
+
+vol_trendline_x_full = np.linspace(vol_df_coef_PS['date_ordinal'].min(), vol_df_coef_PS['date_ordinal'].max(), 100)
+
+vol_trendline_y_full = np.polyval(vol_coef_full, vol_trendline_x_full)
+
+
+
+# %%
 
 if seg_str[0] == 'sound_straits':
 
-    fig, ax = plt.subplots(3,1,figsize=(18,27))
+    fig, ax = plt.subplots(2,1,figsize=(15,12))
     
+    sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'] == 'Puget Sound')], x = 'date_ordinal', y = 'vol_km3', ax =ax[0], size='num_casts',sizes=(50,500), legend = False)# , style = 'data_type') size='num_casts',sizes=(30,300),
+
+    #sns.lineplot(data = vol_df_PS, x = 'date_ordinal', y = '2_year_rolling_avg', ax = ax[0], color = 'gray', linewidth = 3)
     
-    ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type') size='num_casts',sizes=(30,300),
+    #ax[0].plot(vol_trendline_x_2010_on, vol_trendline_y_2010_on, color = 'red')
     
-    
-    ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
-    
-    ax1 = sns.scatterplot(data = wtd_avg_df_filt[wtd_avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
-    
-    
-    ax2 = sns.scatterplot(data = avg_df_filt[avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
-    
-    labels = [date(1910,1,1), date(1915,1,1), date(1920,1,1), date(1925,1,1,), date(1930,1,1), date(1935,1,1), date(1940,1,1), date(1945,1,1),  
-                  date(1950,1,1), date(1955,1,1), 
-                  date(1960,1,1), date(1965,1,1), 
-                  date(1970,1,1),  date(1975,1,1), 
-                  date(1980,1,1),  date(1985,1,1), 
-                  date(1990,1,1),  date(1995,1,1), 
-                  date(2000,1,1),  date(2005,1,1), 
-                  date(2010,1,1), date(2015,1,1), 
-                  date(2020,1,1), date(2025,1,1)] #,date(2022,1,1)]
-    
-    new_labels = [date.toordinal(item) for item in labels]
-    
-    ax0.set_xticks(new_labels)
-    
-    ax1.set_xticks(new_labels)
-    
-    ax2.set_xticks(new_labels)
-    
-    
-    
-    ax0.set_xticklabels(['','','','','1930','1935','1940', '1945','1950','1955','1960','1965',
-                        '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
-        fontdict={'horizontalalignment':'center'})
-    
-    
-    ax0.set_facecolor("white")
+   # ax[0].plot(vol_trendline_x_full, vol_trendline_y_full, color = 'orange')
     
 
+    sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'] == 'Puget Sound')], x = 'date_ordinal', y = 'DO_avg_below_mg_L', ax =ax[1], size='num_casts',sizes=(50,500), legend = False)
     
-    ax0.set(xlabel = 'Date')
+   # sns.lineplot(data = avg_df_PS, x = 'date_ordinal', y = '2_year_rolling_avg', ax = ax[1], color = 'gray', linewidth = 3)
     
-    ax1.set_xticklabels(['','','','','1930','1935','1940', '1945','1950','1955','1960','1965',
-                        '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
-        fontdict={'horizontalalignment':'center'})
+    #ax[1].plot(avg_trendline_x_2010_on, avg_trendline_y_2010_on, color = 'red')
+
+    #ax[1].plot(avg_trendline_x_full, avg_trendline_y_full, color = 'orange')
     
-    
-    ax1.set_facecolor("white")
-    
+   # ax[1].plot(avg_trendline_x_full_2, avg_trendline_y_full_2, color = 'blue')
+
 
     
-    ax1.set(xlabel = 'Date')
-    
-    
-    ax2.set_xticklabels(['','','','', '1930','1935','1940', '1945','1950','1955','1960','1965',
-                        '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
-        fontdict={'horizontalalignment':'center'})
-    
-    
-    ax2.set_facecolor("white")
-    
-
-    
-    ax2.set(xlabel = 'Date')
-    
-    
-    ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
-    
-    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO[$mg/L$]')
-    
-    ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
-    
-    
-    ax[0].legend(title=False, loc='upper left')#, ncol =3) plt.legend(bbox_to_anchor=(1.02, 0.55), loc='upper left', borderaxespad=0)
-
-    ax[1].legend(title=False, loc='upper left')#, ncol =3)
-    
-    ax[2].legend(title=False, loc='upper left')#, ncol =3)
-    
-    
-    
-    
-    ax[0].grid(alpha=0.3)
-    
-    ax[1].grid(alpha=0.3)
-    
-    ax[2].grid(alpha=0.3)
-    
-    plt.legend() #title = 'Basin [Order of Increasing Volume]')
-     
-    fig.tight_layout()
-    
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_w_casts.png', transparent=False, dpi=500)
-
-# %%
-
-if seg_str[0] == 'basins':
-
-    fig, ax = plt.subplots(3,1,figsize=(18,27))
-        
-    
-    ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r',  hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type')size='num_casts',sizes=(30,300),
-    
-    
-    #ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
-    
-    ax1 = sns.scatterplot(data = wtd_avg_df_filt[wtd_avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
-    
-    
-    ax2 = sns.scatterplot(data = avg_df_filt[avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
-    
-    
-    labels = [date(1990,1,1,), date(1995,1,1), 
+    labels = [date(1995,1,1), 
                   date(2000,1,1),  date(2005,1,1), 
                   date(2010,1,1), date(2015,1,1), 
                   date(2020,1,1), date(2025,1,1)] 
@@ -422,171 +398,355 @@ if seg_str[0] == 'basins':
     
     new_labels = [date.toordinal(item) for item in labels]
     
-    ax0.set_xticks(new_labels)
+    ax[0].set_xticks(new_labels)
     
-    ax1.set_xticks(new_labels)
-    
-    ax2.set_xticks(new_labels)
-    
-    
-    
-    ax0.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
-        fontdict={'horizontalalignment':'center'})
-    
-    
-    ax0.set_facecolor("white")
-    
-
-    
-    ax0.set(xlabel = 'Date')
-    
-    ax1.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
-        fontdict={'horizontalalignment':'center'})
-    
-    
-    ax1.set_facecolor("white")
-    
-
-    
-    ax1.set(xlabel = 'Date')
-    
-    
-    ax2.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
-        fontdict={'horizontalalignment':'center'})
-    
-    
-    ax2.set_facecolor("white")
-    
-
-    
-    ax2.set(xlabel = 'Date')
-    
-    ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
-    
-    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO [$mg/L$]')
-    
-    ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
-    
-    
-    ax[0].legend(title=False, loc='upper left')#, ncol =3)
-    
-    ax[1].legend(title=False, loc='upper left')#, ncol =3)
-    
-    ax[2].legend(title=False, loc='upper left')#, ncol =3)
-    
-    plt.legend(loc='upper left')
-    
-    
-    ax[0].grid(alpha=0.3)
-    
-    ax[1].grid(alpha=0.3)
-    
-    ax[2].grid(alpha=0.3)
-    
-    
-    plt.legend() #title = 'Basin [Order of Increasing Volume]')
-
-    fig.tight_layout()
-    
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_w_casts.png', transparent=False, dpi=500)
-
-# %%
-
-#ADHOC JUST WHIDBEY & HOOD CANAL
-
-
-spots = ['Whidbey Basin', 'Hood Canal']
-
-
-if seg_str[0] == 'basins':
-
-    fig, ax = plt.subplots(3,1,figsize=(18,27))
+    ax[1].set_xticks(new_labels)
         
     
-    ax0 = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'].isin(spots))], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type')size='num_casts',sizes=(30,300),
     
-    
-    #ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
-    
-    ax1 = sns.scatterplot(data = wtd_avg_df_filt[(wtd_avg_df_filt['data_type'] == 'OBS') & (wtd_avg_df_filt['segment'].isin(spots))], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', hue_order =['Whidbey Basin', 'Hood Canal'],palette = 'Set2_r',  ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
-    
-    
-    ax2 = sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'].isin(spots))], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'],ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
-    
-    
-    labels = [date(1990,1,1), date(1995,1,1), 
-                  date(2000,1,1),  date(2005,1,1), 
-                  date(2010,1,1), date(2015,1,1), 
-                  date(2020,1,1), date(2025,1,1)] 
-                  #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
-    
-    new_labels = [date.toordinal(item) for item in labels]
-    
-    ax0.set_xticks(new_labels)
-    
-    ax1.set_xticks(new_labels)
-    
-    ax2.set_xticks(new_labels)
-    
-    
-    
-    ax0.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+    ax[0].set_xticklabels(['','2000','2005','2010','2015','2020', ''], rotation=0,
         fontdict={'horizontalalignment':'center'})
     
     
-    ax0.set_facecolor("white")
+    ax[0].set_facecolor("white")
     
 
     
-    ax0.set(xlabel = 'Date')
+    ax[0].set(xlabel = 'Date')
     
-    ax1.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+    ax[1].set_xticklabels(['','2000','2005','2010','2015','2020', ''], rotation=0,
         fontdict={'horizontalalignment':'center'})
     
     
-    ax1.set_facecolor("white")
+    ax[1].set_facecolor("white")
     
 
     
-    ax1.set(xlabel = 'Date')
-    
-    
-    ax2.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
-        fontdict={'horizontalalignment':'center'})
-    
-    
-    ax2.set_facecolor("white")
-    
-
-    
-    ax2.set(xlabel = 'Date')
+    ax[1].set(xlabel = 'Date')
+  
     
     ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
     
-    ax[1].set(ylabel = 'Sub-40m Wtd Avg DO [$mg/L$]')
-    
-    ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    ax[1].set(ylabel = '[DO] Bottom 20% [$mg/L$]')
     
     
-    ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    # ax[0].legend(loc='upper left')#, ncol =3)
     
-    ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    # ax[1].legend(loc='upper left')#, ncol =3)
     
-    ax[2].legend(title=False, loc='upper left')#, ncol =3)
-    
-    #sns.move_legend(ax2, "upper left")
-    
+    #plt.legend(loc='upper left')
     
     
     ax[0].grid(alpha=0.3)
     
     ax[1].grid(alpha=0.3)
     
-    ax[2].grid(alpha=0.3)
+   # ax[1].set(ylim = [0,10])
+    
     
     
     #plt.legend() #title = 'Basin [Order of Increasing Volume]')
 
     fig.tight_layout()
+
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_sub_avg'+ seg_str[0]+ '_PS_wTrends-4.png', transparent=False, dpi=500)
+
+
+
+
+
+# %%
+
+
+# if seg_str[0] == 'sound_straits':
+
+#     fig, ax = plt.subplots(3,1,figsize=(18,27))
     
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_WBHConly_w_casts.png', transparent=False, dpi=500)
+    
+#     ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type') size='num_casts',sizes=(30,300),
+    
+    
+#     ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
+    
+#     ax1 = sns.scatterplot(data = wtd_avg_df_filt[wtd_avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    
+    
+#     ax2 = sns.scatterplot(data = avg_df_filt[avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2', hue_order = ['Strait of Georgia', 'Strait of Juan de Fuca', 'Puget Sound'], ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    
+#     labels = [date(1910,1,1), date(1915,1,1), date(1920,1,1), date(1925,1,1,), date(1930,1,1), date(1935,1,1), date(1940,1,1), date(1945,1,1),  
+#                   date(1950,1,1), date(1955,1,1), 
+#                   date(1960,1,1), date(1965,1,1), 
+#                   date(1970,1,1),  date(1975,1,1), 
+#                   date(1980,1,1),  date(1985,1,1), 
+#                   date(1990,1,1),  date(1995,1,1), 
+#                   date(2000,1,1),  date(2005,1,1), 
+#                   date(2010,1,1), date(2015,1,1), 
+#                   date(2020,1,1), date(2025,1,1)] #,date(2022,1,1)]
+    
+#     new_labels = [date.toordinal(item) for item in labels]
+    
+#     ax0.set_xticks(new_labels)
+    
+#     ax1.set_xticks(new_labels)
+    
+#     ax2.set_xticks(new_labels)
+    
+    
+    
+#     ax0.set_xticklabels(['','','','','1930','1935','1940', '1945','1950','1955','1960','1965',
+#                         '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax0.set_facecolor("white")
+    
+
+    
+#     ax0.set(xlabel = 'Date')
+    
+#     ax1.set_xticklabels(['','','','','1930','1935','1940', '1945','1950','1955','1960','1965',
+#                         '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax1.set_facecolor("white")
+    
+
+    
+#     ax1.set(xlabel = 'Date')
+    
+    
+#     ax2.set_xticklabels(['','','','', '1930','1935','1940', '1945','1950','1955','1960','1965',
+#                         '1970','1975','1980','1985','1990','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax2.set_facecolor("white")
+    
+
+    
+#     ax2.set(xlabel = 'Date')
+    
+    
+#     ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
+    
+#     ax[1].set(ylabel = 'Sub-40m Wtd Avg DO[$mg/L$]')
+    
+#     ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    
+    
+#     ax[0].legend(title=False, loc='upper left')#, ncol =3) plt.legend(bbox_to_anchor=(1.02, 0.55), loc='upper left', borderaxespad=0)
+
+#     ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    
+#     ax[2].legend(title=False, loc='upper left')#, ncol =3)
+    
+    
+    
+    
+#     ax[0].grid(alpha=0.3)
+    
+#     ax[1].grid(alpha=0.3)
+    
+#     ax[2].grid(alpha=0.3)
+    
+#     plt.legend() #title = 'Basin [Order of Increasing Volume]')
+     
+#     fig.tight_layout()
+    
+#     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_w_casts.png', transparent=False, dpi=500)
+
+# # %%
+
+# if seg_str[0] == 'basins':
+
+#     fig, ax = plt.subplots(3,1,figsize=(18,27))
+        
+    
+#     ax0 = sns.scatterplot(data = vol_df[vol_df['data_type'] == 'OBS'], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r',  hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type')size='num_casts',sizes=(30,300),
+    
+    
+#     #ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
+    
+#     ax1 = sns.scatterplot(data = wtd_avg_df_filt[wtd_avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    
+    
+#     ax2 = sns.scatterplot(data = avg_df_filt[avg_df_filt['data_type'] == 'OBS'], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order = ['Admiralty Inlet','Whidbey Basin','South Sound','Hood Canal','Main Basin'], ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    
+    
+#     labels = [date(1990,1,1,), date(1995,1,1), 
+#                   date(2000,1,1),  date(2005,1,1), 
+#                   date(2010,1,1), date(2015,1,1), 
+#                   date(2020,1,1), date(2025,1,1)] 
+#                   #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
+    
+#     new_labels = [date.toordinal(item) for item in labels]
+    
+#     ax0.set_xticks(new_labels)
+    
+#     ax1.set_xticks(new_labels)
+    
+#     ax2.set_xticks(new_labels)
+    
+    
+    
+#     ax0.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax0.set_facecolor("white")
+    
+
+    
+#     ax0.set(xlabel = 'Date')
+    
+#     ax1.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax1.set_facecolor("white")
+    
+
+    
+#     ax1.set(xlabel = 'Date')
+    
+    
+#     ax2.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax2.set_facecolor("white")
+    
+
+    
+#     ax2.set(xlabel = 'Date')
+    
+#     ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
+    
+#     ax[1].set(ylabel = 'Sub-40m Wtd Avg DO [$mg/L$]')
+    
+#     ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    
+    
+#     ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    
+#     ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    
+#     ax[2].legend(title=False, loc='upper left')#, ncol =3)
+    
+#     plt.legend(loc='upper left')
+    
+    
+#     ax[0].grid(alpha=0.3)
+    
+#     ax[1].grid(alpha=0.3)
+    
+#     ax[2].grid(alpha=0.3)
+    
+    
+#     plt.legend() #title = 'Basin [Order of Increasing Volume]')
+
+#     fig.tight_layout()
+    
+#     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_w_casts.png', transparent=False, dpi=500)
+
+# # %%
+
+# #ADHOC JUST WHIDBEY & HOOD CANAL
+
+
+# spots = ['Whidbey Basin', 'Hood Canal']
+
+
+# if seg_str[0] == 'basins':
+
+#     fig, ax = plt.subplots(3,1,figsize=(18,27))
+        
+    
+#     ax0 = sns.scatterplot(data = vol_df[(vol_df['data_type'] == 'OBS') & (vol_df['segment'].isin(spots))], x = 'date_ordinal', y = 'vol_km3', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'], ax =ax[0], size='num_casts',sizes=(50,500))# , style = 'data_type')size='num_casts',sizes=(30,300),
+    
+    
+#     #ax0.set(xlim=(vol_df['date_ordinal'].min()-1, vol_df['date_ordinal'].max()+1),ylim=(0,150))
+    
+#     ax1 = sns.scatterplot(data = wtd_avg_df_filt[(wtd_avg_df_filt['data_type'] == 'OBS') & (wtd_avg_df_filt['segment'].isin(spots))], x = 'date_ordinal', y = 'DO_wtd_avg_below_mg_L', hue = 'segment', hue_order =['Whidbey Basin', 'Hood Canal'],palette = 'Set2_r',  ax=ax[1], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    
+    
+#     ax2 = sns.scatterplot(data = avg_df_filt[(avg_df_filt['data_type'] == 'OBS') & (avg_df_filt['segment'].isin(spots))], x = 'date_ordinal', y = 'DO_avg_below_mg_L', hue = 'segment', palette = 'Set2_r', hue_order =['Whidbey Basin', 'Hood Canal'],ax = ax[2], size='num_casts',sizes=(50,500))# , style = 'data_type')
+    
+    
+#     labels = [date(1990,1,1), date(1995,1,1), 
+#                   date(2000,1,1),  date(2005,1,1), 
+#                   date(2010,1,1), date(2015,1,1), 
+#                   date(2020,1,1), date(2025,1,1)] 
+#                   #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
+    
+#     new_labels = [date.toordinal(item) for item in labels]
+    
+#     ax0.set_xticks(new_labels)
+    
+#     ax1.set_xticks(new_labels)
+    
+#     ax2.set_xticks(new_labels)
+    
+    
+    
+#     ax0.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax0.set_facecolor("white")
+    
+
+    
+#     ax0.set(xlabel = 'Date')
+    
+#     ax1.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax1.set_facecolor("white")
+    
+
+    
+#     ax1.set(xlabel = 'Date')
+    
+    
+#     ax2.set_xticklabels(['','1995','2000','2005','2010','2015','2020','2025'], rotation=0,
+#         fontdict={'horizontalalignment':'center'})
+    
+    
+#     ax2.set_facecolor("white")
+    
+
+    
+#     ax2.set(xlabel = 'Date')
+    
+#     ax[0].set(ylabel = 'Hypoxic Volume [$km^3$]')
+    
+#     ax[1].set(ylabel = 'Sub-40m Wtd Avg DO [$mg/L$]')
+    
+#     ax[2].set(ylabel = 'Sub-40m Avg DO [$mg/L$]')
+    
+    
+#     ax[0].legend(title=False, loc='upper left')#, ncol =3)
+    
+#     ax[1].legend(title=False, loc='upper left')#, ncol =3)
+    
+#     ax[2].legend(title=False, loc='upper left')#, ncol =3)
+    
+#     #sns.move_legend(ax2, "upper left")
+    
+    
+    
+#     ax[0].grid(alpha=0.3)
+    
+#     ax[1].grid(alpha=0.3)
+    
+#     ax[2].grid(alpha=0.3)
+    
+    
+#     #plt.legend() #title = 'Basin [Order of Increasing Volume]')
+
+#     fig.tight_layout()
+    
+#     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + str(years[0]) +'-'+ str(years[-1]) + '_sub_2mg_vol_'+ seg_str[0]+ '_vol_wtd_avg_avg_WBHConly_w_casts.png', transparent=False, dpi=500)

@@ -17,6 +17,9 @@ import Ofun_CTD
 from lo_tools import Lfun, zfun, zrfun
 from lo_tools import hycom_functions as hfun
 
+# DM additions
+import Ofun_bio
+
 verbose = False
 
 def get_data_ncks(h_out_dir, dt0, dt1, testing_ncks):
@@ -508,47 +511,7 @@ def get_extrapolated(in_fn, L, M, N, X, Y, lon, lat, z, Ldir, add_CTD=False):
     vv = extrap_nearest_to_masked(X, Y, v)
     V[vn] = vv
     vn_list.remove('ssh')    
-    # extrapolate 3D fields
-    
-    # DM take it from here for CTDs
-    
-    if add_CTD==False:
-        for vn in vn_list:
-            v = b[vn]
-            if vn == 't3d':
-                v0 = np.nanmin(v)
-            elif vn == 's3d':
-                v0 = np.nanmax(v)
-            if vn in ['t3d', 's3d']:
-                for k in range(N):
-                    fld = v[k, :, :]
-                    fldf = extrap_nearest_to_masked(X, Y, fld, fld0=v0)
-                    V[vn][k, :, :] = fldf
-            elif vn in ['u3d', 'v3d']:
-                # print(' -- extrapolating ' + vn)
-                vv = v.copy()
-                vv = np.ma.masked_where(np.isnan(vv), vv)
-                vv[vv.mask] = 0
-                V[vn] = vv.data
-    elif add_CTD==True:
-        print(vn + ' Adding CTD data before extrapolating')
-        info_df, df, surf_casts_array = Ofun_CTD.setup_casts(Ldir)
-        
-        #stopped 8/10/2023
-        
-        for vn in vn_list:
-            v = b[vn]
-            if vn in ['u3d', 'v3d']:
-                # print(' -- extrapolating ' + vn)
-                vv = v.copy()
-                vv = np.ma.masked_where(np.isnan(vv), vv)
-                vv[vv.mask] = 0
-                V[vn] = vv.data
-            
-    ###
-    
-    
-    
+    # extrapolate 3D fields    
     for vn in vn_list:
         v = b[vn]
         if vn == 't3d':
@@ -556,34 +519,24 @@ def get_extrapolated(in_fn, L, M, N, X, Y, lon, lat, z, Ldir, add_CTD=False):
         elif vn == 's3d':
             v0 = np.nanmax(v)
         if vn in ['t3d', 's3d']:
-            # print(' -- extrapolating ' + vn)
-            if add_CTD==False:
-                for k in range(N):
-                    fld = v[k, :, :]
-                    fldf = extrap_nearest_to_masked(X, Y, fld, fld0=v0)
-                    V[vn][k, :, :] = fldf
-          
-            elif add_CTD==True:
-                print(vn + ' Adding CTD data before extrapolating')
-                Cast_dict, sta_df = Ofun_CTD.get_casts(Ldir)
-                for k in range(N):
-                    fld = v[k, :, :]
-                    zz = z[k]
-                    xyorig, fldorig = Ofun_CTD.get_orig(Cast_dict, sta_df,
-                        X, Y, fld, lon, lat, zz, vn)
-                    fldf = Ofun_CTD.extrap_nearest_to_masked_CTD(X,Y,fld,
-                        xyorig=xyorig,fldorig=fldorig,fld0=v0)
-                    V[vn][k, :, :] = fldf
-                    
-          # !!!     
-                    
-                    
+            for k in range(N):
+                fld = v[k, :, :]
+                fldf = extrap_nearest_to_masked(X, Y, fld, fld0=v0)
+                V[vn][k, :, :] = fldf
         elif vn in ['u3d', 'v3d']:
             # print(' -- extrapolating ' + vn)
             vv = v.copy()
             vv = np.ma.masked_where(np.isnan(vv), vv)
             vv[vv.mask] = 0
             V[vn] = vv.data
+                
+    # okay so actually just overwrite at this point... ACTUALLY NO OVERWRITE LATER
+    if add_CTD==True:
+        
+        print('CTD extrapolation not currently implemented - see interpolation.')
+        # print(' Adding CTD data before extrapolating')
+            
+            
     # Create ubar and vbar.
     # Note: this is slightly imperfect because the z levels are at the same
     # position as the velocity levels.
@@ -675,7 +628,7 @@ def get_zinds(h, S, z):
         print(' --create zinds array took %0.1f seconds' % (time.time() - tt0))
     return zinds
 
-def get_interpolated(G, S, b, lon, lat, z, N, zinds):
+def get_interpolated(G, S, b, lon, lat, z, N, zinds, Ldir, add_CTD=False): # DM added Ldir and add_CTD
     """
     This does the horizontal and vertical interpolation to get from
     extrapolated, filtered HYCOM fields to ROMS fields.
@@ -738,6 +691,21 @@ def get_interpolated(G, S, b, lon, lat, z, N, zinds):
             vvc = (vvc[:,:-1,:] + vvc[:,1:,:])/2
         checknan(vvc)
         c[vn] = vvc
+        
+    # DM added
+        
+    if add_CTD==True:
+        
+        info_df, df, surf_casts_array, jjj, iii = Ofun_CTD.setup_CTD_casts(Ldir) # which one does O2 come from? bio!!!
+        
+        T_array, S_array = Ofun_CTD.apply_CTD_casts(Ldir, info_df, df, surf_casts_array, jjj, iii)
+        
+        press_db = -h[:, min(jjj):max(jjj)+1, min(iii):max(iii)+1]
+        
+        c['theta'][:, min(jjj):max(jjj)+1, min(iii):max(iii)+1] = seawater.ptmp(S_array, T_array, press_db)
+        
+        c['s3d'][:, min(jjj):max(jjj)+1, min(iii):max(iii)+1] = S_array
+        
     return c
 
 

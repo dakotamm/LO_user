@@ -330,13 +330,13 @@ for seg in avg_df['segment'].unique():
     ax[1,3].axhline(y = float(avg_df_all_years.loc[avg_df_all_years['segment'] == seg, 'T_avg_below_deg_C']), color = 'k')
     
     
-    ax[1,0].set(xlabel = 'Date', ylabel = 'Temp. Avg. Bottom $20\%$ [degC]', ylim = [5,15])
+    ax[1,0].set(xlabel = 'Date', ylabel = 'Temp. Avg. Bottom $20\%$ [degC]', ylim = [6,14])
     
-    ax[1,1].set(xlabel = 'Date', ylabel = 'Temp. Avg. Bottom $20\%$ [degC]', ylim = [5,15])
+    ax[1,1].set(xlabel = 'Date', ylabel = 'Temp. Avg. Bottom $20\%$ [degC]', ylim = [6,14])
     
-    ax[1,2].set(xlabel = 'Date', ylabel = 'Temp. Avg. Bottom $20\%$ [degC]', ylim = [5,15])
+    ax[1,2].set(xlabel = 'Date', ylabel = 'Temp. Avg. Bottom $20\%$ [degC]', ylim = [6,14])
     
-    ax[1,3].set(xlabel = 'Date', ylabel = 'Temp. Avg. Bottom $20\%$ [degC]', ylim = [5,15])
+    ax[1,3].set(xlabel = 'Date', ylabel = 'Temp. Avg. Bottom $20\%$ [degC]', ylim = [6,14])
     
     
     
@@ -358,13 +358,13 @@ for seg in avg_df['segment'].unique():
     ax[2,3].axhline(y = float(avg_df_all_years.loc[avg_df_all_years['segment'] == seg, 'S_avg_below_g_kg']), color = 'k')
     
     
-    ax[2,0].set(xlabel = 'Date', ylabel = 'Sal. Avg. Bottom $20\%$ [g/kg]', ylim = [25,35])
+    ax[2,0].set(xlabel = 'Date', ylabel = 'Sal. Avg. Bottom $20\%$ [g/kg]', ylim = [28,32])
     
-    ax[2,1].set(xlabel = 'Date', ylabel = 'Sal. Avg. Bottom $20\%$ [g/kg]', ylim = [25,35])
+    ax[2,1].set(xlabel = 'Date', ylabel = 'Sal. Avg. Bottom $20\%$ [g/kg]', ylim = [28,32])
     
-    ax[2,2].set(xlabel = 'Date', ylabel = 'Sal. Avg. Bottom $20\%$ [g/kg]', ylim = [25,35])
+    ax[2,2].set(xlabel = 'Date', ylabel = 'Sal. Avg. Bottom $20\%$ [g/kg]', ylim = [28,32])
     
-    ax[2,3].set(xlabel = 'Date', ylabel = 'Sal. Avg. Bottom $20\%$ [g/kg]', ylim = [25,35])
+    ax[2,3].set(xlabel = 'Date', ylabel = 'Sal. Avg. Bottom $20\%$ [g/kg]', ylim = [28,32])
     
     
     
@@ -447,16 +447,269 @@ for seg in avg_df['segment'].unique():
     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_seasonal.png', transparent = False, dpi=500)
     
     
+# %%
+
+seg = 'Hood Canal'
+
+fig, ax = plt.subplots(1,1,figsize=(10,10))
+
+sns.scatterplot(data = avg_df_filt[avg_df_filt['segment'] == seg], x = 'S_avg_below_g_kg', y = 'DO_avg_below_mg_L', size = 'num_casts', marker = 'D', sizes=(50,500), palette = 'Set2', hue = 'season')
+
+    
+ax.set(xlabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+
+ax.grid(alpha = 0.3)
 
 
+fig.tight_layout()
 
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_SvDO.png', transparent = False, dpi=500)
+
+# %%
+
+seg = 'Hood Canal'
+
+fig, ax = plt.subplots(1,1,figsize=(10,10))
+
+sns.scatterplot(data = avg_df_filt[avg_df_filt['segment'] == seg], x = 'T_avg_below_deg_C', y = 'DO_avg_below_mg_L', size = 'num_casts', marker = 's', sizes=(50,500),  palette = 'Set2', hue = 'season')
+
+    
+ax.set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+
+ax.grid(alpha = 0.3)
+
+fig.tight_layout()
+
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_TvDO.png', transparent = False, dpi=500)
+
+# %%
+
+seg = 'Hood Canal'
+
+fig, ax = plt.subplots(1,1,figsize=(10,10))
+
+sns.scatterplot(data = avg_df_filt[avg_df_filt['segment'] == seg], x = 'T_avg_below_deg_C', y = 'S_avg_below_g_kg', size = 'num_casts', marker = 's', sizes=(50,500),  palette = 'Set2', hue = 'season')
+
+    
+ax.set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]')
+
+ax.grid(alpha = 0.3)
+
+fig.tight_layout()
+
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_TvS.png', transparent = False, dpi=500)
+
+
+# %%
+
+seg = 'Hood Canal'
+
+fig, ax = plt.subplots(1,1,figsize=(10,10))
+
+sns.scatterplot(data = avg_df_filt[avg_df_filt['segment'] == seg], x = 'T_avg_below_deg_C', y = 'S_avg_below_g_kg', size = 'num_casts', sizes=(50,500), hue = 'DO_avg_below_mg_L')
+
+    
+ax.set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]')
+
+ax.grid(alpha = 0.3)
+
+fig.tight_layout()
+
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_TvS_DO.png', transparent = False, dpi=500)
+
+
+# %%
+
+for seg in avg_df['segment'].unique():
+    
+    rows = 3
+    
+    cols = 4
+        
+    fig, ax = plt.subplots(rows,cols,figsize=(20,15))
+        
+        
+    fig.suptitle(seg)
+        
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'winter') & (avg_df_seasonal['segment'] == seg)], x = 'T_avg_below_deg_C', y = 'S_avg_below_g_kg', size = 'num_casts', marker = 'o', ax = ax[0,0], hue = 'DO_avg_below_mg_L', sizes=(50,500), legend = False)
+        
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'spring') & (avg_df_seasonal['segment'] == seg)], x = 'T_avg_below_deg_C', y = 'S_avg_below_g_kg', size = 'num_casts', marker = 'o', ax = ax[0,1], hue = 'DO_avg_below_mg_L', sizes=(50,500), legend = False)
+
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'summer') & (avg_df_seasonal['segment'] == seg)], x = 'T_avg_below_deg_C', y = 'S_avg_below_g_kg', size = 'num_casts', marker = 'o', ax = ax[0,2], hue = 'DO_avg_below_mg_L', sizes=(50,500), legend = False)
+    
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'fall') & (avg_df_seasonal['segment'] == seg)], x = 'T_avg_below_deg_C', y = 'S_avg_below_g_kg', size = 'num_casts', marker = 'o', ax = ax[0,3], hue = 'DO_avg_below_mg_L', sizes=(50,500), legend = False)
+    
+    
+    
+    ax[0,0].set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]')
+    
+    ax[0,1].set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]')
+    
+    ax[0,2].set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]')
+    
+    ax[0,3].set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]')
+    
+    
+    
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'winter') & (avg_df_seasonal['segment'] == seg)], x = 'S_avg_below_g_kg', y = 'DO_avg_below_mg_L', size = 'num_casts', marker = 's', ax = ax[1,0], sizes=(50,500), hue = 'T_avg_below_deg_C', legend = False)
+        
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'spring') & (avg_df_seasonal['segment'] == seg)], x = 'S_avg_below_g_kg', y = 'DO_avg_below_mg_L', size = 'num_casts', marker = 's', ax = ax[1,1], sizes=(50,500), hue = 'T_avg_below_deg_C', legend = False)
+
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'summer') & (avg_df_seasonal['segment'] == seg)], x = 'S_avg_below_g_kg', y = 'DO_avg_below_mg_L', size = 'num_casts', marker = 's', ax = ax[1,2], sizes=(50,500), hue = 'T_avg_below_deg_C', legend = False)
+    
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'fall') & (avg_df_seasonal['segment'] == seg)], x = 'S_avg_below_g_kg', y = 'DO_avg_below_mg_L', size = 'num_casts', marker = 's', ax = ax[1,3], sizes=(50,500), hue = 'T_avg_below_deg_C', legend = False)
+    
+    
+    ax[1,0].set(xlabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+    
+    ax[1,1].set(xlabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+    
+    ax[1,2].set(xlabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+    
+    ax[1,3].set(xlabel = 'Sal. Avg. Bottom 20$\%$ [g/kg]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+    
+    
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'winter') & (avg_df_seasonal['segment'] == seg)], x = 'T_avg_below_deg_C', y = 'DO_avg_below_mg_L', color = clr, size = 'num_casts', marker = 'D', ax = ax[2,0], hue = 'S_avg_below_g_kg', sizes=(50,500), legend = False)
+        
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'spring') & (avg_df_seasonal['segment'] == seg)], x = 'T_avg_below_deg_C', y = 'DO_avg_below_mg_L', color = clr, size = 'num_casts', marker = 'D', ax = ax[2,1], hue = 'S_avg_below_g_kg',sizes=(50,500), legend = False)
+
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'summer') & (avg_df_seasonal['segment'] == seg)], x = 'T_avg_below_deg_C', y = 'DO_avg_below_mg_L', color = clr, size = 'num_casts', marker = 'D', ax = ax[2,2], hue = 'S_avg_below_g_kg',sizes=(50,500), legend = False)
+    
+    sns.scatterplot(data = avg_df_seasonal[(avg_df_seasonal['season'] == 'fall') & (avg_df_seasonal['segment'] == seg)], x = 'T_avg_below_deg_C', y = 'DO_avg_below_mg_L', color = clr, size = 'num_casts', marker = 'D', ax = ax[2,3], hue = 'S_avg_below_g_kg',sizes=(50,500), legend = False)
+    
+ 
+
+    
+    ax[2,0].set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+    
+    ax[2,1].set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+    
+    ax[2,2].set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+    
+    ax[2,3].set(xlabel = 'Temp. Avg. Bottom 20$\%$ [deg C]', ylabel = '[DO] Avg.Bottom 20$\%$ [mg/L]')
+    
     
 
 
-
                 
+    if seg_str[0] == 'basins':
+        
+    #     labels = [date(1995,1,1), 
+    #                   date(2000,1,1),  date(2005,1,1), 
+    #                   date(2010,1,1), date(2015,1,1), 
+    #                   date(2020,1,1), date(2025,1,1)] 
+    #                   #date(2020,1,1),  date(2021,1,1)] #,date(2022,1,1)]
+                      
+    #     new_labels = [date.toordinal(item) for item in labels]
+        
+        for row in range(rows):
+            
+            ax[row,0].text(0.05,0.9,'Winter', transform = ax[row,0].transAxes)
+            
+            ax[row,1].text(0.05,0.9,'Spring', transform = ax[row,1].transAxes)
+            
+            ax[row,2].text(0.05,0.9,'Summer', transform = ax[row,2].transAxes)
+            
+            ax[row,3].text(0.05,0.9,'Fall', transform = ax[row,3].transAxes)
+            
+            for col in range(cols):
+                
+    #             ax[row,col].set_xticks(new_labels)
+    
+                      
+    #             ax[row,col].set_xticklabels(['','2000','','2010','','2020',''], rotation=0,
+    #                 fontdict={'horizontalalignment':'center'})
+                
+                ax[row,col].grid(alpha=0.3)
+    
+      
+        
+    # # FIX LATER                  
+    # elif seg_str[0] == 'sound_straits':
+        
+    #     labels = [date(1920,1,1,), date(1930,1,1), date(1940,1,1),  
+    #                   date(1950,1,1), 
+    #                   date(1960,1,1), 
+    #                   date(1970,1,1),  
+    #                   date(1980,1,1), 
+    #                   date(1990,1,1), 
+    #                   date(2000,1,1),  
+    #                   date(2010,1,1), 
+    #                   date(2020,1,1), date(2030,1,1)] #,date(2022,1,1)]
+        
+    #     new_labels = [date.toordinal(item) for item in labels]
+        
+    #     ax[0].set_xticks(new_labels)
+        
+    #     ax[1].set_xticks(new_labels)
+        
+    #     ax[2].set_xticks(new_labels)
+        
+    #     ax[3].set_xticks(new_labels)
+        
+    #     ax[0].set_xticklabels(['','1930','','1950','',
+    #                         '1970','','1990','','2010','',''], rotation=0,
+    #         fontdict={'horizontalalignment':'center'})
+        
+    #     ax[1].set_xticklabels(['','1930','','1950','',
+    #                         '1970','','1990','','2010','',''], rotation=0,
+    #         fontdict={'horizontalalignment':'center'})
+        
+    #     ax[2].set_xticklabels(['','1930','','1950','',
+    #                         '1970','','1990','','2010','',''], rotation=0,
+    #         fontdict={'horizontalalignment':'center'})
+        
+    #     ax[3].set_xticklabels(['','1930','','1950','',
+    #                         '1970','','1990','','2010','',''], rotation=0,
+    #         fontdict={'horizontalalignment':'center'})
+        
+    
+    
+    fig.tight_layout()
+    
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_seasonal_TSDO.png', transparent = False, dpi=500)
+    
+# %%
+
+seg = 'Hood Canal'
+
+fig, ax = plt.subplots(1,1,figsize=(20,5))
 
 
+sns.relplot(data = avg_df_seasonal[avg_df_seasonal['segment'] == seg], x = 'T_avg_below_deg_C', y = 'S_avg_below_g_kg', col = 'season', size = 'num_casts', marker = 'o', hue = 'DO_avg_below_mg_L', palette = 'Spectral', sizes=(50,500), col_order=['winter','spring','summer','fall'])
+
+#ax.grid(alpha=0.3)
+
+fig.tight_layout()
+
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_seasonal_TvS_DO.png', transparent = False, dpi=500)
+    
+# %%
+
+seg = 'Hood Canal'
+
+fig, ax = plt.subplots(1,1,figsize=(20,5))
 
 
+sns.relplot(data = avg_df_seasonal[avg_df_seasonal['segment'] == seg], x = 'T_avg_below_deg_C', y = 'DO_avg_below_mg_L', col = 'season', size = 'num_casts', marker = 's', hue = 'S_avg_below_g_kg', palette = 'viridis', sizes=(50,500), col_order=['winter','spring','summer','fall'])
 
+#ax.grid(alpha=0.3)
+
+fig.tight_layout()
+
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_seasonal_TvDO_S.png', transparent = False, dpi=500)
+
+# %%
+
+seg = 'Hood Canal'
+
+fig, ax = plt.subplots(1,1,figsize=(20,5))
+
+
+sns.relplot(data = avg_df_seasonal[avg_df_seasonal['segment'] == seg], x = 'S_avg_below_g_kg', y = 'DO_avg_below_mg_L', col = 'season', size = 'num_casts', marker = 'D', hue = 'T_avg_below_deg_C', sizes=(50,500), palette = 'coolwarm', col_order=['winter','spring','summer','fall'])
+
+#ax.grid(alpha=0.3)
+
+fig.tight_layout()
+
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + seg.replace(" ", "") + '_avgbot20pct_seasonal_SvDO_T.png', transparent = False, dpi=500)
