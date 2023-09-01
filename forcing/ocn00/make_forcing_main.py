@@ -3,7 +3,7 @@ This makes the ocn forcing files for the updated ROMS, including the banas-fenne
 
 Testing:
 
-run make_forcing_main.py -g cas6 -r backfill -d 2019.07.04 -f ocn00 -test True
+run make_forcing_main.py -g cas7 -r backfill -s new -d 2017.01.01 -f ocn00 -test True
 
 This is the first code that uses the new varinfo.yaml file and the associated method
 zrfun.get_varinfo() [around line 328].  The handling of time coordinate names proved to be
@@ -309,11 +309,29 @@ if planC == False:
         for bvn in bvn_list:
             V[bvn] = Ofun_bio.create_bio_var(salt, bvn)
             
-        if add_bottle = True:
+    ### DM ADDITIONS !!!!!       
+     
+        if add_bottle == True:
             
-            info_df, df, surf_casts_array, jjj, iii = Ofun_bio.setup_bio_casts(Ldir)
+            ctd_or_bottle = 'bottle'
             
-            bio_obs = 
+            info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list = Ofun.setup_casts(Ldir, ctd_or_bottle)
+            
+            bio_obs = Ofun_bio.apply_bio_casts(Ldir, info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list, bvn_list)
+                        
+            bio_obs_dims_NT = {}
+                                        
+            for bvn in bvn_list:
+                
+                if bvn in bio_obs.keys():
+                                        
+                    bio_obs_dims_NT[bvn] = np.stack((bio_obs[bvn], bio_obs[bvn]), axis = 0)
+                                        
+                    V[bvn][~np.isnan(bio_obs_dims_NT[bvn])] = bio_obs_dims_NT[bvn][~np.isnan(bio_obs_dims_NT[bvn])]
+                    
+    ### !!!!
+                    
+                    
 
 elif planC == True:
     print('**** Using planC ****')

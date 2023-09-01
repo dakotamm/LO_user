@@ -17,10 +17,269 @@ import Ofun_CTD
 from lo_tools import Lfun, zfun, zrfun
 from lo_tools import hycom_functions as hfun
 
-# DM additions
-import Ofun_bio
 
 verbose = False
+
+
+### DM ADDITIONS >>>>>
+
+from dateutil.relativedelta import relativedelta
+
+import VFC_functions as vfun
+
+import copy
+
+import pandas as pd
+
+
+
+def setup_casts(Ldir, ctd_or_bottle):
+    
+    if ctd_or_bottle == 'ctd':
+        
+        source_list=['ecology','dfo1']
+        
+    elif ctd_or_bottle == 'bottle':
+        
+        source_list = source_list=['ecology','dfo1','nceiSalish']
+    
+    dt = pd.Timestamp('2017-01-01 01:30:00')
+    fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+    
+    G, S, T = zrfun.get_basic_info(fn_his)
+    land_mask = G['mask_rho']
+    Lon = G['lon_rho'][0,:]
+    Lat = G['lat_rho'][:,0]
+    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
+    # z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
+    # dz = np.diff(z_w_grid,axis=0)
+    # dv = dz*G['DX']*G['DY']
+    h = G['h']
+    
+    vol_dir, v_df, j_dict, i_dict, seg_list = vfun.getSegmentInfo(Ldir)
+    
+    seg_str_list = 'basins'
+    
+    jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(seg_str_list, j_dict, i_dict)
+    
+    info_df_rough = pd.DataFrame()
+    
+    df_rough = pd.DataFrame()
+    
+    info_df = pd.DataFrame()
+    
+    df = pd.DataFrame()
+    
+    this_dt = datetime.strptime(Ldir['date_string'], Lfun.ds_fmt)
+        
+    start_dt = this_dt - relativedelta(months = 1)
+    
+    end_dt = this_dt + relativedelta(months = 1)
+    
+    if start_dt.year != end_dt.year:
+        
+        year_list = [start_dt.year, end_dt.year]
+        
+    else:
+        
+        year_list = [this_dt.year]
+    
+    for year in year_list:
+       
+        for source in source_list:
+        
+            info_fn_in =  Ldir['LOo'] / 'obs' / source / ctd_or_bottle / ('info_' + str(year) + '.p')
+            
+            if info_fn_in.exists():
+        
+                info_df_temp0 = pd.read_pickle(info_fn_in)
+            
+                info_df_temp0['time'] = info_df_temp0['time'].astype('datetime64[ns]')
+                
+                info_df_temp0['source'] = source
+                
+                #info_df_temp1 = info_df_temp0[(info_df_temp0['time'] >= start_dt) & (info_df_temp0['time'] <= end_dt)]
+                   
+                info_df_rough = pd.concat([info_df_rough, info_df_temp0], ignore_index=True)
+                
+                info_df_rough.index.name = 'cid'
+            
+            
+    for year in year_list:
+       
+        for source in source_list:
+            
+            fn_in =  Ldir['LOo'] / 'obs' / source / ctd_or_bottle / (str(year) + '.p')
+            
+            if fn_in.exists():
+        
+                df_temp0 = pd.read_pickle(fn_in)
+            
+                df_temp0['time'] = df_temp0['time'].astype('datetime64[ns]')
+                
+                df_temp0['source'] = source
+                
+                #df_temp1 = df_temp0[(df_temp0['time'] >= start_dt) & (df_temp0['time'] <= end_dt)]
+                
+                df_temp0['cid'] = df_temp0['cid'] + info_df_rough[info_df_rough['source'] == source].index.min()
+                
+                df_rough = pd.concat([df_rough, df_temp0], ignore_index=True)
+                
+    
+    info_df_rough = info_df_rough[(info_df_rough['time'] >= start_dt) & (info_df_rough['time'] <= end_dt)]
+            
+    df_rough = df_rough[(df_rough['time'] >= start_dt) & (df_rough['time'] <= end_dt)]
+    
+    
+    depth_threshold = 0.2 # percentage of bathymetry the cast can be from the bottom to be accepted
+        
+    info_df_rough['ix'] = np.nan
+
+    info_df_rough['iy'] = np.nan
+    
+    info_df_rough['segment'] = 'None'
+    
+    info_df_rough['ii_cast'] = np.nan
+
+    info_df_rough['jj_cast'] = np.nan
+    
+    
+    for cid in info_df_rough.index:
+
+        info_df_rough.loc[cid,'ix'] = zfun.find_nearest_ind(Lon, info_df_rough.loc[cid,'lon'])
+
+        info_df_rough.loc[cid,'iy'] = zfun.find_nearest_ind(Lat, info_df_rough.loc[cid,'lat'])
+        
+        if land_mask[info_df_rough.loc[cid,'iy'].astype('int64'), info_df_rough.loc[cid,'ix'].astype('int64')] == 1:
+            
+            info_df_rough.loc[cid, 'ii_cast'] = info_df_rough.loc[cid, 'ix']
+            
+            info_df_rough.loc[cid, 'jj_cast'] = info_df_rough.loc[cid, 'iy']
+            
+    
+    for seg_name in seg_list:
+        
+        ij_pair = list(zip(iii_dict[seg_name],jjj_dict[seg_name]))
+        
+        for cid in info_df_rough.index:        
+              
+            pair = (info_df_rough.loc[cid,'ix'].tolist(), info_df_rough.loc[cid,'iy'].tolist())
+            
+            if pair in ij_pair:
+                info_df_rough.loc[cid,'segment'] = seg_name
+                
+    
+    info_df_rough = info_df_rough[~(np.isnan(info_df_rough['jj_cast'])) & ~(np.isnan(info_df_rough['ii_cast']))]
+    
+    info_df_rough = info_df_rough[info_df_rough['segment'] != 'None']
+    
+    
+    df_rough = pd.merge(df_rough, info_df_rough[['ix','iy','ii_cast','jj_cast','segment']], how='left', on=['cid'])
+    
+    df_rough = df_rough[~(np.isnan(df_rough['jj_cast'])) & ~(np.isnan(df_rough['ii_cast']))]
+    
+    df_rough = df_rough[df_rough['segment'] != 'None']
+    
+    
+    bad_casts = np.asarray([val for val in info_df_rough.index if val not in df_rough['cid'].unique().astype('int64')])
+    
+    for bad in bad_casts:
+        
+        info_df_rough = info_df_rough.drop(bad)
+        
+        
+    min_z = df_rough.groupby(['cid'])['z'].min().to_frame()
+    
+    min_z.index = min_z.index.astype('int64')
+    
+    
+    for cid in info_df_rough.index:
+        
+        min_z.loc[cid, 'h'] = -h[info_df_rough.loc[cid,'jj_cast'].astype('int64'),info_df_rough.loc[cid,'ii_cast'].astype('int64')]
+        
+        
+    for cid in min_z.index:
+
+        if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -depth_threshold*min_z.loc[cid, 'h']):
+            
+            info_df = info_df_rough.drop(cid)
+            
+            
+    bad_casts = np.asarray([val for val in df_rough['cid'].unique().astype('int64') if val not in info_df.index])   
+         
+    for bad in bad_casts:
+        
+        df = df_rough.drop(df_rough.loc[df_rough['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
+        
+    # gotta figure out the spatial averaging thing.........
+    
+    surf_casts_array = {}
+    
+    for seg_name in seg_list:
+        
+        info_df_use = info_df[info_df['segment'] == seg_name]
+        
+        jjj = jjj_dict[seg_name]
+        
+        iii = iii_dict[seg_name]
+        
+        domain_flag = False
+        
+        num_casts = len(info_df_use.index)
+        
+        if num_casts == 1:
+            
+            domain_flag = True
+            
+            print('too few obs casts')
+        
+        else:
+     
+            for cid in info_df_use.index:
+
+                test = np.where(surf_casts_array == cid)
+                
+                if num_casts == 2:
+                    
+                    if (48.48498053545606 < info_df_use.loc[cid,'lat'] < 48.68777542575437) & (-123.58171407533055 < info_df_use.loc[cid,'lon'] < -123.44409346988729):
+                        
+                        domain_flag = True
+                        
+                        print('bad - only two obs casts and in Saanich Inlet')
+                    
+                    if np.size(test, axis=1) > np.size(jjj)*0.8:
+                        
+                        domain_flag = True
+                        
+                        print('bad - only two obs casts and one exceeds 80% of surface')
+                else:
+                    
+                    if (48.48498053545606 < info_df_use.loc[cid,'lat'] < 48.68777542575437) & (-123.58171407533055 < info_df_use.loc[cid,'lon'] < -123.44409346988729):
+
+                        if np.size(test,axis=1) > np.size(jjj)*0.1:
+                                            
+                            domain_flag = True
+                            
+                            print('bad - Saanich Inlet obs casts take up more than 10% of surface')
+                            
+                    if np.size(test,axis=1) > np.size(jjj)*0.5:
+                        
+                        domain_flag = True
+                        
+                        print('bad - one obs cast takes up more than 50% of domain')
+                        
+        if not domain_flag:
+        
+            surf_casts_array[seg_name] = vfun.assignSurfaceToCasts(info_df_use, jjj_dict[seg_name], iii_dict[seg_name])
+
+
+    return info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list
+    
+
+## DM additions ^^^^ more modifications >>>
+
+
+
 
 def get_data_ncks(h_out_dir, dt0, dt1, testing_ncks):
     """
@@ -530,12 +789,12 @@ def get_extrapolated(in_fn, L, M, N, X, Y, lon, lat, z, Ldir, add_CTD=False):
             vv[vv.mask] = 0
             V[vn] = vv.data
                 
-    # okay so actually just overwrite at this point... ACTUALLY NO OVERWRITE LATER
+    # DM modification !!!!!!!
     if add_CTD==True:
         
         print('CTD extrapolation not currently implemented - see interpolation.')
         # print(' Adding CTD data before extrapolating')
-            
+    #        
             
     # Create ubar and vbar.
     # Note: this is slightly imperfect because the z levels are at the same
@@ -561,6 +820,8 @@ def get_extrapolated(in_fn, L, M, N, X, Y, lon, lat, z, Ldir, add_CTD=False):
     press_db = -z.reshape((N,1,1))
     V['theta'] = seawater.ptmp(V['s3d'], V['t3d'], press_db)    
     return V
+
+
 
 def get_xyr(G, vn):
     """
@@ -628,6 +889,7 @@ def get_zinds(h, S, z):
         print(' --create zinds array took %0.1f seconds' % (time.time() - tt0))
     return zinds
 
+
 def get_interpolated(G, S, b, lon, lat, z, N, zinds, Ldir, add_CTD=False): # DM added Ldir and add_CTD
     """
     This does the horizontal and vertical interpolation to get from
@@ -692,19 +954,27 @@ def get_interpolated(G, S, b, lon, lat, z, N, zinds, Ldir, add_CTD=False): # DM 
         checknan(vvc)
         c[vn] = vvc
         
-    # DM added
+        
+    # DM added !!!!!!!
         
     if add_CTD==True:
         
-        info_df, df, surf_casts_array, jjj, iii = Ofun_CTD.setup_CTD_casts(Ldir) # which one does O2 come from? bio!!!
+        ctd_or_bottle = 'ctd'
         
-        T_array, S_array = Ofun_CTD.apply_CTD_casts(Ldir, info_df, df, surf_casts_array, jjj, iii)
+        info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list = setup_casts(Ldir, ctd_or_bottle)
         
-        press_db = -h[:, min(jjj):max(jjj)+1, min(iii):max(iii)+1]
+        T_array, S_array, z_rho_grid = Ofun_CTD.apply_CTD_casts(Ldir, info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list)
         
-        c['theta'][:, min(jjj):max(jjj)+1, min(iii):max(iii)+1] = seawater.ptmp(S_array, T_array, press_db)
+        press_db = np.empty(np.shape(z_rho_grid))
+        press_db.fill(np.nan)
         
-        c['s3d'][:, min(jjj):max(jjj)+1, min(iii):max(iii)+1] = S_array
+        press_db[~np.isnan(T_array)] = -z_rho_grid[~np.isnan(T_array)]
+                
+        c['theta'][~np.isnan(T_array)] = seawater.ptmp(S_array[~np.isnan(T_array)], T_array[~np.isnan(T_array)], press_db[~np.isnan(T_array)])
+        
+        c['s3d'][~np.isnan(S_array)] = S_array[~np.isnan(S_array)]
+        
+    # !!!!!!
         
     return c
 
