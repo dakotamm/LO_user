@@ -88,7 +88,7 @@ def apply_bio_casts(Ldir, info_df, df, surf_casts_array, jjj_dict, iii_dict, seg
                                 
                                 if bvn == 'NO3':
                                 
-                                    bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['NO3 (uM)'].to_numpy()[near_depth_idx] + df_temp['NO3 (uM)'].to_numpy()[near_depth_idx]
+                                    bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['NO3 (uM)'].to_numpy()[near_depth_idx] + df_temp['NO2 (uM)'].to_numpy()[near_depth_idx]
                                     
                                 elif bvn == 'NH4':
                                     

@@ -256,7 +256,12 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=[]):
         seg_str_list = ['All Segments']
         
         seg_list_build = [['A1','A2','A3', 'H1','H2','H3','H4','H5','H6','H7','H8', 'M1','M2','M3','M4','M5','M6', 'S1','S2','S3','S4', 'T1', 'T2', 'W1','W2','W3','W4', 'G1','G2','G3','G4','G5','G6','J1','J2','J3','J4']]
+    
+    elif seg_str_list == 'regions':
         
+        seg_str_list = ['Strait of Georgia','Hood Canal','Strait of Juan de Fuca', 'Main Basin', 'South Sound', 'Whidbey Basin']
+        
+        seg_list_build = [['G1','G2','G3','G4','G5','G6'], ['H1','H2','H3','H4','H5','H6','H7','H8'], ['J1','J2','J3','J4'], ['A1','A2','A3', 'M1','M2','M3','M4','M5','M6'], ['S1','S2','S3','S4', 'T1', 'T2'], ['W1','W2','W3','W4']]
     
     if seg_list_build:
         
@@ -374,9 +379,34 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
         elif var == 'S_g_kg':
             
             df[var] = df['SA']
-    
-    
-        df = df[~np.isnan(df[var])] # GOTTA FIX THIS LOGIC, MAY WANT TO USE SOME CASTS AND NOT OTHERS??? MAYBE ONLY CTD vs. bottle data???
+            
+        elif var == 'DO_uM':
+            
+            df[var] = df['DO (uM)']
+            
+        elif var == 'NO3_uM':
+            
+            df[var] = df['NO3 (uM)'] + df['NO2 (uM)']
+            
+        elif var == 'NH4_uM':
+            
+            df[var] = df['NH4 (uM)']
+            
+        elif var == 'TA_uM':
+            
+            if 'TA (uM)' in df:
+            
+                df[var] = df['TA (uM)']
+        
+        elif var == 'DIC_uM':
+            
+            if 'DIC (uM)' in df:
+                
+                df[var] = df['DIC (uM)']
+            
+        if var in df:
+            
+            df = df[~np.isnan(df[var])] # GOTTA FIX THIS LOGIC, MAY WANT TO USE SOME CASTS AND NOT OTHERS??? MAYBE ONLY CTD vs. bottle data???
     
     
     bad_casts = np.asarray([val for val in info_df.index if val not in df['cid'].unique().astype('int64')])

@@ -18,7 +18,7 @@ from time import time as Time
 
 import numpy as np
 
-import VFC_functions_temp1 as vfun
+import VFC_functions_temp2 as vfun
 
 
 
@@ -43,9 +43,9 @@ if not fn_his.exists():
 
 if Ldir['testing']:
     
-    month_num = ['04']
+    month_num = ['07']
     
-    month_str = ['Apr']
+    month_str = ['Jul']
 
     # month_num =  ['01', '02'] #,'03','04','05','06','07','08','09','10','11','12']
      
@@ -61,9 +61,9 @@ threshold_val = 2 #mg/L DO
 
 threshold_pct = 0.2 #m GOTTA BE PERCENT
 
-var_list = ['DO_mg_L']
+var_list = ['DO_mg_L', 'S_g_kg', 'T_deg_C', 'NO3_uM', 'NH4_uM', 'TA_uM', 'DIC_uM', 'DO_uM']
 
-segments = 'all' #custom (specify string list and string build list), basins, whole domain, sound and strait
+segments = 'regions' #custom (specify string list and string build list), basins, whole domain, sound and strait
 
 # seg_build_list = optional
     
@@ -91,7 +91,7 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 
 if Ldir['testing']:
 
-    seg_list = ['G1']
+    seg_list = ['Strait of Georgia']
     
 # %%
 
@@ -134,19 +134,54 @@ for seg_name in seg_list:
         
         for var in var_list:
             
-            data_dict[seg_name][int(mon_num)][var] = vfun.fillSegments(var, z_rho_grid, info_df_use, df_use, jjj, iii)
+            if var in df:
+            
+                data_dict[seg_name][int(mon_num)][var] = vfun.fillSegments(var, z_rho_grid, info_df_use, df_use, jjj, iii)
 
 
 
 # %%
 
 # for ref later
+
+if ~Ldir['testing']:
             
-            # with open((str(save_dir) + '/' + 'sub_wtd_avg_obs_S.pkl'), 'wb') as f: 
-            #     pickle.dump(sub_wtd_avg_obs, f)
+    with open('/Users/dakotamascarenas/Desktop/2017_data_dict.pkl', 'wb') as f: # (str(save_dir) + '/' + '2017_data_dict.pkl'), 'wb') as f: 
+        pickle.dump(data_dict, f)
 
 # %%
 
 print(str(Ldir['year']) + ' completed after %d sec' % (int(Time()-tt1)))
 
+# %%
+
+data_dict_full = {}
+
+
+for mon_num, mon_str in zip(month_num, month_str):
+    
+    data_dict_full[int(mon_num)] = {}
+
+    for var in var_list:
+        
+        if var in df:
+        
+            data_dict_full[int(mon_num)][var] = np.full(np.shape(z_rho_grid),np.nan)
+                
+            for seg_name in seg_list:
+                
+                jjj = jjj_dict[seg_name]
+                
+                iii = iii_dict[seg_name]
+                
+                data_dict_full[int(mon_num)][var][:,jjj,iii] = data_dict[seg_name][int(mon_num)][var]
+            
+    
+# %% 
+
+if ~Ldir['testing']:
+            
+
+    with open('/Users/dakotamascarenas/Desktop/2017_data_dict_full.pkl', 'wb') as f: # (str(save_dir) + '/' + '2017_data_dict.pkl'), 'wb') as f: 
+        pickle.dump(data_dict_full, f) 
             
