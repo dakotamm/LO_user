@@ -6,13 +6,13 @@
 
 
 
-for src in ecology dfo1 nceiSalish
+for src in ecology dfo1 nceiSalish collias
 do
     
     for tp in ctd bottle
 	do
         
-        for yr in 2011 #{1930..2022}
+        for yr in {1930..2022}
 		
 		do
 		

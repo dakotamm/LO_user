@@ -94,7 +94,7 @@ for source in source_list:
                     
                     df_temp['year'] = year
                     
-                    if (source == 'dfo1') & (otype == 'bottle'):
+                    if (source == 'ecology') & (otype == 'bottle'):
                         
                         df_temp['CT'] =  np.nan
                         
@@ -106,11 +106,11 @@ for source in source_list:
                     
                     df_temp = pd.melt(df_temp, id_vars=id_vars, value_vars=value_vars, var_name ='var', value_name='val')
                     
-                    # min_z = df_temp.groupby(['cid'])['z'].min().to_frame()
+                    min_z = df_temp.groupby(['cid','var'], as_index=False)[['cid','var','z']].min()
                     
-                    # df_temp = pd.merge(min_z, df_temp, on=['cid','z'], how='inner')
+                    df_temp = pd.merge(min_z, df_temp, on=['cid','var','z'], how='inner')
                     
-                    # df_temp = df_temp.drop_duplicates(subset='cid', ignore_index=True)
+                    df_temp = df_temp.drop_duplicates(subset=['cid','var'], ignore_index=True)
                                         
                     casts_df = df_temp.copy(deep=True)
                                                             
@@ -123,43 +123,27 @@ for source in source_list:
                     df_temp['type'] = otype
                     
                     df_temp['year'] = year
-                    
-                    # for col in casts_df.columns:
                             
-                    #     if col not in df_temp.columns:
-                                
-                    #         df_temp[col] = np.nan
-                            
-                    # for col in df_temp.columns:
-                        
-                    #     if col not in casts_df.columns:
-                            
-                    #         df_temp[col] = np.nan
-                            
-                    if (source == 'dfo1') & (otype == 'bottle'):
+                    if (source == 'ecology') & (otype == 'bottle'):
                         
                         df_temp['CT'] = np.nan
                         
                         df_temp['SA'] =  np.nan
                         
                         df_temp['DO (uM)'] =  np.nan
-                        
-                    #df_temp = df_temp.drop_duplicates(subset=['cid','time'], ignore_index=True)
-                    
+                                            
                     df_temp['cid'] = df_temp['cid'] + casts_df['cid'].max() + 1
                         
                     value_vars = [x for x in df_temp.columns.tolist() if x not in id_vars]
-                    
-                    df_temp = pd.melt(df_temp, id_vars=id_vars, value_vars=value_vars, var_name ='var', value_name='val')
-                        
-                    # min_z = df_temp.groupby(['cid'])['z'].min().to_frame()
-                    
-                    # df_temp = pd.merge(min_z, df_temp, on=['cid','z'], how='inner')
-                    
-                    # df_temp = df_temp.drop_duplicates(subset='cid', ignore_index=True)
-                    
-                    #df_temp['cid'] = df_temp['cid'] + casts_df['cid'].max() + 1
                                         
+                    df_temp = pd.melt(df_temp, id_vars=id_vars, value_vars=value_vars, var_name ='var', value_name='val')
+                    
+                    min_z = df_temp.groupby(['cid','var'], as_index=False)[['cid','var','z']].min()
+                    
+                    df_temp = pd.merge(min_z, df_temp, on=['cid','var','z'], how='inner')
+                    
+                    df_temp = df_temp.drop_duplicates(subset=['cid','var'], ignore_index=True)
+                    
                     casts_df = pd.concat([casts_df, df_temp])
                     
 casts_df = casts_df.reset_index(drop=True)

@@ -18,7 +18,7 @@ from time import time as Time
 
 import numpy as np
 
-import VFC_functions_temp2 as vfun
+import VFC_functions_temp3 as vfun
 
 
 
@@ -91,7 +91,7 @@ jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dic
 
 if Ldir['testing']:
 
-    seg_list = ['Strait of Georgia']
+    seg_list = ['Main Basin']
     
 # %%
 
