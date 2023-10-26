@@ -9,7 +9,7 @@ run create_obs_df -gtx cas6_v0_live -source ecology -otype ctd -year 2002 -test 
 from lo_tools import Lfun
 from lo_tools import extract_argfun as exfun
 
-import VFC_functions as vfun
+import VFC_functions_temp3 as vfun
 
 from pathlib import PosixPath
 

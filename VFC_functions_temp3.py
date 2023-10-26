@@ -192,7 +192,16 @@ def buildDF(Ldir, fn_in, fn, info_df):
                 if col not in df.columns:
                     
                     df[col] = np.nan
-                        
+                    
+            if (Ldir['source'] == 'ecology') & (Ldir['otype'] == 'bottle'): # THIS IS NEW!!!!!!! TEMP3 10/26/2023
+                
+                df_temp['CT'] =  np.nan
+                
+                df_temp['SA'] =  np.nan
+                
+                df_temp['DO (uM)'] =  np.nan
+                                                
+  
             df_temp['cid'] = df_temp['cid'] + info_df[(info_df['type'] == Ldir['otype']) & (info_df['source'] == Ldir['source'])].index.min()
             
             df = pd.concat([df, df_temp])
@@ -641,7 +650,7 @@ def createAvgCast(var, z_rho_grid, info_df_use, df_use, jjj, iii, h, Ldir, mon_s
         
         ax[0].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
         
-        plt.savefig('/Users/dakotamascarenas/Desktop/pltz/test_casts_'+ seg_name + '_' + str(Ldir['year']) + '_' + mon_str + '_' + var + '.png', bbox_inches='tight')
+        plt.savefig('/Users/dakotamascarenas/Desktop/pltz/test_avg_casts_'+ seg_name + '_' + str(Ldir['year']) + '_' + mon_str + '_' + var + '.png', bbox_inches='tight')
 
     return avg_cast_f
     
