@@ -20,7 +20,7 @@ import seaborn as sns
 
 import numpy as np
 
-import VFC_functions_temp2 as vfun
+import VFC_functions_temp3 as vfun
 
 from pathlib import PosixPath
 
@@ -57,11 +57,11 @@ vol_dir, v_df, j_dict, i_dict, all_seg_list = vfun.getSegmentInfo(Ldir)
 
 if Ldir['testing']:
     
-    source_list = ['ecology']
+    # source_list = ['ecology']
     
-    otype_list = ['ctd']
+    # otype_list = ['ctd']
     
-    year_list = ['2017', '2018']
+    year_list = [2012]
 
 # %%
 
@@ -69,28 +69,30 @@ segments = 'regions'
 
 jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dict)
 
-if Ldir['testing']:
+# if Ldir['testing']:
 
-    seg_list = ['Main Basin']
+#     seg_list = ['Main Basin']
 
 # %%
 
-casts_df = pd.load_pickle('/Users/dakotamascarenas/Desktop/casts_df.p')
+casts_df = pd.read_pickle('/Users/dakotamascarenas/Desktop/casts_df.p')
 
 
 # %%
 
 casts_df_use = casts_df[(casts_df['segment'].isin(seg_list)) & (casts_df['var'].isin(var_list))]
 
-sns.set(font_scale=1)
+# %%
 
-for var in var_list:
+# sns.set(font_scale=1)
+# casts_df
+# for var in var_list:
 
-    plt.figure()
+#     plt.figure()
     
-    sns.relplot(data=casts_df_use[casts_df_use['var'] == var], x="time", y="z", style="source", col="segment", row="var", hue='month', edgecolor=None)
+#     sns.relplot(data=casts_df_use[casts_df_use['var'] == var], x="time", y="z", style="source", col="segment", row="var", hue='month', edgecolor=None, col_wrap = 4)
     
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + var.replace('(', '').replace(')', '').replace(' ', '_') + '_all_casts.png', bbox_inches='tight', dpi=500)
+#     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + var.replace('(', '').replace(')', '').replace(' ', '_') + '_all_casts.png', bbox_inches='tight', dpi=500)
 
 
 
@@ -135,28 +137,28 @@ for year in year_list:
 
 
 
-nrow = len(var_list)
+# nrow = len(var_list)
 
-ncol = 2
+# ncol = 2
 
-for seg_name in seg_list:
+# for seg_name in seg_list:
     
-    jjj = jjj_dict[seg_name]
+#     jjj = jjj_dict[seg_name]
     
-    iii = iii_dict[seg_name]
+#     iii = iii_dict[seg_name]
     
-    for year in year_list:
+#     for year in year_list:
         
-        for mon_num, mon_str in zip(month_num, month_str):
+#         for mon_num, mon_str in zip(month_num, month_str):
             
-            casts_df_use = casts_df[(casts_df['segment'] == seg_name) & (casts_df['year']==year) & casts_df['month'] ==int(mon_num)]
+#             casts_df_use = casts_df[(casts_df['segment'] == seg_name) & (casts_df['year']==year) & casts_df['month'] ==int(mon_num)]
     
-            fig, ax = plt.subplots(nrow, ncol, figsize=(10,40))
+#             fig, ax = plt.subplots(nrow, ncol, figsize=(10,40))
             
-            c = 0
+#             c = 0
             
-            for var in var_list:
+#             for var in var_list:
                 
-                ax[c,1] = sns.scatterplot(casts_df_use[casts_df_use['var']== var], x = 
+#                 ax[c,1] = sns.scatterplot(casts_df_use[casts_df_use['var']== var], x = 
     
     

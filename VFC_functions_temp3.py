@@ -30,6 +30,8 @@ from scipy.interpolate import interp1d
 
 import matplotlib.pyplot as plt
 
+import matplotlib.colors as cm
+
 import math
 
 
@@ -275,9 +277,9 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=[]):
     
     elif seg_str_list == 'regions':
         
-        seg_str_list = ['Strait of Georgia','Hood Canal','Strait of Juan de Fuca', 'Main Basin', 'South Sound', 'Whidbey Basin']
+        seg_str_list = ['South Strait of Georgia', 'North Strait of Georgia', 'Hood Canal','Strait of Juan de Fuca', 'Main Basin', 'South Sound', 'Whidbey Basin']
         
-        seg_list_build = [['G1','G2','G3','G4','G5','G6'], ['H1','H2','H3','H4','H5','H6','H7','H8'], ['J1','J2','J3','J4'], ['A1','A2','A3', 'M1','M2','M3','M4','M5','M6'], ['S1','S2','S3','S4', 'T1', 'T2'], ['W1','W2','W3','W4']]
+        seg_list_build = [['G1','G2','G3'],['G4','G5','G6'], ['H1','H2','H3','H4','H5','H6','H7','H8'], ['J1','J2','J3','J4'], ['A1','A2','A3', 'M1','M2','M3','M4','M5','M6'], ['S1','S2','S3','S4', 'T1', 'T2'], ['W1','W2','W3','W4']]
     
     if seg_list_build:
         
@@ -336,9 +338,9 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
     
     tt0=Time()
     
-    depth_threshold = 0.2 # percentage of bathymetry the cast can be from the bottom to be accepted
+    depth_threshold = 0.8 # percentage of bathymetry the cast can be from the bottom to be accepted
     
-    depth_limit = False
+    depth_limit = True
     
     info_df = pd.read_pickle(info_fn)
     
@@ -422,9 +424,9 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
                 
                 df[var] = df['DIC (uM)']
             
-        if var in df:
+        # if var in df:
             
-            df = df[~np.isnan(df[var])] # GOTTA FIX THIS LOGIC, MAY WANT TO USE SOME CASTS AND NOT OTHERS??? MAYBE ONLY CTD vs. bottle data???
+        #     df = df[~np.isnan(df[var])] # GOTTA FIX THIS LOGIC, MAY WANT TO USE SOME CASTS AND NOT OTHERS??? MAYBE ONLY CTD vs. bottle data???
     
     
     bad_casts = np.asarray([val for val in info_df.index if val not in df['cid'].unique().astype('int64')])
@@ -432,19 +434,19 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
     for bad in bad_casts:
         
         info_df = info_df.drop(bad)
+        
+        
+    if depth_limit:
+    
+        min_z = df.groupby(['cid'])['z'].min().to_frame()
+        
+        min_z.index = min_z.index.astype('int64')
+    
+    
+        for cid in info_df.index:
             
-    
-    min_z = df.groupby(['cid'])['z'].min().to_frame()
-    
-    min_z.index = min_z.index.astype('int64')
-    
-    
-    for cid in info_df.index:
-        
-        min_z.loc[cid, 'h'] = -h[info_df.loc[cid,'jj_cast'].astype('int64'),info_df.loc[cid,'ii_cast'].astype('int64')]
-     
-    if depth_limit == True:
-        
+            min_z.loc[cid, 'h'] = -h[info_df.loc[cid,'jj_cast'].astype('int64'),info_df.loc[cid,'ii_cast'].astype('int64')]
+             
         for cid in min_z.index:
     
             if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -depth_threshold*min_z.loc[cid, 'h']): # consider removing this...
@@ -452,11 +454,11 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
                 info_df = info_df.drop(cid)
             
             
-    bad_casts = np.asarray([val for val in df['cid'].unique().astype('int64') if val not in info_df.index])   
-         
-    for bad in bad_casts:
-        
-        df = df.drop(df.loc[df['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
+        bad_casts = np.asarray([val for val in df['cid'].unique().astype('int64') if val not in info_df.index])   
+             
+        for bad in bad_casts:
+            
+            df = df.drop(df.loc[df['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
             
     
     print('getCleanDataFrames = %d sec' % (int(Time()-tt0)))
@@ -578,17 +580,9 @@ def extractLOCasts(Ldir, info_df_use, fn_his):
 
 ### section if using TEF segments
 
-def createAvgCast(var, z_rho_grid, info_df_use, df_use, jjj, iii, h, Ldir, mon_str, seg_name):
-    
-    # 1-m dz spacing for now
-    
+def createAvgCast(var, info_df_use, df_use, jjj, iii, h, Ldir, mon_str, seg_name):
+        
     h_seg = h[jjj,iii]
-    
-    # edges = np.linspace(-math.ceil(h_seg.max()), 0, 100)
-    
-    # bins = edges[:-1] + np.diff(edges)/2
-    
-    #df_temp = df_use.sort_values(by='z')
     
     min_bin = -math.ceil(h_seg.max())
     
@@ -600,101 +594,83 @@ def createAvgCast(var, z_rho_grid, info_df_use, df_use, jjj, iii, h, Ldir, mon_s
     
     data_array = avgs[var].to_numpy()
     
+    good_data = data_array[~np.isnan(data_array)]
+    
     bin_array = avgs['bin'].to_numpy()
     
-    edges = np.arange(min_bin,1,3)
+    bin_data = bin_array[~np.isnan(data_array)]
     
-    floors = np.arange(min_bin,0)
+    edges = np.arange(min_bin,1)
+            
+    avg_cast_f = interp1d(bin_data, good_data, kind='nearest', fill_value='extrapolate')
     
-   # bins = edges[:-1] + np.diff(edges)/2
     
-   # do we want different bins??? right now 1-m
     
-    floors_gappy = np.nan * np.ones(len(floors))
     
-    avg_cast_gappy = np.nan * np.ones(len(floors))
-    
-    for b in range(len(bin_array)):
-                        
-        avg_cast_gappy[floors == bin_array[b]] = data_array[b]
+    if Ldir['lo_env'] == 'dm_mac' and Ldir['testing']:
         
-        floors_gappy[floors == bin_array[b]] = bin_array[b]
-    
-    avg_cast_f = interp1d(floors_gappy, avg_cast_gappy, kind='nearest', fill_value='extrapolate')
-    
-    if Ldir['testing'] and Ldir['lo_env'] == 'dm_mac':
+        fig, ax = plt.subplots(1,2, figsize=(10,7))
         
-        fig, ax = plt.subplots(1,2)
+        pfun.add_coast(ax[1])
+        pfun.dar(ax[1])
+        ax[1].axis([-125, -122, 47, 50])
+        ax[1].set_xlabel('Longitude [deg]')
+        ax[1].set_ylabel('Latitude [deg]')
+        
+        colors = plt.cm.rainbow(np.linspace(0, 1, len(df_temp['cid'].unique())))
+                
+        n=0
         
         for cid in df_temp['cid'].unique():
             
             df_plot = df_temp[df_temp['cid'] == cid]
-        
-            df_plot.plot(x=var, y='z', facecolors='none', ax=ax[0])
             
-            info_df_use.loc[cid,:].plot(x='lon', y='lat',style='.', legend=False, ax=ax[1])
-            
-        pfun.add_coast(ax[1])
-        pfun.dar(ax[1])
-        ax[1].axis([-125, -122, 47, 51])
-        ax[1].set_xlabel('Longitude [deg]')
-        ax[1].set_ylabel('Latitude [deg]')
+            if ~np.isnan(df_plot[var].iloc[0]):
+                        
+                df_plot.plot(x=var, y='z', style= '.', ax=ax[0], color = colors[n], markersize=5, label=int(cid))
+                
+                if df_plot['type'].unique() =='bottle':
+                                            
+                        ax[1].scatter(df_plot.iloc[0]['lon'], df_plot.iloc[0]['lat'], edgecolor='k', facecolor=colors[n], marker='>', label = int(cid))
+                
+                else:
+                    
+                        ax[1].scatter(df_plot.iloc[0]['lon'], df_plot.iloc[0]['lat'], edgecolor='k', facecolor=colors[n], marker='<', label = int(cid))
+    
+            n+=1
         
-        ax[0].plt(avg_cast_f(edges), edges, '-ko')
+        ax[0].plot(avg_cast_f(edges), edges, '-k', label='avg cast')
         
         ax[0].set_xlabel(var)
 
         ax[0].set_ylabel('z [m]')
         
-        plt.title(seg_name + '_' + str(Ldir['year']) + '_' + mon_str + '_' + var)
+        ax[0].legend()
+        
+        ax[1].legend()
+
+        plt.suptitle(seg_name + '_' + str(Ldir['year']) + '_' + mon_str + '_' + var)
         
         ax[0].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
         
-        plt.savefig('/Users/dakotamascarenas/Desktop/pltz/test_avg_casts_'+ seg_name + '_' + str(Ldir['year']) + '_' + mon_str + '_' + var + '.png', bbox_inches='tight')
+        plt.savefig('/Users/dakotamascarenas/Desktop/pltz/test_avg_casts_'+ seg_name + '_' + str(Ldir['year']) + '_' + mon_str + '_' + var + '.png', bbox_inches='tight',dpi=500)
 
     return avg_cast_f
     
     
     
 
-def fillSegments(var, z_rho_grid, info_df_use, df_use, jjj, iii):
+def fillSegments(var, z_rho_grid, info_df_use, df_use, jjj, iii, avg_cast_f):
     
     tt0 = Time()
     
-    z_rho_grid_seg = z_rho_grid[:,jjj,iii]
+    z_rho_grid_seg = z_rho_grid[:,jjj,iii].copy()
     
-    weights = 0
+    var_array = avg_cast_f(z_rho_grid_seg)
     
-    var_array = np.empty(np.shape(z_rho_grid_seg))
-    var_array.fill(0)
-    
-    for cid in info_df_use.index:
-        
-        df_temp = df_use[df_use['cid'] == cid].sort_values(by = 'z') # sort in order of z !!!! 
-        
-        z_array = df_temp['z'].to_numpy()
-        
-        data_array = df_temp[var].to_numpy()
-        
-        bins = (z_array[:-1] + z_array[1:])/2
-        
-        bins = np.append(bins,0) #0 at back of array
-        
-        bins = np.insert(bins,0, z_rho_grid_seg.min()-1) #greatest depth - 1m at front of array
-                
-        weights += 1
-        
-        for i in range(len(bins)-1):
-            
-            mask = (z_rho_grid_seg > bins[i]) & (z_rho_grid_seg <= bins[i+1])
-                            
-            var_array[mask] += data_array[i]
-            
-    var_seg = var_array/weights   
-        
     print('fillSegments = %d sec' %(int(Time()-tt0))) # for testing
     
-    return var_seg
+    return var_array
 
 
 

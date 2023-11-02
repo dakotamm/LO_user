@@ -43,9 +43,9 @@ if not fn_his.exists():
 
 if Ldir['testing']:
     
-    month_num = ['07']
+    month_num = ['09']
     
-    month_str = ['Jul']
+    month_str = ['Sep']
 
     # month_num =  ['01', '02'] #,'03','04','05','06','07','08','09','10','11','12']
      
@@ -57,9 +57,9 @@ else:
     
     month_str = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-threshold_val = 2 #mg/L DO
+# threshold_val = 2 #mg/L DO
 
-threshold_pct = 0.2 #m GOTTA BE PERCENT
+# threshold_pct = 0.2 #m GOTTA BE PERCENT
 
 var_list = ['DO_mg_L', 'S_g_kg', 'T_deg_C', 'NO3_uM', 'NH4_uM', 'TA_uM', 'DIC_uM', 'DO_uM']
 
@@ -80,9 +80,9 @@ info_fn = (info_df_dir / ('info_' + str(Ldir['year']) + '.p'))
 
 fn = (df_dir / (str(Ldir['year']) + '.p'))
 
-save_dir = (Ldir['LOo'] / 'extract' / 'vfc' / ('DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str(Ldir['year']))) )
+#save_dir = (Ldir['LOo'] / 'extract' / 'vfc' / ('DO_' + str(threshold_val) +'mgL_' + segments + '_months_' + (str(Ldir['year']))) )
 
-Lfun.make_dir(save_dir, clean=False)
+#Lfun.make_dir(save_dir, clean=False)
 
 
 # %%
@@ -110,6 +110,8 @@ if info_fn.exists() & fn.exists():
 
 data_dict = {}
 
+avg_cast_f_dict = {}
+
 
 for seg_name in seg_list:
     
@@ -118,6 +120,9 @@ for seg_name in seg_list:
     iii = iii_dict[seg_name]
     
     data_dict[seg_name] = {}
+    
+    avg_cast_f_dict[seg_name] = {}
+
 
     for mon_num, mon_str in zip(month_num, month_str):
         
@@ -125,20 +130,32 @@ for seg_name in seg_list:
         
         data_dict[seg_name][int(mon_num)] = {}
         
+        avg_cast_f_dict[seg_name][int(mon_num)] = {}
+        
         if info_fn.exists() & fn.exists():
         
             info_df_use = info_df[(info_df['segment'] == seg_name) & (info_df['month'] == int(mon_num))]
             
             df_use = df[(df['segment'] == seg_name) & (df['month'] == int(mon_num))]
-            
+                        
         
         for var in var_list:
             
-            if var in df:
-            
-                data_dict[seg_name][int(mon_num)][var] = vfun.fillSegments(var, z_rho_grid, info_df_use, df_use, jjj, iii)
+            if var in df_use:
+                
+                if not df_use[~np.isnan(df_use[var])].empty:
+                    
+                    # condition where cast has only one value???
+                    
+                    avg_cast_f_dict[seg_name][int(mon_num)][var] = vfun.createAvgCast(var, info_df_use, df_use, jjj, iii, h, Ldir, mon_str, seg_name)
+    
+                    data_dict[seg_name][int(mon_num)][var] = vfun.fillSegments(var, z_rho_grid, info_df_use, df_use, jjj, iii, avg_cast_f_dict[seg_name][int(mon_num)][var])
 
+                else:
+                    
+                    data_dict[seg_name][int(mon_num)][var] = np.full(np.shape(z_rho_grid[:,jjj,iii]), np.nan) # hacky but fine
 
+                    
 
 # %%
 
@@ -146,9 +163,12 @@ for seg_name in seg_list:
 
 if ~Ldir['testing']:
             
-    with open('/Users/dakotamascarenas/Desktop/2017_data_dict.pkl', 'wb') as f: # (str(save_dir) + '/' + '2017_data_dict.pkl'), 'wb') as f: 
+    with open('/Users/dakotamascarenas/Desktop/' + str(Ldir['year']) +'_data_dict.pkl', 'wb') as f: # (str(save_dir) + '/' + '2017_data_dict.pkl'), 'wb') as f: 
         pickle.dump(data_dict, f)
 
+    with open('/Users/dakotamascarenas/Desktop/' + str(Ldir['year']) +'_avg_cast_f_dict.pkl', 'wb') as f: # (str(save_dir) + '/' + '2017_data_dict.pkl'), 'wb') as f: 
+        pickle.dump(avg_cast_f_dict, f)
+        
 # %%
 
 print(str(Ldir['year']) + ' completed after %d sec' % (int(Time()-tt1)))
@@ -182,6 +202,6 @@ for mon_num, mon_str in zip(month_num, month_str):
 if ~Ldir['testing']:
             
 
-    with open('/Users/dakotamascarenas/Desktop/2017_data_dict_full.pkl', 'wb') as f: # (str(save_dir) + '/' + '2017_data_dict.pkl'), 'wb') as f: 
+    with open('/Users/dakotamascarenas/Desktop/' + str(Ldir['year']) +'_data_dict_full.pkl', 'wb') as f:
         pickle.dump(data_dict_full, f) 
             
