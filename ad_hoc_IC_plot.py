@@ -78,7 +78,7 @@ for var in V.keys():
             pfun.dar(ax[0,0])
     
             fig.tight_layout()
-            plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+var + '_layer_' + str(cell) + '_OG.png', bbox_inches='tight')
+            plt.savefig('/Users/dakotamascarenas/Desktop/pltz/'+var + '_layer_' + str(cell) + '_1month.png', bbox_inches='tight')
 
         
         

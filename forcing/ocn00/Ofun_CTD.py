@@ -25,68 +25,68 @@ import copy
 
 
 
-def apply_CTD_casts(Ldir, info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list):
+# def apply_CTD_casts(Ldir, info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list):
     
-    dt = pd.Timestamp('2017-01-01 01:30:00')
-    fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+#     dt = pd.Timestamp('2017-01-01 01:30:00')
+#     fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
     
-    G, S, T = zrfun.get_basic_info(fn_his)
-    land_mask = G['mask_rho']
-    #Lon = G['lon_rho'][0,:]
-    #Lat = G['lat_rho'][:,0]
-    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
-    z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
-    # dz = np.diff(z_w_grid,axis=0)
-    # dv = dz*G['DX']*G['DY']
-    #h = G['h']
+#     G, S, T = zrfun.get_basic_info(fn_his)
+#     land_mask = G['mask_rho']
+#     #Lon = G['lon_rho'][0,:]
+#     #Lat = G['lat_rho'][:,0]
+#     # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
+#     z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
+#     # dz = np.diff(z_w_grid,axis=0)
+#     # dv = dz*G['DX']*G['DY']
+#     #h = G['h']
     
-    surf_casts_array_full = np.empty(np.shape(land_mask))
-    surf_casts_array_full.fill(np.nan)
+#     surf_casts_array_full = np.empty(np.shape(land_mask))
+#     surf_casts_array_full.fill(np.nan)
     
-    T_array = np.empty(np.shape(z_rho_grid))
-    T_array.fill(np.nan)
+#     T_array = np.empty(np.shape(z_rho_grid))
+#     T_array.fill(np.nan)
 
-    S_array = np.empty(np.shape(z_rho_grid))
-    S_array.fill(np.nan)
+#     S_array = np.empty(np.shape(z_rho_grid))
+#     S_array.fill(np.nan)
     
-    for seg_name in seg_list:
+#     for seg_name in seg_list:
     
-        jjj = jjj_dict[seg_name]
+#         jjj = jjj_dict[seg_name]
         
-        iii = iii_dict[seg_name]
+#         iii = iii_dict[seg_name]
     
-        surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array[seg_name])
+#         surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array[seg_name])
     
-        surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array[seg_name])
+#         surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array[seg_name])
         
-        info_df_use = info_df[info_df['segment'] == seg_name]
+#         info_df_use = info_df[info_df['segment'] == seg_name]
         
-        df_use = df[df['segment'] == seg_name]
+#         df_use = df[df['segment'] == seg_name]
         
-        if not info_df_use.empty:
+#         if not info_df_use.empty:
     
-            for cid in info_df_use.index:
+#             for cid in info_df_use.index:
                         
-                df_temp = df_use[df_use['cid'] == cid]
+#                 df_temp = df_use[df_use['cid'] == cid]
                 
-                cast_idx = np.where(surf_casts_array_full == cid)
+#                 cast_idx = np.where(surf_casts_array_full == cid)
                 
-                if len(cast_idx[0]) > 0:
+#                 if len(cast_idx[0]) > 0:
                         
-                    for n in range(len(cast_idx[0])):
+#                     for n in range(len(cast_idx[0])):
                                                     
-                        for cell in range(len(z_rho_grid[:,cast_idx[0][n],cast_idx[1][n]])):
+#                         for cell in range(len(z_rho_grid[:,cast_idx[0][n],cast_idx[1][n]])):
                             
-                            near_depth_idx = zfun.find_nearest_ind(df_temp['z'].to_numpy(), z_rho_grid[cell, cast_idx[0][n], cast_idx[1][n]])
+#                             near_depth_idx = zfun.find_nearest_ind(df_temp['z'].to_numpy(), z_rho_grid[cell, cast_idx[0][n], cast_idx[1][n]])
                             
-                            T_array[cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['CT'].to_numpy()[near_depth_idx]
+#                             T_array[cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['CT'].to_numpy()[near_depth_idx]
                             
-                            S_array[cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['SA'].to_numpy()[near_depth_idx]
+#                             S_array[cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['SA'].to_numpy()[near_depth_idx]
         
-    return T_array, S_array, z_rho_grid
+#     return T_array, S_array, z_rho_grid
 
 
-# ^^^^ DM ABOVE
+## ^^^^ DM ABOVE
 
 
 

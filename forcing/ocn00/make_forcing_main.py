@@ -31,6 +31,13 @@ Ldir = ffun.intro() # this handles all the argument passing
 result_dict = dict()
 result_dict['start_dt'] = datetime.now()
 
+
+# DM ADDITION >>>>>
+
+import VFC_functions as vfun
+
+# <<<<<
+
 # ****************** CASE-SPECIFIC CODE *****************
 
 import xarray as xr
@@ -217,7 +224,7 @@ if planC == False:
         print('-Interpolating ' + fn + ' to ROMS grid')
         b = pickle.load(open(h_out_dir / fn, 'rb'))
         dt_list.append(b['dt'])
-        c = Ofun.get_interpolated(G, S, b, lon, lat, z, N, zinds, Ldir, add_CTD=add_CTD)
+        c = Ofun.get_interpolated(G, S, b, lon, lat, z, N, zinds, Ldir, add_CTD=add_CTD)            ############# Ofun.get_extrapolated!
         c_dict[count] = c
         count += 1
         
@@ -313,11 +320,13 @@ if planC == False:
      
         if add_bottle == True:
             
-            ctd_or_bottle = 'bottle'
+            ctd_or_bio = 'bio'
             
-            info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list = Ofun.setup_casts(Ldir, ctd_or_bottle)
+            month_window = 2
             
-            bio_obs = Ofun_bio.apply_bio_casts(Ldir, info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list, bvn_list)
+            info_df, df, jjj_dict, iii_dict, seg_list = vfun.get_casts_IC(Ldir, ctd_or_bio, month_window)
+            
+            bio_obs = vfun.fill_bio_IC(Ldir, info_df, df, jjj_dict, iii_dict, seg_list, bvn_list)
                         
             bio_obs_dims_NT = {}
                                         

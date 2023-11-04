@@ -24,97 +24,97 @@ from datetime import datetime, timedelta
 import copy
 
 
-def apply_bio_casts(Ldir, info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list, bvn_list):
+# def apply_bio_casts(Ldir, info_df, df, surf_casts_array, jjj_dict, iii_dict, seg_list, bvn_list):
     
-    dt = pd.Timestamp('2017-01-01 01:30:00')
-    fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
+#     dt = pd.Timestamp('2017-01-01 01:30:00')
+#     fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
     
-    G, S, T = zrfun.get_basic_info(fn_his)
-    land_mask = G['mask_rho']
-    #Lon = G['lon_rho'][0,:]
-    #Lat = G['lat_rho'][:,0]
-    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
-    z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
-    # dz = np.diff(z_w_grid,axis=0)
-    # dv = dz*G['DX']*G['DY']
-    #h = G['h']
+#     G, S, T = zrfun.get_basic_info(fn_his)
+#     land_mask = G['mask_rho']
+#     #Lon = G['lon_rho'][0,:]
+#     #Lat = G['lat_rho'][:,0]
+#     # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
+#     z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
+#     # dz = np.diff(z_w_grid,axis=0)
+#     # dv = dz*G['DX']*G['DY']
+#     #h = G['h']
     
-    surf_casts_array_full = np.empty(np.shape(land_mask))
-    surf_casts_array_full.fill(np.nan)
+#     surf_casts_array_full = np.empty(np.shape(land_mask))
+#     surf_casts_array_full.fill(np.nan)
         
-    bio_obs = {}
+#     bio_obs = {}
     
-    for bvn in bvn_list:
+#     for bvn in bvn_list:
         
-        bio_obs[bvn] = np.empty(np.shape(z_rho_grid))
-        bio_obs[bvn].fill(np.nan)
+#         bio_obs[bvn] = np.empty(np.shape(z_rho_grid))
+#         bio_obs[bvn].fill(np.nan)
         
         
-    for seg_name in seg_list:
+#     for seg_name in seg_list:
     
-        jjj = jjj_dict[seg_name]
+#         jjj = jjj_dict[seg_name]
         
-        iii = iii_dict[seg_name]
+#         iii = iii_dict[seg_name]
     
-        surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array[seg_name])
+#         surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array[seg_name])
     
-        surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array[seg_name])
+#         surf_casts_array_full[min(jjj):max(jjj)+1,min(iii):max(iii)+1] = copy.deepcopy(surf_casts_array[seg_name])
         
-        info_df_use = info_df[info_df['segment'] == seg_name]
+#         info_df_use = info_df[info_df['segment'] == seg_name]
         
-        df_use = df[df['segment'] == seg_name]
-        
-        
-        if not info_df_use.empty:
+#         df_use = df[df['segment'] == seg_name]
         
         
-            for cid in info_df_use.index:
+#         if not info_df_use.empty:
         
         
-                df_temp = df_use[df_use['cid'] == cid]
+#             for cid in info_df_use.index:
+        
+        
+#                 df_temp = df_use[df_use['cid'] == cid]
                 
-                cast_idx = np.where(surf_casts_array_full == cid)
+#                 cast_idx = np.where(surf_casts_array_full == cid)
                 
         
-                if len(cast_idx[0]) > 0:
+#                 if len(cast_idx[0]) > 0:
                         
-                    for n in range(len(cast_idx)):
+#                     for n in range(len(cast_idx)):
                                                     
-                        for cell in range(len(z_rho_grid[:,cast_idx[0][n],cast_idx[1][n]])):
+#                         for cell in range(len(z_rho_grid[:,cast_idx[0][n],cast_idx[1][n]])):
                             
-                            near_depth_idx = zfun.find_nearest_ind(df_temp['z'].to_numpy(), z_rho_grid[cell, cast_idx[0][n], cast_idx[1][n]])
+#                             near_depth_idx = zfun.find_nearest_ind(df_temp['z'].to_numpy(), z_rho_grid[cell, cast_idx[0][n], cast_idx[1][n]])
                             
-                            for bvn in bvn_list:
+#                             for bvn in bvn_list:
                                 
-                                if bvn == 'NO3':
+#                                 if bvn == 'NO3':
                                 
-                                    bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['NO3 (uM)'].to_numpy()[near_depth_idx] + df_temp['NO2 (uM)'].to_numpy()[near_depth_idx]
+#                                     bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['NO3 (uM)'].to_numpy()[near_depth_idx] + df_temp['NO2 (uM)'].to_numpy()[near_depth_idx]
                                     
-                                elif bvn == 'NH4':
+#                                 elif bvn == 'NH4':
                                     
-                                    bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['NH4 (uM)'].to_numpy()[near_depth_idx]
+#                                     bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['NH4 (uM)'].to_numpy()[near_depth_idx]
                 
-                                elif bvn == 'oxygen':
+#                                 elif bvn == 'oxygen':
                                     
-                                    bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['DO (uM)'].to_numpy()[near_depth_idx]
+#                                     bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['DO (uM)'].to_numpy()[near_depth_idx]
                                     
-                                elif bvn == 'chlorophyll':
+#                                 elif bvn == 'chlorophyll':
                                     
-                                    bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['Chl (mg m-3)'].to_numpy()[near_depth_idx]
+#                                     bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['Chl (mg m-3)'].to_numpy()[near_depth_idx]
                                 
-                                elif bvn == 'alkalinity':
+#                                 elif bvn == 'alkalinity':
                                     
-                                    bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['TA (uM)'].to_numpy()[near_depth_idx]
+#                                     bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['TA (uM)'].to_numpy()[near_depth_idx]
                                     
-                                elif bvn == 'TIC':
+#                                 elif bvn == 'TIC':
                                     
-                                    bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['DIC (uM)'].to_numpy()[near_depth_idx]
+#                                     bio_obs[bvn][cell, cast_idx[0][n], cast_idx[1][n]] = df_temp['DIC (uM)'].to_numpy()[near_depth_idx]
             
-    # for bvn in bio_obs_3D.keys():
+#     # for bvn in bio_obs_3D.keys():
         
-    #     bio_obs[bvn] = bio_obs_3D[bvn][:,jjj,iii]
+#     #     bio_obs[bvn] = bio_obs_3D[bvn][:,jjj,iii]
     
-    return bio_obs
+#     return bio_obs
 
 
 # DM above ^^^^^^^

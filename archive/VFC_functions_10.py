@@ -1,9 +1,7 @@
 """
 Functions for DM's VFC method! REVISED AGAIN
 
-Working copy testing new VFC spatial handling using TEF segments.
-
-Created 2023/09/27.
+Created 2023/08/08.
 
 """
 
@@ -26,15 +24,6 @@ from subprocess import PIPE as Pi
 
 from scipy.spatial import KDTree
 
-from scipy.interpolate import interp1d
-
-import matplotlib.pyplot as plt
-
-import matplotlib.colors as cm
-
-import math
-
-
 import itertools
 
 import copy
@@ -42,13 +31,6 @@ import copy
 from pathlib import PosixPath
 
 from datetime import timedelta
-
-
-from dateutil.relativedelta import relativedelta
-
-
-
-
 
 # TO DO:
     # plotting functions
@@ -59,386 +41,7 @@ from dateutil.relativedelta import relativedelta
     # underprediction or overprediction based on if cutoff is inclusive or not
     
     
-### adding in some IC processing stuff
 
-def get_casts_IC(Ldir, ctd_or_bio, month_window):
-    
-    if ctd_or_bio == 'ctd': #just S and T
-        
-        otype_list = ['ctd']
-                
-        source_list= ['ecology','dfo1']
-        
-    elif ctd_or_bio == 'bio': #DO included in bio_var
-    
-        otype_list = ['ctd', 'bottle']
-        
-        source_list = ['ecology','dfo1','nceiSalish', 'collias']
-        
-    
-    dt = pd.Timestamp('2017-01-01 01:30:00') # basic grid info!!! date agnostic
-    fn_his = get_his_fn_from_dt(Ldir, dt)  
-    
-    G, S, T = zrfun.get_basic_info(fn_his)
-    land_mask = G['mask_rho']
-    Lon = G['lon_rho'][0,:]
-    Lat = G['lat_rho'][:,0]
-    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
-    # z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
-    # dz = np.diff(z_w_grid,axis=0)
-    # dv = dz*G['DX']*G['DY']
-    h = G['h']
-    
-    vol_dir, v_df, j_dict, i_dict, seg_list = getSegmentInfo(Ldir)
-    
-    seg_str_list = 'regions' #hard-coded !!!!!!!!! doesn't have to be
-
-    jjj_dict, iii_dict, seg_list = defineSegmentIndices(seg_str_list, j_dict, i_dict)
-    
-    info_df = pd.DataFrame()
-    
-    df = pd.DataFrame()
-    
-    depth_threshold = 0.8 # percentage of bathymetry the cast can be from the bottom to be accepted
-    
-    depth_limit = True
-    
-    this_dt = datetime.strptime(Ldir['date_string'], Lfun.ds_fmt)
-        
-    start_dt = this_dt - relativedelta(months = month_window)
-        
-    end_dt = this_dt + relativedelta(months = month_window)
-    
-    if start_dt.year != end_dt.year:
-        
-        year_list = [start_dt.year, end_dt.year]
-        
-    else:
-        
-        year_list = [this_dt.year]
-    
-
-    for year in year_list:
-       
-        for source in source_list:
-            
-            for otype in otype_list:
-        
-                info_fn_in =  Ldir['LOo'] / 'obs' / source / otype / ('info_' + str(year) + '.p')
-                
-                fn_in =  Ldir['LOo'] / 'obs' / source / otype / (str(year) + '.p')
-                
-                if info_fn_in.exists() and fn_in.exists():
-            
-                    info_df_temp = pd.read_pickle(info_fn_in)
-                
-                    info_df_temp['time'] = info_df_temp['time'].astype('datetime64[ns]')
-                    
-                    info_df_temp['source'] = source
-                    
-                    info_df_temp['type'] = otype
-                    
-                    for col in info_df.columns:
-                        
-                        if col not in info_df_temp.columns:
-                            
-                            info_df_temp[col] = np.nan
-                    
-                    for col in info_df_temp.columns:
-                        
-                        if col not in info_df.columns:
-                            
-                            info_df[col] = np.nan
-                                           
-                    info_df = pd.concat([info_df, info_df_temp], ignore_index=True)
-                    
-                    info_df.index.name = 'cid'
-                    
-                
-                    df_temp = pd.read_pickle(fn_in)
-                
-                    df_temp['time'] = df_temp['time'].astype('datetime64[ns]')
-                    
-                    df_temp['source'] = source
-                    
-                    for col in df.columns:
-                            
-                        if col not in df_temp.columns:
-                                
-                            df_temp[col] = np.nan
-                            
-                    for col in df_temp.columns:
-                        
-                        if col not in df.columns:
-                            
-                            df[col] = np.nan
-                            
-                    if (source == 'ecology') & (otype == 'bottle'):
-                        
-                        df_temp['CT'] =  np.nan
-                        
-                        df_temp['SA'] =  np.nan
-                        
-                        df_temp['DO (uM)'] =  np.nan
-                                        
-                    df_temp['cid'] = df_temp['cid'] + info_df[info_df['source'] == source].index.min()
-                    
-                    df = pd.concat([df, df_temp]) #, ignore_index=True)
-                    
-
-    info_df = info_df[(info_df['time'] >= start_dt) & (info_df['time'] <= end_dt)]
-            
-    df = df[(df['time'] >= start_dt) & (df['time'] <= end_dt)]
-    
-    
-    info_df['ix'] = 0
-
-    info_df['iy'] = 0
-    
-    info_df['segment'] = 'None'
-    
-    info_df['ii_cast'] = np.nan
-
-    info_df['jj_cast'] = np.nan
-    
-
-    for cid in info_df.index:
-
-        info_df.loc[cid,'ix'] = zfun.find_nearest_ind(Lon, info_df.loc[cid,'lon'])
-
-        info_df.loc[cid,'iy'] = zfun.find_nearest_ind(Lat, info_df.loc[cid,'lat'])
-        
-        if land_mask[info_df.loc[cid,'iy'], info_df.loc[cid,'ix']] == 1:
-            
-            info_df.loc[cid, 'ii_cast'] = info_df.loc[cid, 'ix']
-            
-            info_df.loc[cid, 'jj_cast'] = info_df.loc[cid, 'iy']
-            
-    info_df = info_df[~(np.isnan(info_df['jj_cast'])) & ~(np.isnan(info_df['ii_cast']))]
-            
-    info_df['ij_list'] = info_df.apply(lambda row: (row['ii_cast'], row['jj_cast']), axis=1)
-    
-    for seg_name in seg_list:
-        
-        ij_pair = list(zip(iii_dict[seg_name],jjj_dict[seg_name]))
-        
-        info_df.loc[info_df['ij_list'].isin(ij_pair), 'segment'] = seg_name
-    
-        
-    df = pd.merge(df, info_df[['ix','iy','ii_cast','jj_cast','segment']], how='left', on=['cid'])
-    
-    df = df[~(np.isnan(df['jj_cast'])) & ~(np.isnan(df['ii_cast']))]
-    
-    df['ij_list'] = df.apply(lambda row: (row['ii_cast'], row['jj_cast']), axis=1)
-    
-    
-    
-    bad_casts = np.asarray([val for val in info_df.index if val not in df['cid'].unique().astype('int64')])
-    
-    for bad in bad_casts:
-        
-        info_df = info_df.drop(bad)
-        
-        
-    if depth_limit:
-    
-        min_z = df.groupby(['cid'])['z'].min().to_frame()
-        
-        min_z.index = min_z.index.astype('int64')
-    
-    
-        for cid in info_df.index:
-            
-            min_z.loc[cid, 'h'] = -h[info_df.loc[cid,'jj_cast'].astype('int64'),info_df.loc[cid,'ii_cast'].astype('int64')]
-             
-        for cid in min_z.index:
-    
-            if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -depth_threshold*min_z.loc[cid, 'h']): # consider removing this...
-                
-                info_df = info_df.drop(cid)
-            
-            
-        bad_casts = np.asarray([val for val in df['cid'].unique().astype('int64') if val not in info_df.index])   
-             
-        for bad in bad_casts:
-            
-            df = df.drop(df.loc[df['cid'] == bad].index)
-            
-    
-    return info_df, df, jjj_dict, iii_dict, seg_list
-
-
-
-
-
-def fill_CTD_IC(Ldir, info_df, df, jjj_dict, iii_dict, seg_list):
-    
-    dt = pd.Timestamp('2017-01-01 01:30:00')
-    fn_his = get_his_fn_from_dt(Ldir, dt)
-    
-    G, S, T = zrfun.get_basic_info(fn_his)
-    land_mask = G['mask_rho']
-    #Lon = G['lon_rho'][0,:]
-    #Lat = G['lat_rho'][:,0]
-    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
-    z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
-    # dz = np.diff(z_w_grid,axis=0)
-    # dv = dz*G['DX']*G['DY']
-    #h = G['h']
-    
-    T_array = np.empty(np.shape(z_rho_grid))
-    T_array.fill(np.nan)
-
-    S_array = np.empty(np.shape(z_rho_grid))
-    S_array.fill(np.nan)
-    
-    var_list = ['CT', 'SA']
-    
-    for seg_name in seg_list:
-        
-        info_df_use = info_df[info_df['segment'] == seg_name]
-        
-        df_use = df[df['segment'] == seg_name]
-        
-        jjj = jjj_dict[seg_name]
-        
-        iii = iii_dict[seg_name]
-            
-        #h_seg = h[jjj,iii]
-        
-        #min_bin = -math.ceil(h_seg.max())
-        
-        if not info_df_use.empty:
-        
-            df_temp = df_use.copy(deep=True)
-        
-            df_temp['bin'] = df_temp['z'].apply(np.ceil)
-            
-            avgs = df_temp.groupby(['bin'], as_index=False).mean()
-            
-            
-            for var in var_list:
-                
-                if not df_use[~np.isnan(df_use[var])].empty:
-            
-                    data_array = avgs[var].to_numpy()
-                    
-                    good_data = data_array[~np.isnan(data_array)]
-                
-                    bin_array = avgs['bin'].to_numpy()
-                
-                    bin_data = bin_array[~np.isnan(data_array)]
-                
-                    #edges = np.arange(min_bin,1)
-                        
-                    avg_cast_f = interp1d(bin_data, good_data, kind='nearest', fill_value='extrapolate')
-                    
-                    if var == 'CT':
-                        
-                        T_array[:,jjj,iii] = avg_cast_f(z_rho_grid[:,jjj,iii].copy())
-                        
-                    if var == 'SA':
-                        
-                        S_array[:,jjj,iii] = avg_cast_f(z_rho_grid[:,jjj,iii].copy())
-                    
-    return T_array, S_array, z_rho_grid
-    
-    
-
-def fill_bio_IC(Ldir, info_df, df, jjj_dict, iii_dict, seg_list, bvn_list):
-    
-    dt = pd.Timestamp('2017-01-01 01:30:00')
-    fn_his = get_his_fn_from_dt(Ldir, dt)
-    
-    G, S, T = zrfun.get_basic_info(fn_his)
-    land_mask = G['mask_rho']
-    #Lon = G['lon_rho'][0,:]
-    #Lat = G['lat_rho'][:,0]
-    # plon,plat = pfun.get_plon_plat(G['lon_rho'], G['lat_rho'])
-    z_rho_grid, z_w_grid = zrfun.get_z(G['h'], 0*G['h'], S)
-    # dz = np.diff(z_w_grid,axis=0)
-    # dv = dz*G['DX']*G['DY']
-    #h = G['h']
-    
-    bio_obs = {}
-    
-    for bvn in bvn_list:
-        
-        bio_obs[bvn] = np.empty(np.shape(z_rho_grid))
-        bio_obs[bvn].fill(np.nan)
-        
-        
-    for seg_name in seg_list:
-
-        info_df_use = info_df[info_df['segment'] == seg_name]
-        
-        df_use = df[df['segment'] == seg_name]
-        
-        jjj = jjj_dict[seg_name]
-        
-        iii = iii_dict[seg_name]
-            
-        #h_seg = h[jjj,iii]
-        
-        #min_bin = -math.ceil(h_seg.max())
-
-        
-        if not info_df_use.empty:
-                    
-            df_temp = df_use.copy(deep=True)
-        
-            df_temp['bin'] = df_temp['z'].apply(np.ceil)
-            
-            avgs = df_temp.groupby(['bin'], as_index=False).mean()
-            
-            for bvn in bvn_list:
-                
-                if bvn == 'oxygen':
-            
-                    var = 'DO (uM)'
-                    
-                elif bvn == 'NO3':
-                    
-                    var = 'NO3 (uM)'    #now not adding in NO2
-                    
-                elif bvn == 'NH4':
-                    
-                    var = 'NH4 (uM)'
-                    
-                elif bvn == 'alkalinity':
-                    
-                    var = 'TA (uM)'
-                    
-                elif bvn == 'chlorophyll':
-                    
-                    var = 'Chl (mg m-3)'
-                
-                elif bvn == 'TIC':
-                    
-                    var = 'DIC (uM)'
-                
-                else:
-                    
-                    var == 'none'
-                
-                if not df_use[~np.isnan(df_use[var])].empty:
-            
-                    data_array = avgs[var].to_numpy()
-                    
-                    good_data = data_array[~np.isnan(data_array)]
-                
-                    bin_array = avgs['bin'].to_numpy()
-                
-                    bin_data = bin_array[~np.isnan(data_array)]
-                
-                    #edges = np.arange(min_bin,1)
-                        
-                    avg_cast_f = interp1d(bin_data, good_data, kind='nearest', fill_value='extrapolate')
-                    
-                    bio_obs[bvn][:,jjj,iii] = avg_cast_f(z_rho_grid[:,jjj,iii].copy())
-
-    return bio_obs
-    
 
 
 def get_his_fn_from_dt(Ldir, dt): # RIPPED FROM CFUN to support perigee usage
@@ -580,16 +183,7 @@ def buildDF(Ldir, fn_in, fn, info_df):
                 if col not in df.columns:
                     
                     df[col] = np.nan
-                    
-            if (Ldir['source'] == 'ecology') & (Ldir['otype'] == 'bottle'): # THIS IS NEW!!!!!!! TEMP3 10/26/2023
-                
-                df_temp['CT'] =  np.nan
-                
-                df_temp['SA'] =  np.nan
-                
-                df_temp['DO (uM)'] =  np.nan
-                                                
-  
+                        
             df_temp['cid'] = df_temp['cid'] + info_df[(info_df['type'] == Ldir['otype']) & (info_df['source'] == Ldir['source'])].index.min()
             
             df = pd.concat([df, df_temp])
@@ -612,7 +206,7 @@ def buildDF(Ldir, fn_in, fn, info_df):
     return df
 
 
-def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=[]):
+def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=['']):
     
     """
     Assigns indices from grid to segments for ease of use; this currently keeps all existing segments in dict that are called as parts of new segments.
@@ -637,8 +231,6 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=[]):
         
         seg_str_list = ['A1','A2','A3', 'H1','H2','H3','H4','H5','H6','H7','H8', 'M1','M2','M3','M4','M5','M6', 'S1','S2','S3','S4', 'T1', 'T2', 'W1','W2','W3','W4', 'G1','G2','G3','G4','G5','G6','J1','J2','J3','J4']
         
-        seg_list_build = []
-        
         jjj_dict = j_dict
         
         iii_dict = i_dict
@@ -660,12 +252,7 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=[]):
         seg_str_list = ['All Segments']
         
         seg_list_build = [['A1','A2','A3', 'H1','H2','H3','H4','H5','H6','H7','H8', 'M1','M2','M3','M4','M5','M6', 'S1','S2','S3','S4', 'T1', 'T2', 'W1','W2','W3','W4', 'G1','G2','G3','G4','G5','G6','J1','J2','J3','J4']]
-    
-    elif seg_str_list == 'regions':
         
-        seg_str_list = ['South Strait of Georgia', 'North Strait of Georgia', 'Hood Canal','Strait of Juan de Fuca', 'Main Basin', 'South Sound', 'Whidbey Basin']
-        
-        seg_list_build = [['G1','G2','G3'],['G4','G5','G6'], ['H1','H2','H3','H4','H5','H6','H7','H8'], ['J1','J2','J3','J4'], ['A1','A2','A3', 'M1','M2','M3','M4','M5','M6'], ['S1','S2','S3','S4', 'T1', 'T2'], ['W1','W2','W3','W4']]
     
     if seg_list_build:
         
@@ -705,7 +292,7 @@ def defineSegmentIndices(seg_str_list, j_dict, i_dict, seg_list_build=[]):
 
 
 
-def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, iii_dict, var_list):
+def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, iii_dict, var):
     
     """
     Cleans the info_df (applicable to both LO casts and obs casts). Need to have defined segments and LO grid components. Cleans the df (applicable to obs casts). (MODIFIES DO COLUMN) - works with bottles and ctds
@@ -724,9 +311,7 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
     
     tt0=Time()
     
-    depth_threshold = 0.8 # percentage of bathymetry the cast can be from the bottom to be accepted
-    
-    depth_limit = True
+    depth_threshold = 0.2 # percentage of bathymetry the cast can be from the bottom to be accepted
     
     info_df = pd.read_pickle(info_fn)
     
@@ -753,16 +338,20 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
             
             info_df.loc[cid, 'jj_cast'] = info_df.loc[cid, 'iy']
             
-    info_df = info_df[~(np.isnan(info_df['jj_cast'])) & ~(np.isnan(info_df['ii_cast']))]
-            
-    info_df['ij_list'] = info_df.apply(lambda row: (row['ii_cast'], row['jj_cast']), axis=1)
-    
     for seg_name in seg_list:
         
         ij_pair = list(zip(iii_dict[seg_name],jjj_dict[seg_name]))
         
-        info_df.loc[info_df['ij_list'].isin(ij_pair), 'segment'] = seg_name
+        for cid in info_df.index:        
+              
+            pair = (info_df.loc[cid,'ix'].tolist(), info_df.loc[cid,'iy'].tolist())
+            
+            if pair in ij_pair:
+                info_df.loc[cid,'segment'] = seg_name
+            
+    info_df = info_df[~(np.isnan(info_df['jj_cast'])) & ~(np.isnan(info_df['ii_cast']))]
     
+    # DUPLICATE HANDLING!!!! average the properties????
     
     df = pd.read_pickle(fn)
     
@@ -770,50 +359,21 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
     
     df = df[~(np.isnan(df['jj_cast'])) & ~(np.isnan(df['ii_cast']))]
     
-    df['ij_list'] = df.apply(lambda row: (row['ii_cast'], row['jj_cast']), axis=1)
-    
-    for var in var_list:
-    
-        if var == 'DO_mg_L':
-    
-            df[var] = df['DO (uM)']*32/1000
-            
-        elif var == 'T_deg_C':
-            
-            df[var] = df['CT']
-            
-        elif var == 'S_g_kg':
-            
-            df[var] = df['SA']
-            
-        elif var == 'DO_uM':
-            
-            df[var] = df['DO (uM)']
-            
-        elif var == 'NO3_uM':
-            
-            df[var] = df['NO3 (uM)'] + df['NO2 (uM)']
-            
-        elif var == 'NH4_uM':
-            
-            df[var] = df['NH4 (uM)']
-            
-        elif var == 'TA_uM':
-            
-            if 'TA (uM)' in df:
-            
-                df[var] = df['TA (uM)']
+    if var == 'DO_mg_L':
+
+        df[var] = df['DO (uM)']*32/1000
         
-        elif var == 'DIC_uM':
-            
-            if 'DIC (uM)' in df:
-                
-                df[var] = df['DIC (uM)']
-            
-        # if var in df:
-            
-        #     df = df[~np.isnan(df[var])] # GOTTA FIX THIS LOGIC, MAY WANT TO USE SOME CASTS AND NOT OTHERS??? MAYBE ONLY CTD vs. bottle data???
+    elif var == 'T_deg_C':
+        
+        df[var] = df['CT']
+        
+    elif var == 'S_g_kg':
+        
+        df[var] = df['SA']
     
+    
+    
+    df = df[~np.isnan(df[var])]
     
     bad_casts = np.asarray([val for val in info_df.index if val not in df['cid'].unique().astype('int64')])
     
@@ -821,30 +381,29 @@ def getCleanDataFrames(info_fn, fn, h, land_mask, Lon, Lat, seg_list, jjj_dict, 
         
         info_df = info_df.drop(bad)
         
+    
+    min_z = df.groupby(['cid'])['z'].min().to_frame()
+    
+    min_z.index = min_z.index.astype('int64')
+    
+    
+    for cid in info_df.index:
         
-    if depth_limit:
-    
-        min_z = df.groupby(['cid'])['z'].min().to_frame()
+        min_z.loc[cid, 'h'] = -h[info_df.loc[cid,'jj_cast'].astype('int64'),info_df.loc[cid,'ii_cast'].astype('int64')]
         
-        min_z.index = min_z.index.astype('int64')
-    
-    
-        for cid in info_df.index:
+        
+    for cid in min_z.index:
+
+        if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -depth_threshold*min_z.loc[cid, 'h']):
             
-            min_z.loc[cid, 'h'] = -h[info_df.loc[cid,'jj_cast'].astype('int64'),info_df.loc[cid,'ii_cast'].astype('int64')]
-             
-        for cid in min_z.index:
-    
-            if (min_z.loc[cid,'z'] - min_z.loc[cid, 'h'] > -depth_threshold*min_z.loc[cid, 'h']): # consider removing this...
-                
-                info_df = info_df.drop(cid)
+            info_df = info_df.drop(cid)
             
             
-        bad_casts = np.asarray([val for val in df['cid'].unique().astype('int64') if val not in info_df.index])   
-             
-        for bad in bad_casts:
-            
-            df = df.drop(df.loc[df['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
+    bad_casts = np.asarray([val for val in df['cid'].unique().astype('int64') if val not in info_df.index])   
+         
+    for bad in bad_casts:
+        
+        df = df.drop(df.loc[df['cid'] == bad].index) #replaced with reassign instead of inplace...see if this helps
             
     
     print('getCleanDataFrames = %d sec' % (int(Time()-tt0)))
@@ -957,185 +516,7 @@ def extractLOCasts(Ldir, info_df_use, fn_his):
     print('extractLOCasts = %d sec' % (int(Time()-tt0)))
         
 
-
-
-
-
-
-
-
-### section if using TEF segments
-
-def createAvgCast(var, info_df_use, df_use, jjj, iii, h, Ldir, mon_str, seg_name): #mon_str
-        
-    h_seg = h[jjj,iii]
     
-    min_bin = -math.ceil(h_seg.max())
-    
-    df_temp = df_use.copy(deep=True)
-    
-    df_temp['bin'] = df_temp['z'].apply(np.ceil)
-    
-    avgs = df_temp.groupby(['bin'], as_index=False).mean()
-    
-    data_array = avgs[var].to_numpy()
-    
-    good_data = data_array[~np.isnan(data_array)]
-    
-    bin_array = avgs['bin'].to_numpy()
-    
-    bin_data = bin_array[~np.isnan(data_array)]
-    
-    edges = np.arange(min_bin,1)
-            
-    avg_cast_f = interp1d(bin_data, good_data, kind='nearest', fill_value='extrapolate')
-    
-    
-    
-    
-    # if Ldir['lo_env'] == 'dm_mac' and Ldir['testing']:
-        
-    #     fig, ax = plt.subplots(1,2, figsize=(10,7))
-        
-    #     pfun.add_coast(ax[1])
-    #     pfun.dar(ax[1])
-    #     ax[1].axis([-125, -122, 47, 50])
-    #     ax[1].set_xlabel('Longitude [deg]')
-    #     ax[1].set_ylabel('Latitude [deg]')
-        
-    #     colors = plt.cm.rainbow(np.linspace(0, 1, len(df_temp['cid'].unique())))
-                
-    #     n=0
-        
-    #     for cid in df_temp['cid'].unique():
-            
-    #         df_plot = df_temp[df_temp['cid'] == cid]
-            
-    #         if ~np.isnan(df_plot[var].iloc[0]):
-                        
-    #             df_plot.plot(x=var, y='z', style= '.', ax=ax[0], color = colors[n], markersize=5, label=int(cid))
-                
-    #             if df_plot['type'].unique() =='bottle':
-                                            
-    #                     ax[1].scatter(df_plot.iloc[0]['lon'], df_plot.iloc[0]['lat'], edgecolor='k', facecolor=colors[n], marker='>', label = int(cid))
-                
-    #             else:
-                    
-    #                     ax[1].scatter(df_plot.iloc[0]['lon'], df_plot.iloc[0]['lat'], edgecolor='k', facecolor=colors[n], marker='<', label = int(cid))
-    
-    #         n+=1
-        
-    #     ax[0].plot(avg_cast_f(edges), edges, '-k', label='avg cast')
-        
-    #     ax[0].set_xlabel(var)
-
-    #     ax[0].set_ylabel('z [m]')
-        
-    #     ax[0].legend()
-        
-    #     ax[1].legend()
-
-    #     plt.suptitle(seg_name + '_' + str(Ldir['year']) + '_' + mon_str + '_' + var)
-        
-    #     ax[0].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-        
-    #     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/test_avg_casts_'+ seg_name + '_' + str(Ldir['year']) + '_' + mon_str + '_' + var + '.png', bbox_inches='tight',dpi=500)
-
-    return avg_cast_f
-    
-    
-    
-
-def fillSegments(var, z_rho_grid, info_df_use, df_use, jjj, iii, avg_cast_f):
-    
-    tt0 = Time()
-    
-    z_rho_grid_seg = z_rho_grid[:,jjj,iii].copy()
-    
-    var_array = avg_cast_f(z_rho_grid_seg)
-    
-    print('fillSegments = %d sec' %(int(Time()-tt0))) # for testing
-    
-    return var_array
-
-
-
-def getSubVol(var_array, threshold_val, jjj, iii, dv):
-        
-    dv_sub = dv[:, jjj, iii].copy()
-    
-    dv_sub[var_array > threshold_val] = 0
-    
-    sub_vol_sum = np.sum(dv_sub)
-    
-    return sub_vol_sum
-    
-
-def getSubThick(var_array, threshold_val, jjj, iii, dz):
-            
-    dz_sub = dz[:, jjj, iii].copy()
-    
-    dz_sub[var_array > threshold_val] = 0
-    
-    sub_thick_sum = np.sum(dz_sub, axis=0)
-    
-    return sub_thick_sum
-    
-
-def getAvgFull(var_array):
-    
-    avg_full = np.mean(var_array)
-    
-    return avg_full
-
-
-def getAvgBelow(var_array, threshold_depth, jjj, iii, z_rho_grid):
-    
-    z_rho_grid_seg = z_rho_grid[:,jjj,iii]
-    
-    avg_array = var_array[z_rho_grid_seg <= threshold_depth].copy()
-    
-    avg_below = np.mean(avg_array)
-    
-    return avg_below
-
-
-def getAvgBinned(var_array, depth_bin, jjj, iii, z_rho_grid): #depth bin is a list with two entries for BOTTOM depth (negative) and TOP depth (negative)
-    
-    bin_bot = depth_bin.min()
-    
-    bin_top = depth_bin.max()
-    
-    avg_array = np.empty(np.shape(var_array))
-    avg_array.fill(np.nan)
-    
-    z_rho_grid_seg = z_rho_grid[:,jjj,iii]
-    
-    avg_array[(z_rho_grid_seg > bin_bot) & (z_rho_grid_seg <= bin_top)] = var_array[(z_rho_grid_seg > bin_bot) & (z_rho_grid_seg <= bin_top)]
-    
-    avg_binned = np.nanmean(avg_array)
-    
-    return avg_binned
-    
-
-def getAvgLayer(var_array, layer): #layer can be just one at a time for now...
-    
-    avg_array = var_array[layer,:].copy()
-                
-    avg_layer = np.mean(avg_array)
-    
-    return avg_layer
-    
-
-####
-
-
-    
-
-
-
-
-
 
 def assignSurfaceToCasts(info_df_use, jjj, iii):
     """
@@ -2086,8 +1467,3 @@ def getOBSAvgBelow(info_df_use, df_use, var, threshold_pct):
     print('getOBSAvgBelow = %d sec' % (int(Time()-tt0)))
             
     return sub_avg
-
-
-# USE TEF SEGMENTS TO CONSTRUCT!!!
-
-#def 
