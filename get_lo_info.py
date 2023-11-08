@@ -47,9 +47,9 @@ except KeyError:
     HOSTNAME = 'BLANK'
     
 # debugging
-# print('** from get_lo_info.py **')
-# print('HOME = ' + str(HOME))
-# print('HOSTNAME = ' + HOSTNAME)
+print('** from get_lo_info.py **')
+print('HOME = ' + str(HOME))
+print('HOSTNAME = ' + HOSTNAME)
 
 if str(HOME) == '/Users/dakotamascarenas':
     lo_env = 'dm_mac'
@@ -72,7 +72,7 @@ elif (str(HOME) == '/usr/lusers/dakotamm'):
     remote_dir0 = '/data1/dakotamm'
     local_user = 'dakotamm'
 
-elif ((str(HOME) == '/mmfs1/home/dakotamm'): # or (str(HOME) == '/mmfs1/home/darrd')):
+elif (str(HOME) == '/mmfs1/home/dakotamm'): # or (str(HOME) == '/mmfs1/home/darrd')):
     lo_env = 'dm_klone'
     remote_user = 'dakotamm'
     remote_machine = 'perigee.ocean.washington.edu'

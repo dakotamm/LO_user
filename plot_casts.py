@@ -61,7 +61,7 @@ if Ldir['testing']:
     
     # otype_list = ['ctd']
     
-    year_list = [2012]
+    year_list = [2012, 2013]
 
 # %%
 
