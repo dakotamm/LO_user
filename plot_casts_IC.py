@@ -29,6 +29,12 @@ Ldir = exfun.intro() # this handles the argument passing
 
 # %%
 
+year_list = [2012, 2013]
+
+for year in year_list:
+    
+    ### GOTTA MAKE AVERAGE CASTS WITH MULTIPLE MONTHS I SEE
+
 with open('/Users/dakotamascarenas/Desktop/' + str(Ldir['year']) + '_avg_cast_f_dict.pkl', 'rb') as f: # (str(save_dir) + '/' + '2017_data_dict.pkl'), 'wb') as f: 
     avg_cast_f_dict = pickle.load(f)
     

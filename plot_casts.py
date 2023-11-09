@@ -61,7 +61,7 @@ if Ldir['testing']:
     
     # otype_list = ['ctd']
     
-    year_list = [2012, 2013]
+    year_list = [2013]
 
 # %%
 
@@ -69,9 +69,9 @@ segments = 'regions'
 
 jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dict)
 
-# if Ldir['testing']:
+if Ldir['testing']:
 
-#     seg_list = ['Main Basin']
+    seg_list = ['Hood Canal']
 
 # %%
 

@@ -75,6 +75,12 @@ def get_casts_IC(Ldir, ctd_or_bio, month_window):
         
         source_list = ['ecology','dfo1','nceiSalish', 'collias']
         
+    elif ctd_or_bio == 'both':
+        
+        otype_list = ['ctd', 'bottle']
+        
+        source_list = ['ecology','dfo1','nceiSalish', 'collias']
+        
     
     dt = pd.Timestamp('2017-01-01 01:30:00') # basic grid info!!! date agnostic
     fn_his = get_his_fn_from_dt(Ldir, dt)  
@@ -161,6 +167,8 @@ def get_casts_IC(Ldir, ctd_or_bio, month_window):
                     
                     df_temp['source'] = source
                     
+                    df_temp['type'] = otype
+                    
                     for col in df.columns:
                             
                         if col not in df_temp.columns:
@@ -181,7 +189,7 @@ def get_casts_IC(Ldir, ctd_or_bio, month_window):
                         
                         df_temp['DO (uM)'] =  np.nan
                                         
-                    df_temp['cid'] = df_temp['cid'] + info_df[info_df['source'] == source].index.min()
+                    df_temp['cid'] = df_temp['cid'] + info_df[(info_df['type'] == otype) & (info_df['source'] == source)].index.min()
                     
                     df = pd.concat([df, df_temp]) #, ignore_index=True)
                     
@@ -966,7 +974,7 @@ def extractLOCasts(Ldir, info_df_use, fn_his):
 
 ### section if using TEF segments
 
-def createAvgCast(var, info_df_use, df_use, jjj, iii, h, Ldir, mon_str, seg_name): #mon_str
+def createAvgCast(var, info_df_use, df_use, jjj, iii, h, Ldir) : #, mon_str, seg_name): #mon_str
         
     h_seg = h[jjj,iii]
     
