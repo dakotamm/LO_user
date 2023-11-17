@@ -1,15 +1,15 @@
 """
 
-run get_all_casts_565 -gtx cas6_v0_live -test True
+run get_all_casts_565 -g cas7 -ys 1999 -ye 2020 -test True
 
 """
 
 import pandas as pd
 
 from lo_tools import Lfun, zfun
-from lo_tools import extract_argfun as exfun
+#from lo_tools import extract_argfun as exfun
 from lo_tools import plotting_functions as pfun
-from lo_tools import forcing_argfun as ffun
+import forcing_argfun2_DM as ffun
 import pickle
 
 from time import time as Time
@@ -26,18 +26,16 @@ from pathlib import PosixPath
 
 # %%
 
-#Ldir = ffun.intro() # this handles the argument passing
-
-Ldir = exfun.intro() # this handles the argument passing
+Ldir = ffun.intro() # this handles the argument passing
 
 
 # %%
 
-year_list = np.arange(1999,2023)
+#year_list = np.arange(1999,2023)
 
 source_list = ['ecology', 'nceiSalish']
 
-otype_list = ['ctd','bottle']
+otype_list = ['ctd','bottle'] #incorporate into ffun
 
 dt = pd.Timestamp('2017-01-01 01:30:00')
 fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
@@ -45,6 +43,52 @@ fn_his = vfun.get_his_fn_from_dt(Ldir, dt)
 G, S, T, land_mask, Lon, Lat, plon, plat, z_rho_grid, z_w_grid, dz, dv, h = vfun.getGridInfo(fn_his)
 
 vol_dir, v_df, j_dict, i_dict, all_seg_list = vfun.getSegmentInfo(Ldir)
+
+segments = 'regions'
+
+jjj_dict, iii_dict, seg_list = vfun.defineSegmentIndices(segments, j_dict, i_dict)
+
+# %%
+
+if Ldir['testing']:
+    
+    seg_plot = np.full_like(land_mask.copy(), np.nan)
+    
+    fig, ax = plt.subplots(figsize=(10,20), nrows=1, ncols=1, squeeze=False)
+
+    land_mask_plot = land_mask.copy()
+
+    land_mask_plot[land_mask ==0] = np.nan
+    
+    c00 = ax[0,0].pcolormesh(plon, plat, land_mask_plot, cmap='Greys')
+    
+    c = 0
+    
+    for seg_name in seg_list:
+        
+        jjj = jjj_dict[seg_name]
+        
+        iii = iii_dict[seg_name] # THIS IS AN ISSUE, OVERLAPPING SOJ AND HOOD CANAL
+        
+        seg_plot[jjj,iii] = c
+        
+        c0 = ax[0,0].pcolormesh(plon, plat, seg_plot, cmap = 'Set2')
+        
+        c+=1
+    
+    c0 = ax[0,0].pcolormesh(plon, plat, seg_plot, cmap = 'Set2')
+    
+    ax[0,0].set_xlim([-125.5,-122])
+    ax[0,0].set_ylim([46.5, 51])
+    ax[0,0].tick_params(labelrotation=45)
+    #ax[0,0].set_title(mon_str + ' ' + str(Ldir['year']) + ' ' + var + ' Layer ' + str(cell))
+    
+    #c0.set_clim(clim_min, clim_max)
+    
+    fig.colorbar(c0,ax=ax[0,0])
+                            
+    pfun.add_coast(ax[0,0])
+    pfun.dar(ax[0,0])
 
 # %%
 

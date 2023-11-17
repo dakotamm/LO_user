@@ -492,7 +492,7 @@ def getGridInfo(fn):
 
     
     
-def getSegmentInfo(Ldir):
+def getSegmentInfo(Ldir): # note this comes from make_segment_volumes_DM.py!!! I modified some of the delineations to fit cas7 better...
     
     tt0 = Time()
     vol_dir = Ldir['LOo'] / 'extract' / 'tef' / ('volumes_' + Ldir['gridname'])
