@@ -284,7 +284,7 @@ def fill_CTD_IC(Ldir, info_df, df, jjj_dict, iii_dict, seg_list):
     dt = pd.Timestamp('2017-01-01 01:30:00')
     fn_his = get_his_fn_from_dt(Ldir, dt)
     
-    G, S, T = zrfun.get_basic_info(fn_his)
+    G, S, T = zrfun.get_basic_info(fn_his) ### FIX
     land_mask = G['mask_rho']
     #Lon = G['lon_rho'][0,:]
     #Lat = G['lat_rho'][:,0]
@@ -476,7 +476,7 @@ def get_his_fn_from_dt(Ldir, dt): # RIPPED FROM CFUN to support perigee usage
 def getGridInfo(fn):
     
     tt0 = Time()
-    G, S, T = zrfun.get_basic_info(fn)
+    G, S, T = zrfun.get_basic_info(fn) #FIX
     land_mask = G['mask_rho']
     Lon = G['lon_rho'][0,:]
     Lat = G['lat_rho'][:,0]
