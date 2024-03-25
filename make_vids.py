@@ -10,14 +10,19 @@ import os
 
 outdir = '/Users/dakotamascarenas/Desktop/pltz/'
 
-var_list = ['DO_mg_L'] # ['salt','temp', 'oxygen'] # ,'NO3','NH4','chlorophyll','TIC','alkalinity','oxygen']
+#basin_list = ['sog_n', 'sog_s_wo_si', 'si', 'soj', 'sji', 'mb', 'wb', 'hc_wo_lc', 'lc', 'ss']
 
-for var in var_list:
+basin_list = ['hc_wo_lc']
 
-    fileprefix = "TEF_VFC_2012_Dec_DO_mg_L_layer"
+#var_list = ['DO_mg_L'] # ['salt','temp', 'oxygen'] # ,'NO3','NH4','chlorophyll','TIC','alkalinity','oxygen']
+
+for basin in basin_list:
+    
+
+    fileprefix = basin + "_bottle_DO_sampling_locations_by_decade_by_season_individual"
     
     ff_str = ("ffmpeg -r 8 -i " + outdir + "'" + fileprefix + "_%04d.png' -vf 'crop=trunc(iw/2)*2:trunc(ih/2)*2' -vcodec libx264 -pix_fmt yuv420p -crf 25 " + outdir + "'" + fileprefix + "_temp.mp4'")
     os.system(ff_str)
     
-    ff_str = ("ffmpeg -i " + outdir + "'" + fileprefix + "_temp.mp4' -vf 'setpts=5*PTS' " + outdir + "'" + fileprefix + ".mp4'")
+    ff_str = ("ffmpeg -i " + outdir + "'" + fileprefix + "_temp.mp4' -vf 'setpts=10*PTS' " + outdir + "'" + fileprefix + ".mp4'")
     os.system(ff_str)
