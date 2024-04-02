@@ -1,22 +1,9 @@
 """
 Code to process the King County Water Quality data for Puget Sound.
 
-IN PROGRESS DM 7/13/2023 - restarted effort on 3/29/2024
+3/29/2024
 
-some notes from https://green2.kingcounty.gov/marine/Monitoring/OffshoreCTD: "Light Transmission data prior to May 19, 2014 were referenced to air. After this date, all Light Transmission data are referenced to water. To convert the pre-May 19, 2014 data to ‘referenced to water’, multiply the values by 1.095."
-
-***any modifications done to temperature???
-
-***local times or UTC?
-
-sites: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf
-
-big data set: https://data.kingcounty.gov/Environment-Waste-Management/Water-Quality/vwmt-pvjw
-- from 1965 to 2023
-
-whidbey bottle (***I THINK THIS IS JUST A FILTERED BY AREA VERSION OF THE BIG DATA SET): https://data.kingcounty.gov/Environment-Waste-Management/Whidbey-Bottle-Data/vuu8-t6kc
-
-whidbey CTD (additional detail just for whidbey - not sure where the rest of CTD casts are): https://data.kingcounty.gov/Environment-Waste-Management/Whidbey-Basin-CTD-Casts/uz4m-4d96
+To process data received via email from Taylor Martin 3/27/2024
 
 """
 
@@ -29,13 +16,13 @@ from lo_tools import Lfun, obs_functions
 Ldir = Lfun.Lstart()
 
 # BOTTLE
-source = 'kc'
-otype = 'bottle'
+source = 'kc_taylor'
+#otype = 'bottle' # NOT SURE IF THIS IS TRUE
 in_dir0 = Ldir['data'] / 'obs' / source
 year_list = range(1963,2024)
 
 # output location
-out_dir = Ldir['LOo'] / 'obs' / source / otype
+out_dir = Ldir['LOo'] / 'obs' / source
 Lfun.make_dir(out_dir)
 
 
@@ -43,23 +30,25 @@ Lfun.make_dir(out_dir)
 
 # Load big data set and stations.
 
-big_df_raw = pd.read_csv(in_dir0 / otype / 'Water_Quality_March2024.csv')
+big_df_raw = pd.read_csv(in_dir0/ 'old_do_data.csv')
 
-sta_df = pd.read_csv(in_dir0 / 'WLRD_Sites_March2024.csv')
+sta_df = pd.read_csv(in_dir0 / 'old_do_stations.csv')
 
 # %%
+
+big_df_raw['Locator'] = big_df_raw['LOCATOR']
 
 big_df = big_df_raw.merge(sta_df[['Locator','Latitude', 'Longitude']], on = 'Locator', how='left')
 
 
 # %%
 
-big_df_use0 = big_df[big_df['Site Type'] == 'Marine Offshore']
+#big_df_use0 = big_df[big_df['Site Type'] == 'Marine Offshore']
 
 
 # %% 
 
-cols_all = big_df_use0['Parameter'].unique()
+cols_all = big_df['PARMNAME'].unique()
 
 v_dict = {}
 
@@ -81,11 +70,11 @@ v_dict['Total Phosphorus'] = 'PO4 (mg -L)' #NEED TO CONVERT to micromolar - OR s
 
 v_dict['Silica'] = 'SiO4 (mg -L)' #NEED TO CONVERT to micromolar, I think this is correct but not sure***
 
-v_dict['Total Alkalinity'] = 'TA (umol -kg)' #need to convert to micromolar!!!
+#v_dict['Total Alkalinity'] = 'TA (umol -kg)' #need to convert to micromolar!!!
 
-v_dict['Dissolved Inorganic Carbon'] = 'DIC (umol -kg)'
+#v_dict['Dissolved Inorganic Carbon'] = 'DIC (umol -kg)'
 
-v_dict['Chlorophyll a'] = 'Chl (ug -L)' #need to convert to mg/m^3 (cool 1:1)
+v_dict['Chlorophyll a'] = 'Chl (mg -3)' #no need to convert
 
 # %%
 
@@ -99,42 +88,47 @@ v_list = np.array(list(v_dict_use.keys()))
         
 # %%
 
-big_df_use1 = big_df_use0[big_df_use0['Parameter'].isin(v_list)]
+big_df_use1 = big_df[big_df['PARMNAME'].isin(v_list)]
 
 # %%
 
-big_df_use2 = big_df_use1[['Sample ID','Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Replicates', 'Replicate Of', 'Latitude', 'Longitude']]
+big_df_use2 = big_df_use1[['COLLECTDATE', 'SAMPLE_DEPTH', 'PARMNAME', 'NUMVALUE','Latitude', 'Longitude', 'Locator']]
 
 
 # %%
 
-replicates = big_df_use2['Replicates'].dropna().unique()
+# replicates = big_df_use2['Replicates'].dropna().unique()
 
-big_df_use3 = big_df_use2[~big_df_use2['Sample ID'].isin(replicates)]
-
-# %%
-
-big_df_use4 = big_df_use3[['Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Latitude', 'Longitude']]
+# big_df_use3 = big_df_use2[~big_df_use2['Sample ID'].isin(replicates)]
 
 # %%
 
-big_df_use5 = big_df_use4.pivot_table(index = ['Profile ID', 'Collect DateTime', 'Depth (m)', 'Latitude', 'Longitude'],
-                                      columns = 'Parameter', values = 'Value').reset_index()
+#big_df_use4 = big_df_use3[['Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Latitude', 'Longitude']]
+
+# %%
+
+big_df_use5 = big_df_use2.pivot_table(index = ['COLLECTDATE', 'SAMPLE_DEPTH', 'PARMNAME', 'NUMVALUE','Latitude', 'Longitude', 'Locator'],
+                                      columns = 'PARMNAME', values = 'NUMVALUE').reset_index()
 
 # %%
 
 big_df_use6 = big_df_use5.copy()
 
-big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['Collect DateTime'])
+big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['COLLECTDATE'])
 
 big_df_use6['cid'] = np.nan
 
 # %%
 
+# FIX DATES FIGURE OUT CID
+
 big_df_use7 = big_df_use6.copy()
 
-
 c = 0
+
+for site in big_df_use7['Locator'].unique():
+    
+    for datetime in big_df_use7['Locator'].unique()
 
 for pid in big_df_use6['Profile ID'].unique(): # profile ID is unique identifier
     
@@ -216,8 +210,6 @@ for year in year_list:
     for vn in ['TA','DIC']:
         if (vn+' (umol -kg)') in df.columns:
             df[vn+' (uM)'] = (rho/1000) * df[vn+' (umol -kg)']
-    
-    df['z'] = df['z']*-1
             
     df['cruise'] = ''
 
