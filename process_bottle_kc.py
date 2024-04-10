@@ -103,7 +103,7 @@ big_df_use1 = big_df_use0[big_df_use0['Parameter'].isin(v_list)]
 
 # %%
 
-big_df_use2 = big_df_use1[['Sample ID','Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Replicates', 'Replicate Of', 'Latitude', 'Longitude']]
+big_df_use2 = big_df_use1[['Sample ID','Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Replicates', 'Replicate Of', 'Latitude', 'Longitude', 'Locator']]
 
 
 # %%
@@ -114,11 +114,11 @@ big_df_use3 = big_df_use2[~big_df_use2['Sample ID'].isin(replicates)]
 
 # %%
 
-big_df_use4 = big_df_use3[['Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Latitude', 'Longitude']]
+big_df_use4 = big_df_use3[['Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Latitude', 'Longitude', 'Locator']]
 
 # %%
 
-big_df_use5 = big_df_use4.pivot_table(index = ['Profile ID', 'Collect DateTime', 'Depth (m)', 'Latitude', 'Longitude'],
+big_df_use5 = big_df_use4.pivot_table(index = ['Profile ID', 'Collect DateTime', 'Depth (m)', 'Latitude', 'Longitude', 'Locator'],
                                       columns = 'Parameter', values = 'Value').reset_index()
 
 # %%
@@ -154,6 +154,8 @@ v_dict['Longitude'] = 'lon'
 
 v_dict['Depth (m)'] = 'z' #convert to negative
 
+v_dict['Locator'] = 'name'
+
 
 df0 = big_df_use7.copy()
 
@@ -182,6 +184,9 @@ for year in year_list:
     df = df.dropna(axis=0, how='all') # drop rows with no good data
     df = df[df.time.notna()] # drop rows with bad time
     df = df.reset_index(drop=True)
+    
+    df['z'] = df['z']*-1 # IMPORTANT!!!!!!
+
 
     SP = df.SP.to_numpy()
     IT = df.IT.to_numpy()
@@ -192,6 +197,7 @@ for year in year_list:
     p = gsw.p_from_z(z, lat) # does this make sense????
 
     # - do the conversions
+    
     SA = gsw.SA_from_SP(SP, p, lon, lat)
     CT = gsw.CT_from_t(SA, IT, p)
     # - add the results to the DataFrame
@@ -216,12 +222,8 @@ for year in year_list:
     for vn in ['TA','DIC']:
         if (vn+' (umol -kg)') in df.columns:
             df[vn+' (uM)'] = (rho/1000) * df[vn+' (umol -kg)']
-    
-    df['z'] = df['z']*-1
-            
+                
     df['cruise'] = ''
-
-    df['name'] = ''      
         
     # (3) retain only selected variables
     cols = ['cid', 'time', 'lat', 'lon', 'z', 'cruise', 'name',
