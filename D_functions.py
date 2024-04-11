@@ -88,7 +88,7 @@ def getPolyData(Ldir, poly_list, source_list=['ecology', 'nceiSalish', 'dfo1', '
                     if ii == 0:
                         odf = pd.read_pickle( odir / (str(year) + '.p'))
                         # if 'ecology' in source_list:
-                        #     if source == 'ecology' and otype == 'bottle':
+                        #     if source == 'ecology' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
                         #         odf['DO (uM)'] == np.nan
                         odf['source'] = source
                         odf['otype'] = otype
