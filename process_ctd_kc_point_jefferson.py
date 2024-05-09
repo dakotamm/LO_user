@@ -1,22 +1,19 @@
 """
 Code to process the King County Water Quality data for Puget Sound.
 
-IN PROGRESS DM 7/13/2023 - restarted effort on 3/29/2024
+5/9/2024
 
-some notes from https://green2.kingcounty.gov/marine/Monitoring/OffshoreCTD: "Light Transmission data prior to May 19, 2014 were referenced to air. After this date, all Light Transmission data are referenced to water. To convert the pre-May 19, 2014 data to ‘referenced to water’, multiply the values by 1.095."
-
-***any modifications done to temperature???
-
-***local times or UTC? - should be local, DM to confirm with Greg Ikeda emails***
+To process data received via email from Taylor Martin 5/2/2024.
 
 sites: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf
 
-big data set: https://data.kingcounty.gov/Environment-Waste-Management/Water-Quality/vwmt-pvjw
-- from 1965 to 2023
+Note: TaylorQuality and TaylorNote columns are considered insofar as to filter to only TaylorQuality = 'ok'.
 
-whidbey bottle (***I THINK THIS IS JUST A FILTERED BY AREA VERSION OF THE BIG DATA SET): https://data.kingcounty.gov/Environment-Waste-Management/Whidbey-Bottle-Data/vuu8-t6kc
+NOTE: "field" data and temperature are from CTD and others from bottle. Here, considering just CTD FOR NOW (and temperature concurrently).
 
-whidbey CTD (additional detail just for whidbey - not sure where the rest of CTD casts are): https://data.kingcounty.gov/Environment-Waste-Management/Whidbey-Basin-CTD-Casts/uz4m-4d96
+TIMES IN UTC
+
+Unclear if this will replicate other KC sites. Doesn't look like it from my map plots of source_type locations.
 
 """
 
@@ -29,10 +26,10 @@ from lo_tools import Lfun, obs_functions
 Ldir = Lfun.Lstart()
 
 # BOTTLE
-source = 'kc'
-otype = 'bottle'
+source = 'kc_point_jefferson'
+otype = 'ctd'
 in_dir0 = Ldir['data'] / 'obs' / source
-year_list = range(1963,2024)
+year_list = range(1970,2025)
 
 # output location
 out_dir = Ldir['LOo'] / 'obs' / source / otype
@@ -43,7 +40,7 @@ Lfun.make_dir(out_dir)
 
 # Load big data set and stations.
 
-big_df_raw = pd.read_csv(in_dir0 / otype / 'Water_Quality_March2024.csv')
+big_df_raw = pd.read_csv(in_dir0/ 'bottle_DO_data_for_Dakota.csv') #confusingly named but fine
 
 sta_df = pd.read_csv(in_dir0 / 'WLRD_Sites_March2024.csv')
 
@@ -54,12 +51,12 @@ big_df = big_df_raw.merge(sta_df[['Locator','Latitude', 'Longitude']], on = 'Loc
 
 # %%
 
-big_df_use0 = big_df[big_df['Site Type'] == 'Marine Offshore']
+big_df_use0 = big_df[big_df['TaylorQuality'] == 'ok']
 
 
 # %% 
 
-cols_all = big_df_use0['Parameter'].unique()
+cols_all = big_df_use0['ParmDisplayName'].unique()
 
 v_dict = {}
 
@@ -69,23 +66,23 @@ v_dict = {col:'' for col in cols_all}
 
 v_dict['Temperature'] = 'IT' #NEED TO COVERT TO CONS TEMP if necessary???
 
-v_dict['Salinity'] = 'SP' #NEED TO CONVERT TO ABS SALINITY if necessary???
+v_dict['Salinity, Field'] = 'SP' #NEED TO CONVERT TO ABS SALINITY if necessary???
 
-v_dict['Dissolved Oxygen'] = 'DO (mg -L)' #NEED TO CONVERT TO micromolar
+v_dict['Dissolved Oxygen, Field'] = 'DO (mg -L)' #NEED TO CONVERT TO micromolar
 
-v_dict['Nitrite + Nitrate Nitrogen'] = 'NO3 (mg -L)' #measured together assuming a 0 NO2 (add that column later), NEED TO CONVERT to micromolar
+# v_dict['Nitrite + Nitrate Nitrogen'] = 'NO3 (mg -L)' #measured together assuming a 0 NO2 (add that column later), NEED TO CONVERT to micromolar
 
-v_dict['Ammonia Nitrogen'] = 'NH4 (mg -L)' #NEED TO CONVERT to micromolar
+# v_dict['Ammonia Nitrogen'] = 'NH4 (mg -L)' #NEED TO CONVERT to micromolar
 
-v_dict['Total Phosphorus'] = 'PO4 (mg -L)' #NEED TO CONVERT to micromolar - OR should I use ORTHOPHOSPHATE PHOSPHORUS??
+# v_dict['Total Phosphorus'] = 'PO4 (mg -L)' #NEED TO CONVERT to micromolar - OR should I use ORTHOPHOSPHATE PHOSPHORUS??
 
-v_dict['Silica'] = 'SiO4 (mg -L)' #NEED TO CONVERT to micromolar, I think this is correct but not sure***
+# v_dict['Silica'] = 'SiO4 (mg -L)' #NEED TO CONVERT to micromolar, I think this is correct but not sure***
 
-v_dict['Total Alkalinity'] = 'TA (umol -kg)' #need to convert to micromolar!!!
+# #v_dict['Total Alkalinity'] = 'TA (umol -kg)' #need to convert to micromolar!!!
 
-v_dict['Dissolved Inorganic Carbon'] = 'DIC (umol -kg)'
+# #v_dict['Dissolved Inorganic Carbon'] = 'DIC (umol -kg)'
 
-v_dict['Chlorophyll a'] = 'Chl (ug -L)' #need to convert to mg/m^3 (cool 1:1)
+# v_dict['Chlorophyll a'] = 'Chl (mg -3)' #no need to convert
 
 # %%
 
@@ -99,46 +96,59 @@ v_list = np.array(list(v_dict_use.keys()))
         
 # %%
 
-big_df_use1 = big_df_use0[big_df_use0['Parameter'].isin(v_list)]
+big_df_use1 = big_df_use0[big_df_use0['ParmDisplayName'].isin(v_list)]
 
 # %%
 
-big_df_use2 = big_df_use1[['Sample ID','Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Replicates', 'Replicate Of', 'Latitude', 'Longitude', 'Locator']]
+big_df_use2 = big_df_use1[['CollectDateTime', 'Depth', 'ParmDisplayName', 'Value','Latitude', 'Longitude', 'Locator']]
 
 
 # %%
 
-replicates = big_df_use2['Replicates'].dropna().unique()
+# replicates = big_df_use2['Replicates'].dropna().unique()
 
-big_df_use3 = big_df_use2[~big_df_use2['Sample ID'].isin(replicates)]
-
-# %%
-
-big_df_use4 = big_df_use3[['Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Latitude', 'Longitude', 'Locator']]
+# big_df_use3 = big_df_use2[~big_df_use2['Sample ID'].isin(replicates)]
 
 # %%
 
-big_df_use5 = big_df_use4.pivot_table(index = ['Profile ID', 'Collect DateTime', 'Depth (m)', 'Latitude', 'Longitude', 'Locator'],
-                                      columns = 'Parameter', values = 'Value').reset_index()
+#big_df_use4 = big_df_use3[['Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Latitude', 'Longitude']]
+
+# %%
+
+big_df_use5 = big_df_use2.pivot_table(index = ['CollectDateTime', 'Depth','Latitude', 'Longitude', 'Locator'],
+                                      columns = 'ParmDisplayName', values = 'Value').reset_index()
 
 # %%
 
 big_df_use6 = big_df_use5.copy()
 
-big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['Collect DateTime'])
+big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['CollectDateTime'])
 
-big_df_use6['cid'] = np.nan
+# %%
+
+
+# start_date = pd.Timestamp('2025-01-01')
+
+# mask = (big_df_use6['time'] >= start_date)
+
+
+# big_df_use6.loc[mask, 'time'] -= pd.DateOffset(years=100)
+
+# big_df_use6['cid'] = np.nan
+
 
 # %%
 
 big_df_use7 = big_df_use6.copy()
 
 
+big_df_use7['unique_date_location'] = big_df_use7['Locator'] + big_df_use7['CollectDateTime']
+
 c = 0
 
-for pid in big_df_use6['Profile ID'].unique(): # profile ID is unique identifier
+for pid in big_df_use7['unique_date_location'].unique(): # profile ID is unique identifier
     
-    big_df_use7.loc[big_df_use6['Profile ID'] == pid, 'cid'] = c
+    big_df_use7.loc[big_df_use7['unique_date_location'] == pid, 'cid'] = c
     
     c+=1
     
@@ -152,7 +162,7 @@ v_dict['Latitude'] = 'lat'
 
 v_dict['Longitude'] = 'lon'
 
-v_dict['Depth (m)'] = 'z' #convert to negative
+v_dict['Depth'] = 'z' #convert to negative
 
 v_dict['Locator'] = 'name'
 
@@ -187,7 +197,6 @@ for year in year_list:
     
     df['z'] = df['z']*-1 # IMPORTANT!!!!!!
 
-
     SP = df.SP.to_numpy()
     IT = df.IT.to_numpy()
     z= df.z.to_numpy()
@@ -197,7 +206,6 @@ for year in year_list:
     p = gsw.p_from_z(z, lat) # does this make sense????
 
     # - do the conversions
-    
     SA = gsw.SA_from_SP(SP, p, lon, lat)
     CT = gsw.CT_from_t(SA, IT, p)
     # - add the results to the DataFrame
@@ -222,13 +230,14 @@ for year in year_list:
     for vn in ['TA','DIC']:
         if (vn+' (umol -kg)') in df.columns:
             df[vn+' (uM)'] = (rho/1000) * df[vn+' (umol -kg)']
-                
+                        
     df['cruise'] = ''
+
         
     # (3) retain only selected variables
     cols = ['cid', 'time', 'lat', 'lon', 'z', 'cruise', 'name',
         'CT', 'SA', 'DO (uM)',
-        'NO3 (uM)', 'NH4 (uM)', 'PO4 (uM)', 'SiO4 (uM)', #removed NO2...
+        'NO3 (uM)', 'NH4 (uM)', 'PO4 (uM)', 'SiO4 (uM)',
         'TA (uM)', 'DIC (uM)', 'Chl (mg m-3)']
     this_cols = [item for item in cols if item in df.columns]
     df = df[this_cols]

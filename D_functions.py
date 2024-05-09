@@ -87,17 +87,23 @@ def getPolyData(Ldir, poly_list, source_list=['ecology', 'nceiSalish', 'dfo1', '
                 try:
                     if ii == 0:
                         odf = pd.read_pickle( odir / (str(year) + '.p'))
-                        # if 'ecology' in source_list:
-                        #     if source == 'ecology' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
-                        #         odf['DO (uM)'] == np.nan
+                        if 'ecology' in source_list:
+                            if source == 'ecology' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
+                                odf['DO (uM)'] == np.nan
+                        if 'kc_point_jefferson' in source_list:
+                            if source == 'kc_point_jefferson' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
+                                odf['CT'] == np.nan                        
                         odf['source'] = source
                         odf['otype'] = otype
                         # print(odf.columns)
                     else:
                         this_odf = pd.read_pickle( odir / (str(year) + '.p'))
-                        # if 'ecology' in source_list:
-                        #     if source == 'ecology' and otype == 'bottle':
-                        #         this_odf['DO (uM)'] == np.nan
+                        if 'ecology' in source_list:
+                            if source == 'ecology' and otype == 'bottle':
+                                this_odf['DO (uM)'] == np.nan
+                        if 'kc_point_jefferson' in source_list:
+                            if source == 'kc_point_jefferson' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
+                                odf['CT'] == np.nan                          
                         this_odf['cid'] = this_odf['cid'] + odf['cid'].max() + 1
                         this_odf['source'] = source
                         this_odf['otype'] = otype

@@ -39,7 +39,7 @@ Ldir = Lfun.Lstart(gridname='cas7')
 
 poly_list = ['ps']
 
-odf_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+odf_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish'], otype_list=['bottle', 'ctd'], year_list=np.arange(1998,2025))
 
 # %%
 
@@ -100,7 +100,7 @@ odf['source_type'] = odf['source'] + '_' + odf['otype']
 
 # %%
 
-for decade in ['1930', '1940', '1950', '1960', '1970', '1980', '1990', '2000', '2010', '2020']:
+for decade in ['1990', '2000', '2010', '2020']: #'1930', '1940', '1950', '1960', '1970', '1980', 
     
     for season in ['winter','spring','summer','fall']:
         
@@ -118,9 +118,9 @@ for decade in ['1930', '1940', '1950', '1960', '1970', '1980', '1990', '2000', '
                 
                     plot_df_map = plot_df.groupby('cid').first().reset_index()
                     
-                    sns.scatterplot(data=plot_df_map, x='lon', y='lat', hue='source_type', hue_order = ['collias_bottle', 'ecology_bottle', 'ecology_ctd', 'kc_bottle', 'kc_whidbey_ctd', 'kc_taylor_bottle', 'nceiSalish_bottle'], alpha = 0.5, ax = ax, legend = False)
+                    sns.scatterplot(data=plot_df_map, x='lon', y='lat', hue='source_type', hue_order = ['collias_bottle', 'ecology_bottle', 'ecology_ctd', 'kc_bottle', 'kc_whidbey_ctd', 'kc_taylor_bottle', 'nceiSalish_bottle', 'kc_ctd'], alpha = 0.5, ax = ax, legend = False)
                     
-                    sns.scatterplot(data=plot_df, x='val', y='z', hue='source_type', hue_order = ['collias_bottle', 'ecology_bottle', 'ecology_ctd', 'kc_bottle', 'kc_whidbey_ctd', 'kc_taylor_bottle', 'nceiSalish_bottle'], alpha=0.5, linewidth=0, ax = axx)
+                    sns.scatterplot(data=plot_df, x='val', y='z', hue='source_type', hue_order = ['collias_bottle', 'ecology_bottle', 'ecology_ctd', 'kc_bottle', 'kc_whidbey_ctd', 'kc_taylor_bottle', 'nceiSalish_bottle', 'kc_ctd'], alpha=0.5, linewidth=0, ax = axx)
                     
                     ax.autoscale(enable=False)
                     
@@ -138,6 +138,7 @@ for decade in ['1930', '1940', '1950', '1960', '1970', '1980', '1990', '2000', '
                                     
                     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/ps_' + decade + 's_' + season + '_' + var.replace(" ", "_").replace('(','').replace(')','') +'_raw.png', bbox_inches='tight', dpi=500)
 
+# %%
 
 for year in odf['year'].unique():
     
@@ -157,9 +158,9 @@ for year in odf['year'].unique():
                 
                     plot_df_map = plot_df.groupby('cid').first().reset_index()
                     
-                    sns.scatterplot(data=plot_df_map, x='lon', y='lat', hue='source_type', hue_order = ['collias_bottle', 'ecology_bottle', 'ecology_ctd', 'kc_bottle', 'kc_whidbey_ctd', 'kc_taylor_bottle', 'nceiSalish_bottle'], alpha = 0.5, ax = ax, legend = False)
+                    sns.scatterplot(data=plot_df_map, x='lon', y='lat', hue='source_type', hue_order = ['collias_bottle', 'ecology_bottle', 'ecology_ctd', 'kc_bottle', 'kc_whidbey_ctd', 'kc_taylor_bottle', 'nceiSalish_bottle', 'kc_ctd'], alpha = 0.5, ax = ax, legend = False)
                     
-                    sns.scatterplot(data=plot_df, x='val', y='z', hue='source_type', hue_order = ['collias_bottle', 'ecology_bottle', 'ecology_ctd', 'kc_bottle', 'kc_whidbey_ctd', 'kc_taylor_bottle', 'nceiSalish_bottle'], alpha=0.5, linewidth=0, ax = axx)
+                    sns.scatterplot(data=plot_df, x='val', y='z', hue='source_type', hue_order = ['collias_bottle', 'ecology_bottle', 'ecology_ctd', 'kc_bottle', 'kc_whidbey_ctd', 'kc_taylor_bottle', 'nceiSalish_bottle', 'kc_ctd'], alpha=0.5, linewidth=0, ax = axx)
                     
                     ax.autoscale(enable=False)
                     

@@ -7,7 +7,7 @@ some notes from https://green2.kingcounty.gov/marine/Monitoring/OffshoreCTD: "Li
 
 ***any modifications done to temperature???
 
-***local times or UTC? - should be local, DM to confirm with Greg Ikeda emails***
+***local times or UTC?
 
 sites: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf
 
@@ -18,6 +18,9 @@ whidbey bottle (***I THINK THIS IS JUST A FILTERED BY AREA VERSION OF THE BIG DA
 
 whidbey CTD (additional detail just for whidbey - not sure where the rest of CTD casts are): https://data.kingcounty.gov/Environment-Waste-Management/Whidbey-Basin-CTD-Casts/uz4m-4d96
 
+
+Received KC CTD dataset 4/5/2024 from Greg Ikeda (KC) direct - KC QCed
+
 """
 
 import pandas as pd
@@ -25,14 +28,16 @@ import numpy as np
 import gsw
 import sys
 
+import glob
+
 from lo_tools import Lfun, obs_functions
 Ldir = Lfun.Lstart()
 
 # BOTTLE
 source = 'kc'
-otype = 'bottle'
-in_dir0 = Ldir['data'] / 'obs' / source
-year_list = range(1963,2024)
+otype = 'ctd'
+in_dir0 = Ldir['data'] / 'obs' / source 
+year_list = range(1998,2025)
 
 # output location
 out_dir = Ldir['LOo'] / 'obs' / source / otype
@@ -43,7 +48,32 @@ Lfun.make_dir(out_dir)
 
 # Load big data set and stations.
 
-big_df_raw = pd.read_csv(in_dir0 / otype / 'Water_Quality_March2024.csv')
+fn = glob.glob(str(in_dir0) + '/' + otype + '/*.csv')
+
+# %%
+
+big_df_raw = pd.DataFrame()
+
+for f in fn:
+
+    
+    raw = pd.read_csv(f, encoding='cp1252')
+    
+    if 'ï»¿Locator' in raw.columns:
+        
+        raw = raw.rename(columns={'ï»¿Locator':'Locator'})
+    
+    if big_df_raw.empty:
+        
+        big_df_raw = raw
+
+        
+    else:
+        
+        big_df_raw = pd.concat([big_df_raw, raw])
+    
+
+# %%
 
 sta_df = pd.read_csv(in_dir0 / 'WLRD_Sites_March2024.csv')
 
@@ -54,38 +84,19 @@ big_df = big_df_raw.merge(sta_df[['Locator','Latitude', 'Longitude']], on = 'Loc
 
 # %%
 
-big_df_use0 = big_df[big_df['Site Type'] == 'Marine Offshore']
+big_df_use0 = big_df[big_df['Updown'] == 'Down']
 
 
 # %% 
+#cols_all = big_df_use0['Parameter'].unique()
 
-cols_all = big_df_use0['Parameter'].unique()
-
-v_dict = {}
-
-v_dict = {col:'' for col in cols_all}
-
-# %%
-
-v_dict['Temperature'] = 'IT' #NEED TO COVERT TO CONS TEMP if necessary???
-
-v_dict['Salinity'] = 'SP' #NEED TO CONVERT TO ABS SALINITY if necessary???
-
-v_dict['Dissolved Oxygen'] = 'DO (mg -L)' #NEED TO CONVERT TO micromolar
-
-v_dict['Nitrite + Nitrate Nitrogen'] = 'NO3 (mg -L)' #measured together assuming a 0 NO2 (add that column later), NEED TO CONVERT to micromolar
-
-v_dict['Ammonia Nitrogen'] = 'NH4 (mg -L)' #NEED TO CONVERT to micromolar
-
-v_dict['Total Phosphorus'] = 'PO4 (mg -L)' #NEED TO CONVERT to micromolar - OR should I use ORTHOPHOSPHATE PHOSPHORUS??
-
-v_dict['Silica'] = 'SiO4 (mg -L)' #NEED TO CONVERT to micromolar, I think this is correct but not sure***
-
-v_dict['Total Alkalinity'] = 'TA (umol -kg)' #need to convert to micromolar!!!
-
-v_dict['Dissolved Inorganic Carbon'] = 'DIC (umol -kg)'
-
-v_dict['Chlorophyll a'] = 'Chl (ug -L)' #need to convert to mg/m^3 (cool 1:1)
+v_dict = {'Chlorophyll, Field (mg/m^3)':'Chl (mg m-3)',
+          #'Density field':'rho',
+          'Dissolved Oxygen, Field (mg/l ws=2)': 'DO (mg -L)',
+          'Nitrite + Nitrate Nitrogen, Field (mg/L)': 'NO3 (mg -L)', #measured together assuming a 0 NO2 (add that column later), NEED TO CONVERT to micromolar
+          'Salinity, Field (PSS)':'SP', #NEED TO CONVERT TO ABS SALINITY if necessary???
+          'Sample Temperature, Field (deg C)':'IT' #NEED TO COVERT TO CONS TEMP if necessary???
+          } # not dealing with light/PAR right now...
 
 # %%
 
@@ -99,33 +110,33 @@ v_list = np.array(list(v_dict_use.keys()))
         
 # %%
 
-big_df_use1 = big_df_use0[big_df_use0['Parameter'].isin(v_list)]
+# big_df_use1 = big_df_use0[big_df_use0['Parameter'].isin(v_list)]
+
+# # %%
+
+# big_df_use2 = big_df_use1[['Sample ID','Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Replicates', 'Replicate Of', 'Latitude', 'Longitude', 'Locator']]
+
+
+# # %%
+
+# replicates = big_df_use2['Replicates'].dropna().unique()
+
+# big_df_use3 = big_df_use2[~big_df_use2['Sample ID'].isin(replicates)]
+
+# # %%
+
+# big_df_use4 = big_df_use3[['Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Latitude', 'Longitude', 'Locator']]
+
+# # %%
+
+# big_df_use5 = big_df_use4.pivot_table(index = ['Profile ID', 'Collect DateTime', 'Depth (m)', 'Latitude', 'Longitude', 'Locator'],
+#                                       columns = 'Parameter', values = 'Value').reset_index()
 
 # %%
 
-big_df_use2 = big_df_use1[['Sample ID','Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Replicates', 'Replicate Of', 'Latitude', 'Longitude', 'Locator']]
+big_df_use6 = big_df_use0.copy()
 
-
-# %%
-
-replicates = big_df_use2['Replicates'].dropna().unique()
-
-big_df_use3 = big_df_use2[~big_df_use2['Sample ID'].isin(replicates)]
-
-# %%
-
-big_df_use4 = big_df_use3[['Profile ID', 'Collect DateTime', 'Depth (m)', 'Parameter', 'Value', 'Latitude', 'Longitude', 'Locator']]
-
-# %%
-
-big_df_use5 = big_df_use4.pivot_table(index = ['Profile ID', 'Collect DateTime', 'Depth (m)', 'Latitude', 'Longitude', 'Locator'],
-                                      columns = 'Parameter', values = 'Value').reset_index()
-
-# %%
-
-big_df_use6 = big_df_use5.copy()
-
-big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['Collect DateTime'])
+big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['Sampledate'])
 
 big_df_use6['cid'] = np.nan
 
@@ -134,11 +145,14 @@ big_df_use6['cid'] = np.nan
 big_df_use7 = big_df_use6.copy()
 
 
+big_df_use7['unique_date_location'] = big_df_use7['Locator'] + (big_df_use7['time'].dt.year).astype(str) + (big_df_use7['time'].dt.month).astype(str) + (big_df_use7['time'].dt.day).astype(str)
+
+# %%
 c = 0
 
-for pid in big_df_use6['Profile ID'].unique(): # profile ID is unique identifier
+for pid in big_df_use7['unique_date_location'].unique(): # profile ID is unique identifier
     
-    big_df_use7.loc[big_df_use6['Profile ID'] == pid, 'cid'] = c
+    big_df_use7.loc[big_df_use7['unique_date_location'] == pid, 'cid'] = c
     
     c+=1
     
@@ -152,7 +166,7 @@ v_dict['Latitude'] = 'lat'
 
 v_dict['Longitude'] = 'lon'
 
-v_dict['Depth (m)'] = 'z' #convert to negative
+v_dict['Depth'] = 'z' #convert to negative
 
 v_dict['Locator'] = 'name'
 
