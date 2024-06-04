@@ -82,5 +82,5 @@ def get_his_fn_from_dt(Ldir, dt):
     else:
         his_num = ('0000' + str(dt.hour + 1))[-4:]
     date_string = dt.strftime(Ldir['ds_fmt'])
-    fn = PosixPath('/data1/parker/LO_roms') / Ldir['gtagex'] / ('f' + date_string) / ('ocean_his_' + his_num + '.nc')
+    fn = PosixPath('/dat1/parker/LO_roms') / Ldir['gtagex'] / ('f' + date_string) / ('ocean_his_' + his_num + '.nc')
     return fn
