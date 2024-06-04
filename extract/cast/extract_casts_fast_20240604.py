@@ -34,6 +34,7 @@ out_dir = (Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'cast' /
 Lfun.make_dir(out_dir, clean=True)
 
 info_fn = Ldir['LOo'] / 'obs' / Ldir['source'] / Ldir['otype'] / ('info_' + year_str + '.p')
+print(info_fn)
 if info_fn.is_file():
     ii = 0
     info_df = pd.read_pickle(info_fn)
