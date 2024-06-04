@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun  3 11:13:01 2024
+Created on Tue Jun  4 07:22:25 2024
 
 @author: dakotamascarenas
 """
@@ -37,8 +37,6 @@ import matplotlib.path as mpth
 import matplotlib.patches as patches
 
 import cmocean
-
-
 
 # %%
 
@@ -299,7 +297,12 @@ cid_exclude = temp[(temp['site'].isin(['HCB005', 'HCB007', 'lynch_cove_mid'])) &
 
 odf = odf[~odf['cid'].isin(cid_exclude)]
 
+
 # %%
+
+odf.loc[odf['month'] < 10, 'year_month'] = (odf['year'].astype(str) + str(0) + odf['month'].astype(str)).astype(int)
+
+odf.loc[odf['month'] >= 10, 'year_month'] = (odf['year'].astype(str) + odf['month'].astype(str)).astype(int)
 
 temp0 = odf[odf['surf_deep'] != 'nan']
 
@@ -540,40 +543,13 @@ for site in odf_use['site'].unique():
                 slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
         
                 odf_use.loc[mask, 'slope_var_datetime'] = slope_datetime #per year
-                
-# %%
 
-odf_val_at_min_z = odf[odf['var'] == 'DO_mg_L'].loc[odf[odf['var'] == 'DO_mg_L'].groupby('cid')['z'].idxmin()].dropna()
-
-odf_val_at_min_z['-h'] = odf_val_at_min_z['h']*-1
-
-
-
-fig, ax = plt.subplots(figsize=(5,5))
-
-sns.scatterplot(data=odf_val_at_min_z, x = '-h', y='z', alpha=0.2)
-
-#sns.scatterplot(data=odf_val_at_min_z[odf_val_at_min_z['val'] < 2], x = '-h', y='z', color='red', alpha=0.2)
-
-
-
-ax.set_xlabel('water column depth [m]')
-
-ax.set_ylabel('cast depth [m]')
-
-#ax.set_ylim(-,18)
-
-#ax.axhspan(0,2, color = 'lightgray', alpha = 0.2)
-
-ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-
-
-
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/test.png', bbox_inches='tight', dpi=500)
 
 # %%
 
-# plot with surf T
+# %%
+
+# %%
 
 summer_deep_hyp_sites = odf[(odf['var'] == 'DO_mg_L') & (odf['val'] < 2) & (odf['surf_deep'] == 'deep') & (odf['summer_non_summer'] == 'summer')]['site'].unique()
 
@@ -585,9 +561,101 @@ inc_summer_strat_sites = odf_dens_use[(odf_dens_use['linreg_p'] < alpha) & (odf_
 
 # %%
 
-fig, axes = plt.subplots(figsize=(16,6), ncols=5, sharey=True, sharex=True)
+fig, ax = plt.subplots(figsize =(3,6))
 
-c = 0
+ax.pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-100, vmax=0, cmap=plt.get_cmap(cmocean.cm.ice))
+
+ax.set_xlim(X[i1],-121.4)#X[i2]) # Salish Sea
+ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
+
+for basin in big_basin_list:
+    
+    if basin == 'hc':
+        
+        color = 'blue'
+    
+    elif basin == 'wb':
+        
+        color = 'red'
+        
+    elif basin == 'ss':
+        
+        color = 'orange'
+        
+    else:
+        
+        color = 'green'
+    
+    path = path_dict[basin]
+    
+    patch = patches.PathPatch(path, facecolor='none', edgecolor ='k', alpha=0.5)
+    
+    ax.add_patch(patch)
+    
+ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-1000, vmax=0, cmap = 'gray')
+
+for site in long_site_list:
+    
+    path = path_dict[site]
+    
+        
+    if site == 'point_jefferson':
+    
+
+        patch = patches.PathPatch(path, facecolor='lightgray', alpha=0.5, edgecolor='black', label='>60-year history', hatch = '///')
+        
+    else:
+        
+        patch = patches.PathPatch(path, facecolor='lightgray', alpha=0.5, edgecolor='black', hatch = '///')
+        
+    ax.add_patch(patch)
+    
+    
+    
+lat_lon_df = odf[(odf['site'].isin(short_site_list))].groupby('site').first().reset_index()
+
+for site in short_site_list:
+    
+    if site == 'KSBP01':
+    
+        sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='lightgray', alpha=0.5, edgecolor='black', ax = ax, s=30,  label='~20-year history')
+    
+    else:
+        
+        sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='lightgray', alpha=0.5, edgecolor='black', ax = ax,  s=30)   
+
+pfun.add_coast(ax) 
+    
+pfun.dar(ax)
+
+ax.set_xlim(-123.3, -122.1)
+
+ax.set_ylim(47,48.5)
+
+ax.set(xlabel=None)
+ 
+ax.set(ylabel=None)
+
+ax.tick_params(axis='x', labelrotation=45)
+
+ax.legend(loc='upper left')
+    
+
+fig.tight_layout()
+
+    
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/short_long_sites.png', bbox_inches='tight', dpi=500)
+
+
+
+# %%
+
+
+
+
+fig, axes = plt.subplots(figsize=(12,6), ncols=4, sharey=True, sharex=True)
+
+c = 1
 
 for ax in axes:
 
@@ -756,282 +824,89 @@ for ax in axes:
     ax.legend(loc='upper left')
     
     c+=1
-
     
 
+fig.tight_layout()
 
-
+    
 plt.savefig('/Users/dakotamascarenas/Desktop/pltz/all_trends.png', bbox_inches='tight', dpi=500)
 
 # %%
 
-for site in ['point_jefferson']:
-    
-    mosaic = []
-        
-    for var in ['DO_mg_L', 'CT', 'SA']:
-        
-        new_list = []
-        
-        for season in ['summer']:
-            
-            new_list.append(var + '_' + season)
-                            
-        mosaic.append(new_list)
-        
-    mosaic.append(['strat_sigma_summer'])
-        
-        
-    fig, ax = plt.subplot_mosaic(mosaic, layout='constrained', figsize = (8,8))
-    
-    for var in var_list:
-            
-        if var =='SA':
-                    
-            marker = 's'
-            
-            ymin = 15
-            
-            ymax = 35
-            
-            label = 'Salinity [PSU]'
-                        
-            color_deep = 'blue'
-            
-            color_surf = 'lightblue'
-            
-                    
-        elif var == 'CT':
-            
-            marker = '^'
-            
-            ymin = 4
-            
-            ymax = 22
-            
-            label = 'Temperature [deg C]'
-                        
-            color_deep = 'red'
-            
-            color_surf = 'pink'
-            
-        else:
-            
-            marker = 'o'
-            
-            ymin = 0
-            
-            ymax = 15
-            
-            color = 'black'
-            
-            label = 'DO [mg/L]'
-            
-            color_deep = 'black'
-            
-            color_surf = 'gray'
-            
-        colors = {'deep':color_deep, 'surf':color_surf}
-    
-    
-    for season in ['summer']:
-        
-        ax_name = 'strat_sigma_' + season
-        
-        plot_df = odf_dens_use[(odf_dens_use['site'] == site) & (odf_dens_use['summer_non_summer'] == season)]
-                
-        sns.scatterplot(data=plot_df, x='datetime', y ='strat_sigma_mean', color = 'green', ax=ax[ax_name], alpha=0.7, legend = False)
-                    
-        for idx in plot_df.index:
-            
-            ax[ax_name].plot([plot_df.loc[idx,'datetime'], plot_df.loc[idx,'datetime']],[plot_df.loc[idx,'val_ci95lo'], plot_df.loc[idx,'val_ci95hi']], color='lightgray', alpha =0.7)
-            
-            
-            
-        x = plot_df['date_ordinal']
-        
-        x_plot = plot_df['datetime']
-        
-        y = plot_df['strat_sigma_mean']
-        
-        p = plot_df['linreg_p'].unique()[0]
-        
-        B0 = plot_df['linreg_B0'].unique()[0]
-        
-        B1 = plot_df['linreg_B1'].unique()[0]
-        
-        slope_datetime = plot_df['slope_var_datetime'].unique()[0]
-
-
-        
-        if p <= alpha:
-            
-            color = 'green'
-        
-            ax[ax_name].plot([x_plot.min(), x_plot.max()], [B0 + B1*x.min(), B0 + B1*x.max()], color=color, alpha = 0.7)
-        
-            slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
-
-        
-            ax[ax_name].text(0.99,0.99, 'slope = ' + str(np.round(slope_datetime,3)) + ' /yr', horizontalalignment='right', verticalalignment='top', transform=ax[ax_name].transAxes, color=color)
-        
-        
-        
-        ax[ax_name].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-        
-        ax[ax_name].set_ylabel('Strat ~ Surf-Deep [sigma]')
-        
-        ax[ax_name].set_xlim([datetime.date(1930,1,1), datetime.date(2024,12,31)])
-        
-        ax[ax_name].set_xlabel('Year')
-        
-        ax[ax_name].set_ylim(-5,10)
-        
-        
-       
-    
-    for var in ['DO_mg_L', 'CT', 'SA']:
-            
-        if var =='SA':
-                    
-            marker = 's'
-            
-            ymin = 15
-            
-            ymax = 35
-            
-            label = 'Salinity [PSU]'
-                        
-            color_deep = 'blue'
-            
-            color_surf = 'lightblue'
-                    
-        elif var == 'CT':
-            
-            marker = '^'
-            
-            ymin = 4
-            
-            ymax = 22
-            
-            label = 'Temperature [deg C]'
-                        
-            color_deep = 'red'
-            
-            color_surf = 'pink'
-            
-        else:
-            
-            marker = 'o'
-            
-            ymin = 0
-            
-            ymax = 15
-            
-            color = 'black'
-            
-            label = 'DO [mg/L]'
-            
-            color_deep = 'black'
-            
-            color_surf = 'gray'
-            
-        colors = {'deep':color_deep, 'surf':color_surf}
-        
-        
-        
-        for season in ['summer']:
-            
-            ax_name = var + '_' + season
-                                            
-            plot_df = odf_use[(odf_use['site'] == site) & (odf_use['var'] == var) & (odf_use['summer_non_summer'] == season)]
-                    
-            sns.scatterplot(data=plot_df, x='datetime', y ='val_mean', hue = 'surf_deep', palette=colors, ax=ax[ax_name], alpha=0.7, legend = False)
-                        
-            for idx in plot_df.index:
-                
-                ax[ax_name].plot([plot_df.loc[idx,'datetime'], plot_df.loc[idx,'datetime']],[plot_df.loc[idx,'val_ci95lo'], plot_df.loc[idx,'val_ci95hi']], color='lightgray', alpha =0.7)
-            
-            
-            for depth in ['surf', 'deep']:
-            
-                x = plot_df[plot_df['surf_deep'] == depth]['date_ordinal']
-                
-                x_plot = plot_df[plot_df['surf_deep'] == depth]['datetime']
-                
-                y = plot_df[plot_df['surf_deep'] == depth]['val_mean']
-            
-                
-            
-                p = plot_df[plot_df['surf_deep'] == depth]['linreg_p'].unique()[0]
-                
-                B0 = plot_df[plot_df['surf_deep'] == depth]['linreg_B0'].unique()[0]
-                
-                B1 = plot_df[plot_df['surf_deep'] == depth]['linreg_B1'].unique()[0]
-                
-                slope_datetime = plot_df[plot_df['surf_deep'] == depth]['slope_var_datetime'].unique()[0]
-                
-                
-                if p <= alpha:
-                    
-                    color = colors[depth]
-                    
-                    ax[ax_name].plot([x_plot.min(), x_plot.max()], [B0 + B1*x.min(), B0 + B1*x.max()], color=color, alpha =0.7)
-                
-                    slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
-
-                 
-                    if depth == 'surf':
-                        
-                        y = 0.99
-                         
-                    else:
-                        
-                        y =0.90
-                        
-                    
-                    ax[ax_name].text(0.99,y, 'slope = ' + str(np.round(slope_datetime,3)) + ' /yr', horizontalalignment='right', verticalalignment='top', transform=ax[ax_name].transAxes, color=color)
-            
-            
-                                
-            ax[ax_name].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-            
-            ax[ax_name].set_ylabel(label)
-            
-            ax[ax_name].set_ylim(ymin,ymax)
-            
-        
-            if var == 'DO_mg_L':
-                
-                ax[ax_name].axhspan(0,2, color = 'lightgray', alpha = 0.2)
-                
-            ax[ax_name].set_xlim([datetime.date(1930,1,1), datetime.date(2024,12,31)])
-            
-            ax[ax_name].set_xlabel('Year')
-            
-         
-    
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + site + '_surf_deep_decadal.png', bbox_inches='tight', dpi=500)
-    
-
+odf_depth_mean_monthly = temp0.groupby(['site', 'segment', 'surf_deep', 'summer_non_summer', 'year_month', 'var','cid']).mean(numeric_only=True).reset_index().dropna()
 
 
 # %%
 
+monthly_counts = (odf_depth_mean_monthly
+                      .dropna()
+                      #.set_index('datetime')
+                      .groupby(['site','segment', 'year_month','summer_non_summer', 'surf_deep', 'var']).agg({'cid' :lambda x: x.nunique()})
+                      .reset_index()
+                      .rename(columns={'cid':'cid_count'})
+                      )
+
+# %%
+
+odf_monthly_use = odf_depth_mean_monthly.groupby(['site', 'segment', 'surf_deep', 'summer_non_summer', 'year_month','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+
+# %%
+
+odf_monthly_use.columns = odf_monthly_use.columns.to_flat_index().map('_'.join)
+
+odf_monthly_use = odf_monthly_use.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+
+# %%
+
+odf_monthly_use = (odf_monthly_use
+                  # .drop(columns=['date_ordinal_std'])
+                  .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                  #.reset_index() 
+                  .dropna()
+                  .assign(
+                          #segment=(lambda x: key),
+                          # year=(lambda x: pd.DatetimeIndex(x['datetime']).year),
+                          # month=(lambda x: pd.DatetimeIndex(x['datetime']).month),
+                          # season=(lambda x: pd.cut(x['month'],
+                          #                          bins=[0,3,6,9,12],
+                          #                          labels=['winter', 'spring', 'summer', 'fall'])),
+                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                          )
+                  )
 
 
-fig, ax = plt.subplots(figsize=(5,5))
+# %%
 
-plot_df= odf_use[(odf_use['site'].isin(short_site_list)) & (odf_use['summer_non_summer'] == 'summer')]
+odf_monthly_use = pd.merge(odf_monthly_use, monthly_counts, how='left', on=['site','segment', 'surf_deep','summer_non_summer','year_month','var'])
 
-plot_df = plot_df.pivot(index=['site', 'year', 'date_ordinal'], columns = ['surf_deep', 'var'], values= 'val_mean')
+# %%
+
+odf_monthly_use = odf_monthly_use[odf_monthly_use['cid_count'] >1] #redundant but fine (see note line 234)
+
+odf_monthly_use['val_ci95hi'] = odf_monthly_use['val_mean'] + 1.96*odf_monthly_use['val_std']/np.sqrt(odf_monthly_use['cid_count'])
+
+odf_monthly_use['val_ci95lo'] = odf_monthly_use['val_mean'] - 1.96*odf_monthly_use['val_std']/np.sqrt(odf_monthly_use['cid_count'])
+
+# %%
+
+
+fig, ax = plt.subplots(figsize=(4,4))
+
+plot_df= odf_monthly_use[(odf_monthly_use['site'].isin(short_site_list)) & (odf_monthly_use['summer_non_summer'] == 'summer')]
+
+plot_df = plot_df.pivot(index=['site', 'year_month', 'date_ordinal', 'segment'], columns = ['surf_deep', 'var'], values= 'val_mean')
 
 plot_df.columns = plot_df.columns.to_flat_index().map('_'.join)
 
 plot_df = plot_df.reset_index()
 
 
-sns.scatterplot(data = plot_df, x='surf_CT', y='deep_DO_mg_L')
+sns.scatterplot(data = plot_df, x='surf_CT', y='deep_DO_mg_L', hue='segment')
+
+for basin in big_basin_list:
+    
+    mask = (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+    
 
 ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
 
@@ -1039,6 +914,50 @@ ax.set_ylabel('Deep DO [mg/L]')
 
 ax.set_xlabel('Surface Temperature [deg C]')
 
+ax.axhspan(0,2, color = 'lightgray', alpha = 0.2)
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/short_surfCT_v_deepDO.png', bbox_inches='tight', dpi=500)
+ax.set_ylim(0,15)
 
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/short_surfCT_v_deepDO_monthly.png', bbox_inches='tight', dpi=500)
+
+# %%
+
+for var in var_list:
+    
+    mask = (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+    
+    plot_df = odf_use[mask]
+    
+    x = plot_df['date_ordinal']
+    
+    x_plot = plot_df['datetime']
+    
+    y = plot_df['val_mean']
+    
+    result = stats.linregress(x, y)
+    
+    B1 = result.slope
+    
+    B0 = result.intercept
+    
+    odf_use.loc[mask, 'linreg_B1'] = result.slope
+    
+    odf_use.loc[mask, 'linreg_B0'] = result.intercept
+    
+    odf_use.loc[mask, 'linreg_r'] = result.rvalue
+    
+    odf_use.loc[mask, 'linreg_p'] = result.pvalue
+    
+    odf_use.loc[mask, 'linreg_sB1'] = result.stderr
+    
+    odf_use.loc[mask, 'linreg_sB0'] = result.intercept_stderr
+    
+    # length of the original dataset
+    n = len(x)
+    # degrees of freedom
+    dof = n - 2
+    
+    # t-value for alpha/2 with n-2 degrees of freedom
+    t = stats.t.ppf(1-alpha/2, dof)
+    
+    slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
