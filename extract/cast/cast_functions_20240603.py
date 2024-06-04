@@ -9,6 +9,8 @@ import xarray as xr
 import numpy as np
 from datetime import timedelta
 
+from pathlib import PosixPath
+
 def get_cast(out_fn, fn, lon, lat, npzd):
     
     # This function does the cast extraction and saves it to a NetCDF file.
@@ -80,5 +82,5 @@ def get_his_fn_from_dt(Ldir, dt):
     else:
         his_num = ('0000' + str(dt.hour + 1))[-4:]
     date_string = dt.strftime(Ldir['ds_fmt'])
-    fn = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + date_string) / ('ocean_his_' + his_num + '.nc')
+    fn = PosixPath('/data1/parker/LO_roms') / Ldir['gtagex'] / ('f' + date_string) / ('ocean_his_' + his_num + '.nc')
     return fn
