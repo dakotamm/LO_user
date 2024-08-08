@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jun  4 07:22:25 2024
+Created on Mon Jun 10 20:37:43 2024
 
 @author: dakotamascarenas
 """
@@ -561,47 +561,168 @@ inc_summer_strat_sites = odf_dens_use[(odf_dens_use['linreg_p'] < alpha) & (odf_
 
 # %%
 
-fig, ax = plt.subplots(figsize =(8.5,11))
+# fig, ax = plt.subplots(figsize =(8.5,11))
+
+# #ax.pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-100, vmax=0, cmap=plt.get_cmap(cmocean.cm.ice))
+
+# ax.set_xlim(X[i1],-121.4)#X[i2]) # Salish Sea
+# ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
+
+# for basin in big_basin_list:
+    
+#     if basin == 'wb':
+        
+#         color = 'fuchsia'
+        
+#         ax.text(-122.95, 48.4, 'Whidbey Basin', color=color, weight='bold')
+
+    
+#     elif basin == 'hc':
+        
+#         color = 'orange'
+        
+#         ax.text(-123.2, 47.8, 'Hood Canal', color=color, weight='bold')
+
+        
+#     elif basin == 'ss':
+        
+#         color = 'purple'
+        
+#         ax.text(-122.6, 47.1, 'South Sound', color=color, weight='bold')
+
+        
+#     else:
+        
+#         color = 'gold'
+        
+#         ax.text(-123, 48.2, 'Main Basin', color=color, weight='bold')
+    
+#     path = path_dict[basin]
+    
+#     patch = patches.PathPatch(path, color = color, alpha=0.5)
+    
+#     ax.add_patch(patch)
+        
+# ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-100, vmax=0, cmap = 'gray')
+
+# for site in long_site_list:
+    
+#     path = path_dict[site]
+    
+        
+#     if site == 'point_jefferson':
+    
+
+#         patch = patches.PathPatch(path, facecolor='blue', edgecolor='white', label='>60-year history')
+        
+#     else:
+        
+#         patch = patches.PathPatch(path, facecolor='blue', edgecolor='white')
+        
+#     ax.add_patch(patch)
+    
+#     if site == 'near_seattle_offshore':
+        
+#         ax.text(path.vertices[0][0] - 0.35, path.vertices[0][1], site.replace('_', ' ').title(), color= 'blue', backgroundcolor='white')
+
+#     else:
+    
+#         ax.text(path.vertices[0][0], path.vertices[0][1] + 0.03, site.replace('_', ' ').title(), color= 'blue', backgroundcolor='white')
+
+    
+    
+    
+# lat_lon_df = odf[(odf['site'].isin(short_site_list))].groupby('site').first().reset_index()
+
+# for site in short_site_list:
+    
+#     if site == 'KSBP01':
+    
+#         sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', edgecolor='white', ax = ax, s=50,  label='~20-year history')
+    
+#     else:
+        
+#         sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', edgecolor='white', ax = ax,  s=50)   
+
+#     if site in ['SAR003','KSBP01','PSB003', 'CRR001', 'HCB007']:
+        
+#         ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] + 0.04, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+
+#     elif site == 'DNA001':
+#         ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] - 0.15, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+
+#     else:
+        
+#         ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] + 0.02, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+    
+
+# pfun.add_coast(ax) 
+    
+# pfun.dar(ax)
+
+# ax.set_xlim(-123.3, -122.1)
+
+# ax.set_ylim(47,48.5)
+
+# ax.set(xlabel=None)
+ 
+# ax.set(ylabel=None)
+
+# ax.tick_params(axis='x', labelrotation=45)
+
+# ax.legend(loc='upper left')
+    
+
+# fig.tight_layout()
+
+    
+# plt.savefig('/Users/dakotamascarenas/Desktop/pltz/short_long_sites_PRESENT.png', bbox_inches='tight', dpi=500,transparent=True)
+
+# %%
+
+fig, ax = plt.subplots(figsize =(3,6))
 
 #ax.pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-100, vmax=0, cmap=plt.get_cmap(cmocean.cm.ice))
 
 ax.set_xlim(X[i1],-121.4)#X[i2]) # Salish Sea
 ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
 
-for basin in big_basin_list:
+# color = 'darkgray'
+
+# for basin in big_basin_list:
     
-    if basin == 'wb':
+#     # if basin == 'wb':
         
-        color = 'fuchsia'
+#     #     #color = 'fuchsia'
         
-        ax.text(-122.95, 48.4, 'Whidbey Basin', color=color, weight='bold')
+#     #     ax.text(-122.95, 48.4, 'Whidbey Basin', color=color, weight='bold')
 
     
-    elif basin == 'hc':
+#     # elif basin == 'hc':
         
-        color = 'orange'
+#     #     #color = 'orange'
         
-        ax.text(-123.2, 47.8, 'Hood Canal', color=color, weight='bold')
+#     #     ax.text(-123.2, 47.55, 'Hood Canal', color=color, weight='bold')
 
         
-    elif basin == 'ss':
+#     # elif basin == 'ss':
         
-        color = 'purple'
+#     #     #color = 'purple'
         
-        ax.text(-122.6, 47.1, 'South Sound', color=color, weight='bold')
+#     #     ax.text(-122.75, 47.1, 'South Sound', color=color, weight='bold')
 
         
-    else:
+#     # else:
         
-        color = 'gold'
+#     #     #color = 'gold'
         
-        ax.text(-123, 48.2, 'Main Basin', color=color, weight='bold')
+#     #     ax.text(-123, 48, 'Main Basin', color=color, weight='bold')
     
-    path = path_dict[basin]
+#     path = path_dict[basin]
     
-    patch = patches.PathPatch(path, color = color, alpha=0.5)
+#     patch = patches.PathPatch(path, facecolor = 'none', edgecolor='k') #color = color, alpha=0.5)
     
-    ax.add_patch(patch)
+   # ax.add_patch(patch)
         
 ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-100, vmax=0, cmap = 'gray')
 
@@ -613,7 +734,7 @@ for site in long_site_list:
     if site == 'point_jefferson':
     
 
-        patch = patches.PathPatch(path, facecolor='blue', edgecolor='white', label='>60-year history')
+        patch = patches.PathPatch(path, facecolor='blue', edgecolor='white')#, label='>60-year history')
         
     else:
         
@@ -621,24 +742,47 @@ for site in long_site_list:
         
     ax.add_patch(patch)
     
-    ax.text(path.vertices[0][0], path.vertices[0][1] + 0.05, site, color= 'blue', backgroundcolor='white')
-
-    
-    
-    
-lat_lon_df = odf[(odf['site'].isin(short_site_list))].groupby('site').first().reset_index()
-
-for site in short_site_list:
-    
-    if site == 'KSBP01':
-    
-        sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', edgecolor='white', ax = ax, s=30,  label='~20-year history')
-    
-    else:
+    # if site == 'near_seattle_offshore':
         
-        sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', edgecolor='white', ax = ax,  s=30)   
+    #     ax.text(path.vertices[0][0] - 0.55, path.vertices[0][1] + 0.02, site.replace('_', ' ').title(), color= 'blue') #, backgroundcolor='white')
+        
+    # elif site == 'saratoga_passage_mid':
+        
+    #     ax.text(path.vertices[0][0]-0.4, path.vertices[0][1] + 0.01, site.replace('_', ' ').title(), color= 'blue') #, backgroundcolor='white')
+        
+    # elif site == 'point_jefferson':
+    
+    #     ax.text(path.vertices[0][0]-0.3, path.vertices[0][1] + 0.01, site.replace('_', ' ').title(), color= 'blue') #, backgroundcolor='white')
 
-    ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] + 0.02, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+    # else:
+    
+    #     ax.text(path.vertices[0][0]-0.1, path.vertices[0][1] + 0.01, site.replace('_', ' ').title(), color= 'blue') #, backgroundcolor='white')
+
+    
+    
+    
+# lat_lon_df = odf[(odf['site'].isin(short_site_list))].groupby('site').first().reset_index()
+
+# for site in short_site_list:
+    
+#     if site == 'KSBP01':
+    
+#         sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', edgecolor='white', ax = ax, s=50,  label='~20-year history')
+    
+#     else:
+        
+#         sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', edgecolor='white', ax = ax,  s=50)   
+
+#     if site in ['SAR003','KSBP01','PSB003', 'CRR001', 'HCB007']:
+        
+#         ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] + 0.04, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+
+#     elif site == 'DNA001':
+#         ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] - 0.15, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+
+#     else:
+        
+#         ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] + 0.02, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
     
 
 pfun.add_coast(ax) 
@@ -655,297 +799,140 @@ ax.set(ylabel=None)
 
 ax.tick_params(axis='x', labelrotation=45)
 
-ax.legend(loc='upper left')
+#ax.legend(loc='upper left')
     
 
 fig.tight_layout()
 
     
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/short_long_sites.png', bbox_inches='tight', dpi=500)
-
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/long_sites_PRESENT.png', bbox_inches='tight', dpi=500,transparent=True)
 
 
 # %%
 
+fig, ax = plt.subplots(figsize =(3,6))
 
+#ax.pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-100, vmax=0, cmap=plt.get_cmap(cmocean.cm.ice))
 
+ax.set_xlim(X[i1],-121.4)#X[i2]) # Salish Sea
+ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
 
-fig, axes = plt.subplots(figsize=(5,8), ncols=2, nrows=2, sharey=True, sharex=True)
+# color = 'darkgray'
 
-axes = axes.flatten()
+# for basin in big_basin_list:
+    
+#     # if basin == 'wb':
+        
+#     #     #color = 'fuchsia'
+        
+#     #     ax.text(-122.95, 48.4, 'Whidbey Basin', color=color, weight='bold')
 
-c = 1
+    
+#     # elif basin == 'hc':
+        
+#     #     #color = 'orange'
+        
+#     #     ax.text(-123.2, 47.55, 'Hood Canal', color=color, weight='bold')
 
-for ax in axes:
+        
+#     # elif basin == 'ss':
+        
+#     #     #color = 'purple'
+        
+#     #     ax.text(-122.75, 47.1, 'South Sound', color=color, weight='bold')
 
-    #ax.pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-100, vmax=0, cmap=plt.get_cmap(cmocean.cm.ice))
+        
+#     # else:
+        
+#     #     #color = 'gold'
+        
+#     #     ax.text(-123, 48, 'Main Basin', color=color, weight='bold')
     
-    ax.set_xlim(X[i1],-121.4)#X[i2]) # Salish Sea
-    ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
+#     path = path_dict[basin]
+    
+#     patch = patches.PathPatch(path, facecolor = 'none', edgecolor='k') #color = color, alpha=0.5)
+    
+  #  ax.add_patch(patch)
+        
+ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-100, vmax=0, cmap = 'gray')
 
-    for basin in big_basin_list:
-        
-        if basin == 'hc':
-            
-            color = 'orange'
-        
-        elif basin == 'wb':
-            
-            color = 'red'
-            
-        elif basin == 'ss':
-            
-            color = 'purple'
-            
-        else:
-            
-            color = 'blue'
-        
-        path = path_dict[basin]
-        
-        patch = patches.PathPatch(path, facecolor='none', edgecolor ='k', alpha=0.5)
-        
-        ax.add_patch(patch)
+# for site in long_site_list:
     
+#     path = path_dict[site]
     
-    ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-100, vmax=0, cmap = 'gray')
+        
+#     if site == 'point_jefferson':
     
-    for site in long_site_list:
-        
-        path = path_dict[site]
-        
-        if c == 0:
-            
-            if site == 'point_jefferson':
-            
-        
-                patch = patches.PathPatch(path, facecolor='lightgray', alpha=0.5, edgecolor='black', label='>60-year history', hatch = '///')
-                
-            else:
-                
-                patch = patches.PathPatch(path, facecolor='lightgray', alpha=0.5, edgecolor='black', hatch = '///')
-            
-            
-        else: 
-            
-            patch = patches.PathPatch(path, facecolor='lightgray', alpha=0.5, edgecolor='gray')
-            
-        if c == 1:
-            
-            if site in summer_deep_hyp_sites: 
-                        
-                patch = patches.PathPatch(path, facecolor='red', alpha=0.5, edgecolor='red')
-                
-        elif c == 2:
-            
-            if site in dec_summer_deep_DO_sites:
-                
-                patch = patches.PathPatch(path, facecolor='orange', alpha=0.5, edgecolor='orange')
-                
-        elif c == 3: 
-            
-            if site in inc_summer_surf_CT_sites:
-                
-                patch = patches.PathPatch(path, facecolor='magenta', alpha=0.5, edgecolor='magenta')
-                
-        elif c == 4:
-            
-            if site in inc_summer_surf_CT_sites:
-                
-                patch = patches.PathPatch(path, facecolor='purple', alpha=0.5, edgecolor='purple')
-                
-        ax.add_patch(patch)
-    
-    
-    lat_lon_df = odf[(odf['site'].isin(short_site_list))].groupby('site').first().reset_index()
-    
-    for site in short_site_list:
-        
-        if c == 0:
-            
-            if site == 'KSBP01':
-            
-                sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='lightgray', alpha=0.5, edgecolor='black', ax = ax, s=30,  label='~20-year history')
-            
-            else:
-                
-                sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='lightgray', alpha=0.5, edgecolor='black', ax = ax,  s=30)
-        
-        else:
-            
-            sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='lightgray', alpha=0.5, edgecolor='gray', ax = ax,  s=30)
-     
-        if c == 1:
-            
-            if site in summer_deep_hyp_sites: 
-                
-                if site == 'HCB007':
-                        
-                    sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', alpha=0.5, edgecolor='red', ax = ax,  s=30, label = 'deep hypoxia')
-                    
-                else:
-                    
-                    sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', alpha=0.5, edgecolor='red', ax = ax,  s=30)
-                
-        elif c == 2:
-            
-            if site in dec_summer_deep_DO_sites:
-                
-                if site == 'OAK004':
-                
-                    sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='orange', alpha=0.5, edgecolor='orange', ax = ax,  s=30, label = 'decreasing deep DO')
-                    
-                else:
-                    
-                    sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='orange', alpha=0.5, edgecolor='orange', ax = ax, s=30)
-                
-        elif c == 3: 
-            
-            if site in inc_summer_surf_CT_sites:
-                
-                if site == 'ADM003':
-                
-                    sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='magenta', alpha=0.5, edgecolor='magenta', ax = ax,  s=30, label = 'surface warming')
-                    
-                else:
-                    
-                    sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='magenta', alpha=0.5, edgecolor='magenta', ax = ax, s=30)
-                
-        elif c == 4:
-            
-            if site in inc_summer_strat_sites:
-                                
-                
-                if site == 'HCB007':
-            
-                    sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='purple', alpha=0.5, edgecolor='purple', ax = ax,  s=30, label = 'increasing stratification')
-        
-                
-                else:
-                
-                    sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='purple', alpha=0.5, edgecolor='purple', ax = ax,  s=30)
 
+#         patch = patches.PathPatch(path, facecolor='blue', edgecolor='white')#, label='>60-year history')
+        
+#     else:
+        
+#         patch = patches.PathPatch(path, facecolor='blue', edgecolor='white')
+        
+#     ax.add_patch(patch)
+    
+#     # if site == 'near_seattle_offshore':
+        
+#     #     ax.text(path.vertices[0][0] - 0.55, path.vertices[0][1] + 0.02, site.replace('_', ' ').title(), color= 'blue') #, backgroundcolor='white')
+        
+#     # elif site == 'saratoga_passage_mid':
+        
+#     #     ax.text(path.vertices[0][0]-0.4, path.vertices[0][1] + 0.01, site.replace('_', ' ').title(), color= 'blue') #, backgroundcolor='white')
+        
+#     # elif site == 'point_jefferson':
+    
+#     #     ax.text(path.vertices[0][0]-0.3, path.vertices[0][1] + 0.01, site.replace('_', ' ').title(), color= 'blue') #, backgroundcolor='white')
 
-    pfun.add_coast(ax) 
+#     # else:
     
-    pfun.dar(ax)
+#     #     ax.text(path.vertices[0][0]-0.1, path.vertices[0][1] + 0.01, site.replace('_', ' ').title(), color= 'blue') #, backgroundcolor='white')
+
     
-    ax.set_xlim(-123.3, -122.1)
     
-    ax.set_ylim(47,48.5)
     
-    ax.set(xlabel=None)
-     
-    ax.set(ylabel=None)
+lat_lon_df = odf[(odf['site'].isin(short_site_list))].groupby('site').first().reset_index()
+
+for site in short_site_list:
     
-    ax.tick_params(axis='x', labelrotation=45)
+    if site == 'KSBP01':
     
-    ax.legend(loc='upper left')
+        sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', edgecolor='white', ax = ax, s=50) #,  label='~20-year history')
     
-    c+=1
+    else:
+        
+        sns.scatterplot(data=lat_lon_df[lat_lon_df['site'] == site], x='lon', y='lat', facecolor='red', edgecolor='white', ax = ax,  s=50)   
+
+    # if site in ['SAR003','KSBP01','PSB003', 'CRR001', 'HCB007']:
+        
+    #     ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] + 0.04, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+
+    # elif site == 'DNA001':
+    #     ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] - 0.15, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+
+    # else:
+        
+    #     ax.text(lat_lon_df[lat_lon_df['site'] == site]['lon'] + 0.02, lat_lon_df[lat_lon_df['site'] == site]['lat'] - 0.02, site, color= 'red', backgroundcolor='white')
+    
+
+pfun.add_coast(ax) 
+    
+pfun.dar(ax)
+
+ax.set_xlim(-123.3, -122.1)
+
+ax.set_ylim(47,48.5)
+
+ax.set(xlabel=None)
+ 
+ax.set(ylabel=None)
+
+ax.tick_params(axis='x', labelrotation=45)
+
+#ax.legend(loc='upper left')
     
 
 fig.tight_layout()
 
     
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/all_trends.png', bbox_inches='tight', dpi=500)
-
-# %%
-
-odf_depth_mean_monthly = temp0.groupby(['site', 'segment', 'surf_deep', 'summer_non_summer', 'year_month', 'var','cid']).mean(numeric_only=True).reset_index().dropna()
-
-
-# %%
-
-monthly_counts = (odf_depth_mean_monthly
-                      .dropna()
-                      #.set_index('datetime')
-                      .groupby(['site','segment', 'year_month','summer_non_summer', 'surf_deep', 'var']).agg({'cid' :lambda x: x.nunique()})
-                      .reset_index()
-                      .rename(columns={'cid':'cid_count'})
-                      )
-
-# %%
-
-odf_monthly_use = odf_depth_mean_monthly.groupby(['site', 'segment', 'surf_deep', 'summer_non_summer', 'year_month','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
-
-# %%
-
-odf_monthly_use.columns = odf_monthly_use.columns.to_flat_index().map('_'.join)
-
-odf_monthly_use = odf_monthly_use.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
-
-# %%
-
-odf_monthly_use = (odf_monthly_use
-                  # .drop(columns=['date_ordinal_std'])
-                  .rename(columns={'date_ordinal_mean':'date_ordinal'})
-                  #.reset_index() 
-                  .dropna()
-                  .assign(
-                          #segment=(lambda x: key),
-                          # year=(lambda x: pd.DatetimeIndex(x['datetime']).year),
-                          # month=(lambda x: pd.DatetimeIndex(x['datetime']).month),
-                          # season=(lambda x: pd.cut(x['month'],
-                          #                          bins=[0,3,6,9,12],
-                          #                          labels=['winter', 'spring', 'summer', 'fall'])),
-                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-                          )
-                  )
-
-
-# %%
-
-odf_monthly_use = pd.merge(odf_monthly_use, monthly_counts, how='left', on=['site','segment', 'surf_deep','summer_non_summer','year_month','var'])
-
-# %%
-
-odf_monthly_use = odf_monthly_use[odf_monthly_use['cid_count'] >1] #redundant but fine (see note line 234)
-
-odf_monthly_use['val_ci95hi'] = odf_monthly_use['val_mean'] + 1.96*odf_monthly_use['val_std']/np.sqrt(odf_monthly_use['cid_count'])
-
-odf_monthly_use['val_ci95lo'] = odf_monthly_use['val_mean'] - 1.96*odf_monthly_use['val_std']/np.sqrt(odf_monthly_use['cid_count'])
-
-# %%
-
-colors = {'Main Basin':'gold', 'Whidbey Basin':'fuchsia', 'Hood Canal':'orange', 'South Sound':'purple'}
-
-
-fig, ax = plt.subplots(figsize=(3,3))
-
-plot_df= odf_monthly_use[(odf_monthly_use['site'].isin(short_site_list)) & (odf_monthly_use['summer_non_summer'] == 'summer')]
-
-plot_df = plot_df.pivot(index=['site', 'year_month', 'date_ordinal', 'segment'], columns = ['surf_deep', 'var'], values= 'val_mean')
-
-
-
-
-plot_df.columns = plot_df.columns.to_flat_index().map('_'.join)
-
-plot_df = plot_df.reset_index()
-
-plot_df.loc[plot_df['segment'] == 'mb', 'Basin'] = 'Main Basin'
-
-plot_df.loc[plot_df['segment'] == 'wb', 'Basin'] = 'Whidbey Basin'
-
-plot_df.loc[plot_df['segment'] == 'hc', 'Basin'] = 'Hood Canal'
-
-plot_df.loc[plot_df['segment'] == 'ss', 'Basin'] = 'South Sound'
-
-
-g = sns.relplot(data = plot_df, x='surf_CT', y='surf_DO_mg_L', col='Basin', col_wrap=2, hue='Basin', palette=colors, alpha=0.7, legend=False)
-
-g.set_ylabels('Surface DO [mg/L]', clear_inner=True)
-
-g.set_xlabels('Surface Temperature [deg C]', clear_inner=True) 
-
-
-for ax in g.axes.flatten():
-
-    ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-    
-    ax.axhspan(0,2, color = 'lightgray', alpha = 0.2)
-
-    ax.set_ylim(0,18)
-
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/short_surfCT_v_surfDO_monthly.png', bbox_inches='tight', dpi=500)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/short_sites_PRESENT.png', bbox_inches='tight', dpi=500,transparent=True)

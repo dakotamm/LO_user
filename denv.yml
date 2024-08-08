@@ -43,3 +43,4 @@ dependencies:
   # and some non-python tools
   - ffmpeg
   - seaborn
+  - cmcrameri
