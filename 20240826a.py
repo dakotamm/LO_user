@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Aug  8 12:03:22 2024
+Created on Mon Aug 26 13:57:46 2024
 
 @author: dakotamascarenas
 """
@@ -171,7 +171,7 @@ odf = odf[odf['short_long'] != 'nan']
 
 # %%
 
-short_site_list = odf[odf['short_long'] == 'short']['name'].unique()
+short_site_list = odf[odf['short_long'] == 'short']['name'].unique().tolist()
 
 
 # %%
@@ -379,7 +379,13 @@ odf_depth_mean_deep_DO_percentiles = pd.merge(odf_depth_mean_deep_DO_percentiles
 
 odf_depth_mean_deep_DO_percentiles = pd.merge(odf_depth_mean_deep_DO_percentiles, odf_depth_mean_deep_DO_q25, how='left', on=['site','summer_non_summer','year'])
 
+# %%
 
+site_list = short_site_list + long_site_list
+
+# %%
+
+# %%
 
 # %%
 
@@ -393,32 +399,31 @@ for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
     odf_depth_mean_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
 
     cid_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_less_than_percentile['cid']
+    
+    odf_use = odf_depth_mean.copy()
 
-    odf_use = odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep_DO_less_than_percentile)]
-
-    odf_calc_use = odf_calc_long[odf_calc_long['cid'].isin(cid_deep_DO_less_than_percentile)]
+    odf_calc_use = odf_calc_long.copy()
 
     odf_use = (odf_use
-                      .dropna()
-                      .assign(
-                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-                              )
-                      )
-    
+                  .dropna()
+                  .assign(
+                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                          )
+                  )
+
     odf_calc_use = (odf_calc_use
-                      .dropna()
-                      .assign(
-                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-                              )
-                      )
-
-
-
-    for site in long_site_list: #odf_use['site'].unique():
+                  .dropna()
+                  .assign(
+                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                          )
+                  )
+    
+    for site in site_list:
         
-        for season in ['summer']:
+        for season in ['non_summer', 'summer']:
             
             for var in odf_calc_use['var'].unique():
+
                         
                 mask = (odf_calc_use['site'] == site) & (odf_calc_use['summer_non_summer'] == season) & (odf_calc_use['var'] == var)
                 
@@ -461,6 +466,8 @@ for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
                         plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime_unc_cent', 'slope_datetime', 'slope_datetime_s']].head(1)
                         
                         plot_df_concat['deep_DO_q'] = deep_DO_q
+                        
+                        plot_df_concat['summer_non_summer'] = season
             
                         all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
                 
@@ -513,6 +520,8 @@ for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
                         plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime_unc_cent', 'slope_datetime', 'slope_datetime_s', 'slope_datetime_s_hi', 'slope_datetime_s_lo']].head(1)
                         
                         plot_df_concat['deep_DO_q'] = deep_DO_q
+                        
+                        plot_df_concat['summer_non_summer'] = season
             
                         all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
             
@@ -522,7 +531,13 @@ for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
                 
                 for var in var_list:
                     
-                    mask = (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+                    if var == 'DO_mg_L':
+                        
+                        mask = (odf_use['cid'].isin(cid_deep_DO_less_than_percentile)) & (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+                    
+                    else:
+                        
+                        mask = (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
                     
                     plot_df = odf_use[mask]
                     
@@ -559,14 +574,14 @@ for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
                             plot_df['slope_datetime_s'] = slope_datetime_s #per year
                             
                             plot_df['slope_datetime_unc_cent'] =  str(np.round(slope_datetime*100,1)) + '+/-' + str(np.round(slope_datetime_s*100,1))
-                            
-                            #plot_df['var_'] = plot_df['var']
-                            
+                                                        
                             plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
                                                             
                             plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime_unc_cent', 'slope_datetime', 'slope_datetime_s']].head(1)
                             
                             plot_df_concat['deep_DO_q'] = deep_DO_q
+                            
+                            plot_df_concat['summer_non_summer'] = season
                 
                             all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
                     
@@ -616,434 +631,380 @@ for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
                             
                     
                             plot_df['slope_datetime_unc_cent'] =  str(np.round(slope_datetime*100,1)) + '+/-' + str(np.round(slope_datetime_s*100,1))
-                
-                            #plot_df = plot_df.rename(columns={'var': 'var_'})
-                            
+                                            
                             plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
                                                             
                             plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime_unc_cent', 'slope_datetime', 'slope_datetime_s', 'slope_datetime_s_hi', 'slope_datetime_s_lo']].head(1)
                             
                             plot_df_concat['deep_DO_q'] = deep_DO_q
+                            
+                            plot_df_concat['summer_non_summer'] = season
                 
                             all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
                             
+# %%
+
+
+alpha = 0.05
+
+all_stats_filt_short = pd.DataFrame()
+
+for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
+
+
+    odf_depth_mean_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_percentiles[(odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]) & (odf_depth_mean_deep_DO_percentiles['year'] >=1999)]
+
+    cid_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_less_than_percentile['cid']
+    
+    odf_use = odf_depth_mean[odf_depth_mean['year'] >= 1999].copy()
+
+    odf_calc_use = odf_calc_long[odf_calc_long['year'] >= 1999].copy()
+
+    odf_use = (odf_use
+                  .dropna()
+                  .assign(
+                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                          )
+                  )
+
+    odf_calc_use = (odf_calc_use
+                  .dropna()
+                  .assign(
+                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                          )
+                  )
+    
+    for site in site_list:
+        
+        for season in ['non_summer', 'summer']:
+            
+            for var in odf_calc_use['var'].unique():
+
                         
+                mask = (odf_calc_use['site'] == site) & (odf_calc_use['summer_non_summer'] == season) & (odf_calc_use['var'] == var)
+                
+                plot_df = odf_calc_use[mask]
+                
+                x = plot_df['date_ordinal']
+                
+                x_plot = plot_df['datetime']
+                
+                y = plot_df['val']
+                
+                for stat in ['linreg', 'mk_ts']:
+                    
+                    plot_df = odf_calc_use[mask]
+                    
+                    if stat == 'linreg':
+                        
+                        plot_df['stat'] = stat
+                
+                        result = stats.linregress(x, y)
+                        
+                        B1 = result.slope
+                        
+                        B0 = result.intercept
+                        
+                        sB1 = result.stderr
+                        
+                        plot_df['p'] = result.pvalue
+                        
+                        slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                        
+                        slope_datetime_s = (B0 + sB1*x.max() - (B0 + sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                
+                        plot_df['slope_datetime'] = slope_datetime #per year
+                        
+                        plot_df['slope_datetime_s'] = slope_datetime_s #per year
+                        
+                        plot_df['slope_datetime_unc_cent'] =  str(np.round(slope_datetime*100,1)) + '+/-' + str(np.round(slope_datetime_s*100,1))
+                        
+                        plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime_unc_cent', 'slope_datetime', 'slope_datetime_s']].head(1)
+                        
+                        plot_df_concat['deep_DO_q'] = deep_DO_q
+                        
+                        plot_df_concat['summer_non_summer'] = season
+            
+                        all_stats_filt_short = pd.concat([all_stats_filt_short, plot_df_concat])
+                
+                    elif stat == 'mk_ts':
+                        
+                        plot_df['stat'] = stat
+                        
+                        reject_null, p_value, Z = dfun.mann_kendall(y, alpha)
+                                    
+                        plot_df['p'] = p_value
+                                    
+                        result = stats.theilslopes(y,x,alpha=alpha)
+                
+                        B1 = result.slope
+                
+                        B0 = result.intercept
+                        
+                        high_sB1 = result.high_slope
+                        
+                        low_sB1 = result.low_slope
+    
+                        slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                
+                        plot_df['slope_datetime'] = slope_datetime #per year
+                
+                        if (high_sB1-B1) >= (B1-low_sB1):
+                            
+                            sB1 = high_sB1-B1
+                            
+                        else:
+                            
+                            sB1 = B1-low_sB1
+                                    
+                        slope_datetime_s = (B0 + sB1*x.max() - (B0 + sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                
+                        plot_df['slope_datetime_s'] = slope_datetime_s #per year
+                        
+                        
+                        slope_datetime_s_hi = (B0 + high_sB1*x.max() - (B0 + high_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                        
+                        slope_datetime_s_lo = (B0 + low_sB1*x.max() - (B0 + low_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                        
+                        plot_df['slope_datetime_s_hi'] = slope_datetime_s_hi #per year
+                        
+                        plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
+                        
+                
+                        plot_df['slope_datetime_unc_cent'] =  str(np.round(slope_datetime*100,1)) + '+/-' + str(np.round(slope_datetime_s*100,1))
+                        
+                        plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime_unc_cent', 'slope_datetime', 'slope_datetime_s', 'slope_datetime_s_hi', 'slope_datetime_s_lo']].head(1)
+                        
+                        plot_df_concat['deep_DO_q'] = deep_DO_q
+                        
+                        plot_df_concat['summer_non_summer'] = season
+            
+                        all_stats_filt_short = pd.concat([all_stats_filt_short, plot_df_concat])
+            
+            
+            
+            for depth in ['surf', 'deep']:
+                
+                for var in var_list:
+                    
+                    if var == 'DO_mg_L':
+                        
+                        mask = (odf_use['cid'].isin(cid_deep_DO_less_than_percentile)) & (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+                    
+                    else:
+                        
+                        mask = (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+                    
+                    plot_df = odf_use[mask]
+                    
+                    x = plot_df['date_ordinal']
+                    
+                    x_plot = plot_df['datetime']
+                    
+                    y = plot_df['val']
+                    
+                    for stat in ['linreg', 'mk_ts']:
+                        
+                        plot_df = odf_use[mask]
+                        
+                        if stat == 'linreg':
+                            
+                            plot_df['stat'] = stat
+                    
+                            result = stats.linregress(x, y)
+                            
+                            B1 = result.slope
+                            
+                            B0 = result.intercept
+                            
+                            sB1 = result.stderr
+                            
+                            plot_df['p'] = result.pvalue
+                            
+                            slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                            
+                            slope_datetime_s = (B0 + sB1*x.max() - (B0 + sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                    
+                            plot_df['slope_datetime'] = slope_datetime #per year
+                            
+                            plot_df['slope_datetime_s'] = slope_datetime_s #per year
+                            
+                            plot_df['slope_datetime_unc_cent'] =  str(np.round(slope_datetime*100,1)) + '+/-' + str(np.round(slope_datetime_s*100,1))
+                                                        
+                            plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
+                                                            
+                            plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime_unc_cent', 'slope_datetime', 'slope_datetime_s']].head(1)
+                            
+                            plot_df_concat['deep_DO_q'] = deep_DO_q
+                            
+                            plot_df_concat['summer_non_summer'] = season
+                
+                            all_stats_filt_short = pd.concat([all_stats_filt_short, plot_df_concat])
+                    
+                        elif stat == 'mk_ts':
+                            
+                            plot_df['stat'] = stat
+                            
+                            reject_null, p_value, Z = dfun.mann_kendall(y, alpha)
+                                        
+                            plot_df['p'] = p_value
+                    
+                    
+                            result = stats.theilslopes(y,x,alpha=alpha)
+                    
+                            B1 = result.slope
+                    
+                            B0 = result.intercept
+                            
+                            high_sB1 = result.high_slope
+                            
+                            low_sB1 = result.low_slope
+    
+                            slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                    
+                            plot_df['slope_datetime'] = slope_datetime #per year
+                    
+                            if (high_sB1-B1) >= (B1-low_sB1):
+                                
+                                sB1 = high_sB1-B1
+                                
+                            else:
+                                
+                                sB1 = B1-low_sB1
+                                        
+                            slope_datetime_s = (B0 + sB1*x.max() - (B0 + sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                    
+                            plot_df['slope_datetime_s'] = slope_datetime_s #per year
+                            
+                            
+                            slope_datetime_s_hi = (B0 + high_sB1*x.max() - (B0 + high_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                            
+                            slope_datetime_s_lo = (B0 + low_sB1*x.max() - (B0 + low_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                            
+                            plot_df['slope_datetime_s_hi'] = slope_datetime_s_hi #per year
+                            
+                            plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
+                            
+                    
+                            plot_df['slope_datetime_unc_cent'] =  str(np.round(slope_datetime*100,1)) + '+/-' + str(np.round(slope_datetime_s*100,1))
+                                            
+                            plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
+                                                            
+                            plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime_unc_cent', 'slope_datetime', 'slope_datetime_s', 'slope_datetime_s_hi', 'slope_datetime_s_lo']].head(1)
+                            
+                            plot_df_concat['deep_DO_q'] = deep_DO_q
+                            
+                            plot_df_concat['summer_non_summer'] = season
+                
+                            all_stats_filt_short = pd.concat([all_stats_filt_short, plot_df_concat])
+                            
 # %%
 
 c=0
 
 all_stats_filt = all_stats_filt.sort_values(by=['site'])
 
+all_stats_filt_short = all_stats_filt_short.sort_values(by=['site'])
+
+
 
 for site in all_stats_filt['site'].unique():
         
     all_stats_filt.loc[all_stats_filt['site'] == site, 'site_num'] = c
     
+    all_stats_filt_short.loc[all_stats_filt_short['site'] == site, 'site_num'] = c
+    
     c+=1
     
-# %%
+site_labels = sorted(site_list)
 
-site_labels = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'point_jefferson', 'saratoga_passage_mid']
 
-# %%
 
-mosaic = [['map', 'deep_DO_mg_L', 'surf_CT', 'strat_sigma']]
-
-fig, ax = plt.subplot_mosaic(mosaic, figsize=(12,4), layout='constrained', gridspec_kw=dict(wspace=0.1))
-
-color = '#FF7F50'
-
-ax_name = 'map'
-
-ax[ax_name].pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-100, vmax=0, cmap=plt.get_cmap(cmocean.cm.ice))
-
-ax[ax_name].pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-10, vmax=0, cmap = 'gray')
-
-for n in range(len(site_labels)):
-    
-    site = site_labels[n]
-    
-    num = n+1
-    
-    path = path_dict[site]
-    
-    patch = patches.PathPatch(path, facecolor= color, edgecolor='white', linewidth = 0.5)
+for var in all_stats_filt['var'].unique():
         
-    ax[ax_name].add_patch(patch)
-    
-    xshift = 0
-    
-    yshift = 0.04
-    
-    if site == 'near_seattle_offshore':
-        
-        xshift = -0.08
-        
-        yshift = -0.04 
-    
-    ax[ax_name].text(path.vertices[0][0] + xshift, path.vertices[0][1] + yshift, str(num), color='black', bbox=dict(facecolor='white', edgecolor='black', boxstyle='round', alpha=0.9, linewidth = 0.5))  #+ '. ' + site.replace('_', ' ').title()
-    
-    
-    pfun.add_coast(ax[ax_name]) 
-        
-    pfun.dar(ax[ax_name])
-
-    ax[ax_name].set_xlim(-123.3, -122.1)
-
-    ax[ax_name].set_ylim(47,48.5)
-
-    ax[ax_name].set(xlabel=None) 
-     
-    ax[ax_name].set(ylabel=None)
-
-    #ax[ax_name].tick_params(axis='x', labelrotation=45)
-    
-
-for var in ['deep_DO_mg_L', 'surf_CT', 'strat_sigma']:
-    
-    if var == 'deep_DO_mg_L':
-        
-        ylabel = r'$\Delta$ Bottom 20% DO [mg/L/century]'
-        
-    elif var == 'surf_CT':
-        
-        ylabel = r'$\Delta$ Surface 5m Temperature [$^{\circ}$C/century]'
-        
-    else:
-        
-        ylabel = r'$\Delta$ Density Difference (Bottom 20% - Surface 5m) [$\sigma$/century]'
-        
-    
     for stat in ['mk_ts']:
         
-        for deep_DO_q in ['deep_DO_q50']:
-            
-            ax_name = var
+        for season in ['summer']:
         
-            plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['var'] == var) & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q)]
-            
-            plot_df = plot_df.sort_values(by=['site'])
-            
-            plot_df['slope_datetime_cent'] = plot_df['slope_datetime']*100
-            
-            plot_df['slope_datetime_cent_s'] = plot_df['slope_datetime_s']*100
-            
-            plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_cent'] + plot_df['slope_datetime_cent_s']
-            
-            plot_df['slope_datetime_cent_95lo'] = plot_df['slope_datetime_cent'] - plot_df['slope_datetime_cent_s']
-            
-            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95hi', color = color, ax = ax[ax_name], s= 20, legend=False)
-    
-            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95lo', color = color, ax = ax[ax_name], s= 20, legend=False)
-    
-            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', color = color, ax = ax[ax_name], s =100)
-            
-            for idx in plot_df.index:
+            for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
                 
-                ax[ax_name].plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=color, alpha =0.7, zorder = -4)
-            
-            
-            ymin = -max(abs(plot_df['slope_datetime_cent']))*2
-            
-            ymax = max(abs(plot_df['slope_datetime_cent']))*2
-            
-            ax[ax_name].set_xticks([0,1,2,3,4],['1','2','3','4','5']) 
-            
-            ax[ax_name].grid(color = 'lightgray', linestyle = '--', alpha=0.3)
-                                    
-            ax[ax_name].axhline(0, color='gray', linestyle = '--', zorder = -5)
-            
-            ax[ax_name].set_ylabel(ylabel, wrap=True)
-            
-            ax[ax_name].set_xlabel('')
-            
-            ax[ax_name].set_ylim(ymin, ymax)
-    
-
-    
-        
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/for_Parker_sym_ci.png', dpi=500,transparent=False, bbox_inches='tight')
-
-    
-# %%
-
-mosaic = [['map', 'deep_DO_mg_L', 'surf_CT', 'strat_sigma']]
-
-fig, ax = plt.subplot_mosaic(mosaic, figsize=(12,4), layout='constrained', gridspec_kw=dict(wspace=0.1))
-
-color = '#FF7F50'
-
-ax_name = 'map'
-
-ax[ax_name].pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-100, vmax=0, cmap=plt.get_cmap(cmocean.cm.ice))
-
-ax[ax_name].pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-10, vmax=0, cmap = 'gray')
-
-for n in range(len(site_labels)):
-    
-    site = site_labels[n]
-    
-    num = n+1
-    
-    path = path_dict[site]
-    
-    patch = patches.PathPatch(path, facecolor= color, edgecolor='white', linewidth = 0.5)
-        
-    ax[ax_name].add_patch(patch)
-    
-    xshift = 0
-    
-    yshift = 0.04
-    
-    if site == 'near_seattle_offshore':
-        
-        xshift = -0.08
-        
-        yshift = -0.04 
-    
-    ax[ax_name].text(path.vertices[0][0] + xshift, path.vertices[0][1] + yshift, str(num), color='black', bbox=dict(facecolor='white', edgecolor='black', boxstyle='round', alpha=0.9, linewidth = 0.5))  #+ '. ' + site.replace('_', ' ').title()
-    
-    
-    pfun.add_coast(ax[ax_name]) 
-        
-    pfun.dar(ax[ax_name])
-
-    ax[ax_name].set_xlim(-123.3, -122.1)
-
-    ax[ax_name].set_ylim(47,48.5)
-
-    ax[ax_name].set(xlabel=None) 
-     
-    ax[ax_name].set(ylabel=None)
-
-    #ax[ax_name].tick_params(axis='x', labelrotation=45)
-    
-
-for var in ['deep_DO_mg_L', 'surf_CT', 'strat_sigma']:
-    
-    if var == 'deep_DO_mg_L':
-        
-        ylabel = r'$\Delta$ Bottom 20% DO [mg/L/century]'
-        
-    elif var == 'surf_CT':
-        
-        ylabel = r'$\Delta$ Surface 5m Temperature [$^{\circ}$C/century]'
-        
-    else:
-        
-        ylabel = r'$\Delta$ Density Difference (Bottom 20% - Surface 5m) [$\sigma$/century]'
-        
-    
-    for stat in ['mk_ts']:
-        
-        for deep_DO_q in ['deep_DO_q50']:
-            
-            ax_name = var
-        
-            plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['var'] == var) & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q)]
-            
-            plot_df = plot_df.sort_values(by=['site'])
-            
-            plot_df['slope_datetime_cent'] = plot_df['slope_datetime']*100
-            
-            plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_s_hi']*100
-            
-            plot_df['slope_datetime_cent_95lo'] = plot_df['slope_datetime_s_lo']*100
-
-            
-            # plot_df['slope_datetime_cent_s'] = plot_df['slope_datetime_s']*100
-            
-            # plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_cent'] + plot_df['slope_datetime_cent_s']
-            
-            # plot_df['slope_datetime_cent_95lo'] = plot_df['slope_datetime_cent'] - plot_df['slope_datetime_cent_s']
-            
-            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95hi', color = color, ax = ax[ax_name], s= 20, legend=False)
-    
-            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95lo', color = color, ax = ax[ax_name], s= 20, legend=False)
-    
-            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', color = color, ax = ax[ax_name], s =100)
-            
-            for idx in plot_df.index:
+                fig, ax = plt.subplots(figsize=(4,4))
                 
-                ax[ax_name].plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=color, alpha =0.7, zorder = -4)
+                
+                color = 'lightgray'
+
+                
             
+                plot_df = all_stats_filt[(all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['stat'] == stat) & (all_stats_filt['summer_non_summer'] == season) & (all_stats_filt['var'] == var) & (all_stats_filt['site'].isin(site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q)]
+                
+                plot_df = plot_df.sort_values(by=['site'])
+                
+                plot_df['slope_datetime_cent'] = plot_df['slope_datetime']*100
+                
+                plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_s_hi']*100
+                
+                plot_df['slope_datetime_cent_95lo'] = plot_df['slope_datetime_s_lo']*100
+                
+        
+                
+                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95hi', color = color, ax = ax, s= 20, legend=False)
+        
+                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95lo', color = color, ax = ax, s= 20, legend=False)
+        
+                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', color = color, ax = ax, s =100, label='Since 1930')
+                
+                for idx in plot_df.index:
+                    
+                    ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=color, alpha =0.5, zorder = -4)
+                
+                
+                
+                color = '#FF7F50'
+
+                
+                
+                plot_df = all_stats_filt_short[(all_stats_filt_short['site'].isin(long_site_list)) & (all_stats_filt_short['stat'] == stat) & (all_stats_filt_short['summer_non_summer'] == season) & (all_stats_filt_short['var'] == var) & (all_stats_filt_short['site'].isin(site_list)) & (all_stats_filt_short['deep_DO_q'] == deep_DO_q)]
+                
+                plot_df = plot_df.sort_values(by=['site'])
+                
+                plot_df['slope_datetime_cent'] = plot_df['slope_datetime']*100
+                
+                plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_s_hi']*100
+                
+                plot_df['slope_datetime_cent_95lo'] = plot_df['slope_datetime_s_lo']*100
+                
+                
+                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95hi', color = color, ax = ax, s= 20, legend=False)
+        
+                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95lo', color = color, ax = ax, s= 20, legend=False)
+        
+                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', color = color, ax = ax, s =100, label='Since 1999')
+                
+                for idx in plot_df.index:
+                    
+                    ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=color, alpha =0.5, zorder = -4)
+                
+                
+                
+                
+                
+                ymin = -max(abs(plot_df['slope_datetime_cent']))*4
+                
+                ymax = max(abs(plot_df['slope_datetime_cent']))*4
+                
+                ax.set_xticks(sorted(plot_df['site_num'].unique().tolist()), ['1','2','3','4','5'])
+                
+                ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3)
+                                        
+                ax.axhline(0, color='gray', linestyle = '--', zorder = -5)
+                
+                ax.set_ylabel(var + ' unit/cent.', wrap=True)
+                
+                ax.set_xlabel('')
+                
+                ax.set_ylim(ymin, ymax)
+        
+    
+        
             
-            ymin = -max(abs(plot_df['slope_datetime_cent']))*2
-            
-            ymax = max(abs(plot_df['slope_datetime_cent']))*2
-            
-            ax[ax_name].set_xticks([0,1,2,3,4],['1','2','3','4','5']) 
-            
-            ax[ax_name].grid(color = 'lightgray', linestyle = '--', alpha=0.3)
-                                    
-            ax[ax_name].axhline(0, color='gray', linestyle = '--', zorder = -5)
-            
-            ax[ax_name].set_ylabel(ylabel, wrap=True)
-            
-            ax[ax_name].set_xlabel('')
-            
-            ax[ax_name].set_ylim(ymin, ymax)
-    
-
-    
-        
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/for_Parker_asym_ci.png', dpi=500,transparent=False, bbox_inches='tight')
-
-# %%
-
-odf_use = odf_depth_mean.copy()
-
-odf_calc_use = odf_calc_long.copy()
-
-odf_use_full = (odf_use
-                  .dropna()
-                  .assign(
-                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-                          )
-                  )
-
-odf_calc_use_full = (odf_calc_use
-                  .dropna()
-                  .assign(
-                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-                          )
-                  )
-
-odf_use_AugNov = odf_use_full[(odf_use_full['yearday'] >= low_DO_season_start) & (odf_use_full['yearday'] <= low_DO_season_end)]
-
-odf_calc_use_AugNov = odf_calc_use_full[(odf_calc_use_full['yearday'] >= low_DO_season_start) & (odf_calc_use_full['yearday'] <= low_DO_season_end)]
-
-
-
-
-for deep_DO_q in ['deep_DO_q25', 'deep_DO_q50', 'deep_DO_q75']:
-
-
-    odf_depth_mean_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
-
-    cid_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_less_than_percentile['cid']
-
-    odf_use = odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep_DO_less_than_percentile)]
-
-    odf_calc_use = odf_calc_long[odf_calc_long['cid'].isin(cid_deep_DO_less_than_percentile)]
-
-    odf_use = (odf_use
-                      .dropna()
-                      .assign(
-                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-                              )
-                      )
-    
-    odf_calc_use = (odf_calc_use
-                      .dropna()
-                      .assign(
-                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-                              )
-                      )
-    
-    odf_use = odf_use[(odf_use['yearday'] >= low_DO_season_start) & (odf_use['yearday'] <= low_DO_season_end)]
-    
-    odf_calc_use = odf_calc_use[(odf_calc_use['yearday'] >= low_DO_season_start) & (odf_calc_use['yearday'] <= low_DO_season_end)]
-    
-    if deep_DO_q == 'deep_DO_q25':
-    
-        odf_use_q25 = odf_use
-        
-        odf_calc_use_q25 = odf_calc_use
-        
-    elif deep_DO_q == 'deep_DO_q50':
-        
-        odf_use_q50 = odf_use
-        
-        odf_calc_use_q50 = odf_calc_use
-        
-    elif deep_DO_q == 'deep_DO_q75':
-        
-        odf_use_q75 = odf_use
-        
-        odf_calc_use_q75 = odf_calc_use
-        
-        
-
-        
-# %%
-
-                             
-for site in long_site_list:
-    
-    plot_df_full = odf_use_full[(odf_use_full['site'] == site) & (odf_use_full['var'] == 'DO_mg_L') & (odf_use_full['surf_deep'] == 'deep')]
-    
-    plot_df_AugNov = odf_use_AugNov[(odf_use_AugNov['site'] == site) & (odf_use_AugNov['var'] == 'DO_mg_L') & (odf_use_AugNov['surf_deep'] == 'deep')]
-    
-    plot_df_q25 = odf_use_q25[(odf_use_q25['site'] == site) & (odf_use_q25['var'] == 'DO_mg_L') & (odf_use_q25['surf_deep'] == 'deep')]
-    
-    plot_df_q50 = odf_use_q50[(odf_use_q50['site'] == site) & (odf_use_q50['var'] == 'DO_mg_L') & (odf_use_q50['surf_deep'] == 'deep')]
-
-    plot_df_q75 = odf_use_q75[(odf_use_q75['site'] == site) & (odf_use_q75['var'] == 'DO_mg_L') & (odf_use_q75['surf_deep'] == 'deep')]
-
-    
-    fig, ax = plt.subplots(figsize=(8,8), nrows=3, sharex=True)
-    
-    sns.scatterplot(data=plot_df_full, x='year', y = 'val',  ax=ax[0], label = 'all')
-    
-    sns.scatterplot(data=plot_df_AugNov, x='year', y = 'val',  ax=ax[0], label = 'Aug-Nov')
-    
-    sns.scatterplot(data=plot_df_q75, x='year', y = 'val',  ax=ax[0], label = 'q75')
-    
-    sns.scatterplot(data=plot_df_q50, x='year', y = 'val',  ax=ax[0], label = 'q50')
-    
-    sns.scatterplot(data=plot_df_q25, x='year', y = 'val',  ax=ax[0], label = 'q25')
-    
-    
-    sns.scatterplot(data=plot_df_full, x='year', y = 'yearday',  ax=ax[1], label = 'all')
-    
-    sns.scatterplot(data=plot_df_AugNov, x='year', y = 'yearday',  ax=ax[1], label = 'Aug-Nov')
-    
-    sns.scatterplot(data=plot_df_q75, x='year', y = 'yearday',  ax=ax[1], label = 'q75')
-    
-    sns.scatterplot(data=plot_df_q50, x='year', y = 'yearday',  ax=ax[1], label = 'q50')
-    
-    sns.scatterplot(data=plot_df_q25, x='year', y = 'yearday',  ax=ax[1], label = 'q25')
-    
-    
-    sns.scatterplot(data=plot_df_full, x='year', y = 'z',  ax=ax[2], label = 'all')
-    
-    sns.scatterplot(data=plot_df_AugNov, x='year', y = 'z',  ax=ax[2], label = 'Aug-Nov')
-    
-    sns.scatterplot(data=plot_df_q75, x='year', y = 'z',  ax=ax[2], label = 'q75')
-    
-    sns.scatterplot(data=plot_df_q50, x='year', y = 'z',  ax=ax[2], label = 'q50')
-    
-    sns.scatterplot(data=plot_df_q25, x='year', y = 'z',  ax=ax[2], label = 'q25')
-
-
-
-
-    
-    ax[0].set_ylim(0, 15)
-    
-    ax[0].axhspan(0,2, color = 'lightgray', alpha = 0.2)
-    
-    ax[0].set_ylabel('cast deep DO [mg/L]')
-    
-    ax[1].set_ylim(0,366)
-    
-    ax[1].set_ylabel('cast yearday')
-    
-    ax[1].axhspan(213,274, color = 'lightgray', alpha = 0.2) #july31/august1-september30/oct1
-
-    
-    ax[2].set_ylim(-300,0)
-    
-    ax[2].set_ylabel('cast deep depth [m]')
-    
-    ax[0].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-    
-    ax[1].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-
-    ax[2].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-
-    
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + site + '_percentile_DO_study.png', bbox_inches='tight', dpi=500, transparent=False)
-    
-    
+                plt.savefig('/Users/dakotamascarenas/Desktop/pltz/' + var + '_' + stat + '_' + season + '_' + deep_DO_q + '_longshortslopes_onlylongsites.png', dpi=500,transparent=False, bbox_inches='tight')

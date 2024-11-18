@@ -53,6 +53,9 @@ import seaborn as sns
 
 import scipy.stats as stats
 
+import gsw
+
+
 
 # %%
 
@@ -145,6 +148,27 @@ def getPolyData(Ldir, poly_list, source_list=['ecology_nc', 'nceiSalish', 'dfo1'
 
 # %%
 
+def getPathDict(Ldir,poly_list):
+    
+    path_dict = dict()
+
+    for poly in poly_list:
+        # polygon
+        fnp = Ldir['LOo'] / 'section_lines' / (poly+'.p')
+        p = pd.read_pickle(fnp)
+        xx = p.x.to_numpy()
+        yy = p.y.to_numpy()
+        xxyy = np.concatenate((xx.reshape(-1,1),yy.reshape(-1,1)), axis=1)
+        path = mpth.Path(xxyy)
+        # store in dicts
+        path_dict[poly] = path
+        path = path_dict[poly]
+        
+    return path_dict
+    
+
+# %%
+
 def mann_kendall(V, alpha=0.05):
     '''Mann Kendall Test (adapted from original Matlab function)
        Performs original Mann-Kendall test of the null hypothesis of trend absence in the vector V, against the alternative of trend.
@@ -214,5 +238,893 @@ def mann_kendall(V, alpha=0.05):
     
 # %%
     
-# THEIL SEN #left off 7/17/2024 resume!
+def dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_list, path_dict, basin_list):
     
+    for key in odf_dict.keys():
+        
+        odf_dict[key] = (odf_dict[key]
+                          .assign(
+                              datetime=(lambda x: pd.to_datetime(x['time'], utc=True)),
+                              year=(lambda x: pd.DatetimeIndex(x['datetime']).year),
+                              month=(lambda x: pd.DatetimeIndex(x['datetime']).month),
+                              season=(lambda x: pd.cut(x['month'],
+                                                      bins=[0,3,6,9,12],
+                                                      labels=['winter', 'spring', 'summer', 'fall'])),
+                              DO_mg_L=(lambda x: x['DO (uM)']*32/1000),
+                              NO3_uM=(lambda x: x['NO3 (uM)']),
+                              Chl_mg_m3=(lambda x: x['Chl (mg m-3)']),
+                              date_ordinal=(lambda x: x['datetime'].apply(lambda x: x.toordinal())),
+                              segment=(lambda x: key),
+                              decade=(lambda x: pd.cut(x['year'],
+                                                      bins=[1929, 1939, 1949, 1959, 1969, 1979, 1989, 1999, 2009, 2019, 2029],
+                                                      labels=['1930', '1940', '1950', '1960', '1970', '1980', '1990', '2000', '2010', '2020'], right=True))
+                                  )
+                          )
+        
+        for var in var_list:
+            
+            if var not in odf_dict[key].columns:
+                
+                odf_dict[key][var] = np.nan
+                
+        odf_dict[key] = pd.melt(odf_dict[key], id_vars=['cid', 'lon', 'lat', 'time', 'datetime', 'z', 'year', 'month', 'season', 'date_ordinal', 'segment', 'source', 'otype', 'decade', 'name'],
+                                              value_vars=var_list, var_name='var', value_name = 'val')
+        
+
+    odf = pd.concat(odf_dict.values(), ignore_index=True)
+
+
+    odf['source_type'] = odf['source'] + '_' + odf['otype']
+
+
+    odf = odf.dropna()
+    
+    odf = odf.assign(
+        ix=(lambda x: x['lon'].apply(lambda x: zfun.find_nearest_ind(lon_1D, x))),
+        iy=(lambda x: x['lat'].apply(lambda x: zfun.find_nearest_ind(lat_1D, x)))
+    )
+
+
+    odf['h'] = odf.apply(lambda x: -depths[x['iy'], x['ix']], axis=1)
+
+
+    odf['yearday'] = odf['datetime'].dt.dayofyear
+
+
+    odf = odf[odf['val'] >0]
+
+
+
+    max_depths_dict = dict()
+
+    ox = lon
+    oy = lat
+    oxoy = np.concatenate((ox.reshape(-1,1),oy.reshape(-1,1)), axis=1)
+
+
+    for poly in poly_list:
+
+        path = path_dict[poly]
+        
+        oisin = path.contains_points(oxoy)
+        
+        this_depths = depths.flatten()[oisin]
+        
+        max_depth = np.nanmax(this_depths)
+        
+        max_depths_dict[poly] = max_depth.copy()
+        
+
+
+    for basin in basin_list:
+        
+        odf.loc[odf['segment'] == basin, 'min_segment_h'] = -max_depths_dict[basin]
+    
+    return odf
+
+# %%
+
+# FOR SHORT & LONG TIME HISTORIES - v bespoke(created 9/6/2024)
+
+## more info: this deals with cleaning the odf for the five polygons for 60+ year time histories and then the 20-year ecology sites and bins into two depths
+
+def longShortClean(odf):
+
+    short_exclude_sites = ['BUD002', 'QMH002', 'PMA001', 'OCH014', 'DYE004', 'SUZ001', 'HLM001', 'PNN001', 'PSS010', 'TOT002', 'TOT001', 'HND001','ELD001', 'ELD002', 'CSE002', 'CSE001', 'HCB010', 'SKG003','HCB006', 'HCB008', 'HCB009', 'CMB006', 'EAG001', 'HCB013', 'POD007']
+    
+    big_basin_list = ['mb', 'wb', 'ss', 'hc']
+    
+    long_site_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
+    
+    
+    short_mask_ecology = (odf['segment'].isin(big_basin_list)) & (odf['source'] == 'ecology_nc') & (~odf['name'].isin(short_exclude_sites)) & (odf['year'] >= 1998)
+    
+    short_mask_point_jefferson = (odf['segment'] == 'mb') & (odf['name'] =='KSBP01') & (odf['year'] >= 1998)
+    
+    long_mask = (odf['segment'].isin(long_site_list))
+    
+    
+    odf.loc[short_mask_ecology, 'short_long'] = 'short'
+    
+    odf.loc[short_mask_point_jefferson, 'short_long'] = 'short'
+    
+    odf.loc[long_mask, 'short_long'] = 'long'
+    
+    
+    odf = odf[odf['short_long'] != 'nan']
+    
+    
+    short_site_list = odf[odf['short_long'] == 'short']['name'].unique().tolist()
+    
+    
+    
+    long_deep_non_lc_nso_mask = (odf['z'] < 0.8*odf['min_segment_h']) & (odf['segment'] != 'lynch_cove_mid') & (odf['segment'] != 'near_seattle_offshore') & (odf['short_long'] == 'long')
+    
+    long_deep_lc_mask = (odf['z'] < 0.4*odf['min_segment_h']) & (odf['segment'] == 'lynch_cove_mid') & (odf['short_long'] == 'long')
+    
+    long_deep_nso_mask = (odf['z'] < 0.75*odf['min_segment_h']) & (odf['segment'] == 'near_seattle_offshore') & (odf['short_long'] == 'long') #CHANGED 5/21/2024
+    
+    
+    short_deep_mask = (odf['z'] < 0.8*odf['h']) & (odf['short_long'] == 'short')
+    
+    surf_mask = (odf['z'] >= -5)
+    
+    
+    odf.loc[surf_mask, 'surf_deep'] = 'surf'
+    
+    odf.loc[long_deep_non_lc_nso_mask, 'surf_deep'] = 'deep'
+    
+    odf.loc[long_deep_lc_mask, 'surf_deep'] = 'deep'
+    
+    odf.loc[long_deep_nso_mask, 'surf_deep'] = 'deep'
+    
+    odf.loc[short_deep_mask, 'surf_deep'] = 'deep'
+    
+    
+    odf.loc[odf['short_long'] == 'short', 'site'] = odf[odf['short_long'] == 'short']['name']
+    
+    odf.loc[odf['short_long'] == 'long', 'site'] = odf[odf['short_long'] == 'long']['segment']
+    
+    
+    temp = odf.groupby(['site','cid']).min().reset_index()
+    
+    cid_exclude = temp[(temp['site'].isin(['HCB005', 'HCB007', 'lynch_cove_mid'])) & (temp['z'] < -50)]['cid']
+    
+    odf = odf[~odf['cid'].isin(cid_exclude)]
+    
+    
+    temp0 = odf[odf['surf_deep'] != 'nan']
+
+
+    odf_depth_mean = temp0.groupby(['site','surf_deep', 'year', 'var','cid']).mean(numeric_only=True).reset_index().dropna() #####
+
+
+    cid_deep = odf_depth_mean.loc[odf_depth_mean['surf_deep'] == 'deep', 'cid']
+
+
+    odf_depth_mean_deep = odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep)]
+
+
+    odf_calc = odf_depth_mean_deep.pivot(index = ['site', 'year', 'month', 'yearday', 'date_ordinal','cid'], columns = ['surf_deep', 'var'], values ='val')
+
+    odf_calc.columns = odf_calc.columns.to_flat_index().map('_'.join)
+
+    odf_calc = odf_calc.reset_index()
+
+
+    odf_calc['surf_dens'] = gsw.density.sigma0(odf_calc['surf_SA'], odf_calc['surf_CT'])
+
+    odf_calc['deep_dens'] = gsw.density.sigma0(odf_calc['deep_SA'], odf_calc['deep_CT'])
+
+
+    odf_calc['strat_sigma'] = odf_calc['deep_dens'] - odf_calc['surf_dens']
+
+
+    A_0 = 5.80818 #all in umol/kg, from Gordon & Garcia (1992)
+
+    A_1 = 3.20684
+
+    A_2 = 4.11890
+
+    A_3 = 4.93845
+
+    A_4 = 1.01567
+
+    A_5 = 1.41575
+
+    B_0 = -7.01211e-3
+
+    B_1 = -7.25958e-3
+
+    B_2 = -7.93334e-3
+
+    B_3 = -5.54491e-3
+
+    C_0 = -1.32412e-7
+
+
+    odf_calc['surf_T_s'] = np.log((298.15 - odf_calc['surf_CT'])/(273.15 + odf_calc['surf_CT']))
+
+    odf_calc['surf_C_o_*'] = np.exp(A_0 + A_1*odf_calc['surf_T_s'] + A_2*odf_calc['surf_T_s']**2 + A_3*odf_calc['surf_T_s']**3 + A_4*odf_calc['surf_T_s']**4 + A_5*odf_calc['surf_T_s']**5 + 
+                           odf_calc['surf_SA']*(B_0 + B_1*odf_calc['surf_T_s'] + B_2*odf_calc['surf_T_s']**2 + B_3*odf_calc['surf_T_s']**3) + C_0*odf_calc['surf_SA']**2)
+
+    odf_calc['surf_DO_sol'] =  odf_calc['surf_C_o_*']*(odf_calc['surf_dens']/1000 + 1)*32/1000
+
+
+    odf_calc['deep_T_s'] = np.log((298.15 - odf_calc['deep_CT'])/(273.15 + odf_calc['deep_CT']))
+
+    odf_calc['deep_C_o_*'] = np.exp(A_0 + A_1*odf_calc['deep_T_s'] + A_2*odf_calc['deep_T_s']**2 + A_3*odf_calc['deep_T_s']**3 + A_4*odf_calc['deep_T_s']**4 + A_5*odf_calc['deep_T_s']**5 + 
+                           odf_calc['deep_SA']*(B_0 + B_1*odf_calc['deep_T_s'] + B_2*odf_calc['deep_T_s']**2 + B_3*odf_calc['deep_T_s']**3) + C_0*odf_calc['deep_SA']**2)
+
+    odf_calc['deep_DO_sol'] =  odf_calc['deep_C_o_*']*(odf_calc['deep_dens']/1000 + 1)*32/1000
+
+
+
+    odf_calc_long = pd.melt(odf_calc, id_vars = ['site', 'year', 'month', 'yearday','date_ordinal','cid'], value_vars=['strat_sigma', 'surf_DO_sol', 'deep_DO_sol'], var_name='var', value_name='val')
+
+
+    low_DO_season_start = 213 #aug1
+
+    low_DO_season_end = 335 #nov30
+
+    summer_mask_odf_depth_mean = (odf_depth_mean['yearday'] >= low_DO_season_start) & (odf_depth_mean['yearday']<= low_DO_season_end)
+
+    odf_depth_mean.loc[summer_mask_odf_depth_mean, 'summer_non_summer'] = 'summer'
+
+    odf_depth_mean.loc[~summer_mask_odf_depth_mean, 'summer_non_summer'] = 'non_summer'
+
+
+
+    summer_mask_odf_calc_long = (odf_calc_long['yearday'] >= low_DO_season_start) & (odf_calc_long['yearday']<= low_DO_season_end)
+
+    odf_calc_long.loc[summer_mask_odf_calc_long, 'summer_non_summer'] = 'summer'
+
+    odf_calc_long.loc[~summer_mask_odf_calc_long, 'summer_non_summer'] = 'non_summer'
+
+
+    odf_depth_mean_deep_DO = odf_depth_mean[(odf_depth_mean['var'] == 'DO_mg_L') & (odf_depth_mean['surf_deep'] == 'deep')]
+
+
+
+    odf_depth_mean_deep_DO_q50 = odf_depth_mean_deep_DO[['site', 'year', 'summer_non_summer','val']].groupby(['site', 'year', 'summer_non_summer']).quantile(0.5)
+
+    odf_depth_mean_deep_DO_q50 = odf_depth_mean_deep_DO_q50.rename(columns={'val':'deep_DO_q50'})
+
+    # odf_depth_mean_deep_DO_q75 = odf_depth_mean_deep_DO[['site', 'year', 'summer_non_summer','val']].groupby(['site', 'year', 'summer_non_summer']).quantile(0.75)
+
+    # odf_depth_mean_deep_DO_q75 = odf_depth_mean_deep_DO_q75.rename(columns={'val':'deep_DO_q75'})
+
+    # odf_depth_mean_deep_DO_q25 = odf_depth_mean_deep_DO[['site', 'year', 'summer_non_summer','val']].groupby(['site', 'year', 'summer_non_summer']).quantile(0.25)
+
+    # odf_depth_mean_deep_DO_q25 = odf_depth_mean_deep_DO_q25.rename(columns={'val':'deep_DO_q25'})
+
+
+    odf_depth_mean_deep_DO_percentiles = pd.merge(odf_depth_mean_deep_DO, odf_depth_mean_deep_DO_q50, how='left', on=['site','summer_non_summer','year'])
+
+    # odf_depth_mean_deep_DO_percentiles = pd.merge(odf_depth_mean_deep_DO_percentiles, odf_depth_mean_deep_DO_q75, how='left', on=['site','summer_non_summer','year'])
+
+    # odf_depth_mean_deep_DO_percentiles = pd.merge(odf_depth_mean_deep_DO_percentiles, odf_depth_mean_deep_DO_q25, how='left', on=['site','summer_non_summer','year'])
+
+
+    site_list = short_site_list + long_site_list
+    
+    return odf, odf_depth_mean, odf_calc_long, odf_depth_mean_deep_DO_percentiles, long_site_list, short_site_list, big_basin_list, site_list
+
+# %%
+
+def annualDepthAverageDF(odf_depth_mean, odf_calc_long):
+    
+    annual_counts_0 = (odf_depth_mean
+                          .dropna()
+                          .groupby(['site','year','surf_deep', 'summer_non_summer', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .reset_index()
+                          .rename(columns={'cid':'cid_count'})
+                          )
+
+    odf_use= odf_depth_mean.groupby(['site', 'surf_deep', 'summer_non_summer', 'year','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+
+
+    odf_use.columns = odf_use.columns.to_flat_index().map('_'.join)
+
+    odf_use = odf_use.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+
+
+    odf_use = (odf_use
+                      .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                      .dropna()
+                      .assign(
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+
+
+    odf_use = pd.merge(odf_use, annual_counts_0, how='left', on=['site','surf_deep', 'summer_non_summer', 'year','var'])
+
+
+    odf_use = odf_use[odf_use['cid_count'] >1] #redundant but fine (see note line 234)
+
+    odf_use['val_ci95hi'] = odf_use['val_mean'] + 1.96*odf_use['val_std']/np.sqrt(odf_use['cid_count'])
+
+    odf_use['val_ci95lo'] = odf_use['val_mean'] - 1.96*odf_use['val_std']/np.sqrt(odf_use['cid_count'])
+    
+    odf_use['val'] = odf_use['val_mean']
+    
+    
+    
+    
+    annual_counts_1 = (odf_calc_long
+                          .dropna()
+                          .groupby(['site','year', 'summer_non_summer', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .reset_index()
+                          .rename(columns={'cid':'cid_count'})
+                          )
+
+    odf_calc_use= odf_calc_long.groupby(['site', 'summer_non_summer', 'year','var']).agg({'val':['mean', 'std'], 'date_ordinal':['mean']})
+
+
+    odf_calc_use.columns = odf_calc_use.columns.to_flat_index().map('_'.join)
+
+    odf_calc_use = odf_calc_use.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+
+
+    odf_calc_use = (odf_calc_use
+                      .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                      .dropna()
+                      .assign(
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+
+
+    odf_calc_use = pd.merge(odf_calc_use, annual_counts_1, how='left', on=['site','year', 'summer_non_summer', 'var'])
+
+
+    odf_calc_use = odf_calc_use[odf_calc_use['cid_count'] >1] #redundant but fine (see note line 234)
+
+    odf_calc_use['val_ci95hi'] = odf_calc_use['val_mean'] + 1.96*odf_calc_use['val_std']/np.sqrt(odf_calc_use['cid_count'])
+
+    odf_calc_use['val_ci95lo'] = odf_calc_use['val_mean'] - 1.96*odf_calc_use['val_std']/np.sqrt(odf_calc_use['cid_count'])
+    
+    odf_calc_use['val'] = odf_calc_use['val_mean']
+
+    
+    
+    return odf_use, odf_calc_use
+
+# %%
+
+def annualAverageDF(odf):
+    
+    annual_counts = (odf
+                          .dropna()
+                          .groupby(['site','year', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .reset_index()
+                          .rename(columns={'cid':'cid_count'})
+                          )
+
+    odf_use= odf.groupby(['site', 'year','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+
+
+    odf_use.columns = odf_use.columns.to_flat_index().map('_'.join)
+
+    odf_use = odf_use.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+
+
+    odf_use = (odf_use
+                      .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                      .dropna()
+                      .assign(
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+
+
+    odf_use = pd.merge(odf_use, annual_counts, how='left', on=['site','year','var'])
+
+
+    odf_use = odf_use[odf_use['cid_count'] >1] #redundant but fine (see note line 234)
+
+    odf_use['val_ci95hi'] = odf_use['val_mean'] + 1.96*odf_use['val_std']/np.sqrt(odf_use['cid_count'])
+
+    odf_use['val_ci95lo'] = odf_use['val_mean'] - 1.96*odf_use['val_std']/np.sqrt(odf_use['cid_count'])
+    
+    odf_use['val'] = odf_use['val_mean']
+    
+    return odf_use
+
+# %%
+
+
+def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_percentiles=None, alpha=0.05,  deep_DO_q_list = ['deep_DO_q50'], season_list = ['all', 'summer'], stat_list = ['mk_ts'], depth_list=['surf', 'deep']):
+    
+    all_stats_filt = pd.DataFrame()
+    
+    for deep_DO_q in deep_DO_q_list:
+        
+        if deep_DO_q != 'all':
+                                    
+            if odf_depth_mean_deep_DO_percentiles is not None:
+
+                odf_depth_mean_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
+    
+                cid_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_less_than_percentile['cid']
+                
+        odf_use = (odf_use
+                      .dropna()
+                      .assign(
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+        
+        
+        for depth in depth_list:
+            
+            if depth == 'deep': #picking one of the two depth options with a odf_calc associated, else nothing happens
+                
+                if odf_calc_use is not None:
+        
+                    odf_calc_use = (odf_calc_use
+                                  .dropna()
+                                  .assign(
+                                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                                          )
+                                  )
+        
+                    for site in site_list:
+                        
+                        for season in season_list:
+                            
+                            for var in odf_calc_use['var'].unique():
+                                
+                                if season == 'all':
+                                    
+                                    mask = (odf_calc_use['site'] == site) & (odf_calc_use['var'] == var)
+                                    
+                                else:
+                                    
+                                    mask = (odf_calc_use['site'] == site) & (odf_calc_use['summer_non_summer'] == season) & (odf_calc_use['var'] == var)
+                                
+                                plot_df = odf_calc_use[mask]
+                                
+                                x = plot_df['date_ordinal']
+                                
+                                x_plot = plot_df['datetime']
+                                
+                                y = plot_df['val']
+                                
+                                for stat in stat_list:
+                                    
+                                    plot_df = odf_calc_use[mask]
+                                    
+                                    if stat == 'linreg':
+                                        
+                                        plot_df['stat'] = stat
+                                
+                                        result = stats.linregress(x, y)
+                                        
+                                        B1 = result.slope
+                                        
+                                        B0 = result.intercept
+                                        
+                                        plot_df['B1'] = B1
+
+                                        plot_df['B0'] = B0
+                                        
+                                        sB1 = result.stderr
+                                        
+                                        plot_df['p'] = result.pvalue
+                                        
+                                        slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                        
+                                        slope_datetime_s = (B0 + sB1*x.max() - (B0 + sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                
+                                        plot_df['slope_datetime'] = slope_datetime #per year
+                                        
+                                        plot_df['slope_datetime_s'] = slope_datetime_s #per year
+                                                                                
+                                        plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s', 'B1', 'B0']].head(1) #slope_datetime_unc_cent
+                                        
+                                        plot_df_concat['deep_DO_q'] = deep_DO_q
+                                        
+                                        plot_df_concat['summer_non_summer'] = season
+                            
+                                        all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
+                                
+                                    elif stat == 'mk_ts':
+                                        
+                                        plot_df['stat'] = stat
+                                        
+                                        reject_null, p_value, Z = mann_kendall(y, alpha) #dfun
+                                                    
+                                        plot_df['p'] = p_value
+                                                    
+                                        result = stats.theilslopes(y,x,alpha=alpha)
+                                
+                                        B1 = result.slope
+                                
+                                        B0 = result.intercept
+                                        
+                                        plot_df['B1'] = B1
+
+                                        plot_df['B0'] = B0
+                                        
+                                        high_sB1 = result.high_slope
+                                        
+                                        low_sB1 = result.low_slope
+                    
+                                        slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                
+                                        plot_df['slope_datetime'] = slope_datetime #per year
+                                        
+                                        slope_datetime_s_hi = (B0 + high_sB1*x.max() - (B0 + high_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                        
+                                        slope_datetime_s_lo = (B0 + low_sB1*x.max() - (B0 + low_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                        
+                                        plot_df['slope_datetime_s_hi'] = slope_datetime_s_hi #per year
+                                        
+                                        plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
+                                        
+                                        plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
+                                        
+                                        plot_df_concat['deep_DO_q'] = deep_DO_q
+                                        
+                                        plot_df_concat['summer_non_summer'] = season
+                            
+                                        all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
+                
+                
+            for site in site_list:
+                
+                for season in season_list:
+                
+                    for var in odf_use['var'].unique():
+                    
+                        if depth == 'all':
+                            
+                            if season == 'all':
+                                
+                                if (var == 'DO_mg_L') and (deep_DO_q != 'all'):
+                                    
+                                    mask = (odf_use['cid'].isin(cid_deep_DO_less_than_percentile)) & (odf_use['site'] == site) & (odf_use['var'] == var)
+                                
+                                else:
+                                    
+                                    mask = (odf_use['site'] == site) & (odf_use['var'] == var)
+                            
+                            else:
+                                
+                                if (var == 'DO_mg_L') and (deep_DO_q != 'all'):
+                                    
+                                    mask = (odf_use['cid'].isin(cid_deep_DO_less_than_percentile)) & (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['var'] == var)
+                                
+                                else:
+                                    
+                                    mask = (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['var'] == var)
+                            
+                        else:
+                            
+                            
+                            if season == 'all':
+                                
+                                if (var == 'DO_mg_L') and (deep_DO_q != 'all'):
+                                    
+                                    mask = (odf_use['cid'].isin(cid_deep_DO_less_than_percentile)) & (odf_use['site'] == site) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+                                
+                                else:
+                                    
+                                    mask = (odf_use['site'] == site) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+                                
+                            else:
+                            
+                                if (var == 'DO_mg_L') and (deep_DO_q != 'all'):
+                                    
+                                    mask = (odf_use['cid'].isin(cid_deep_DO_less_than_percentile)) & (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+                                
+                                else:
+                                    
+                                    mask = (odf_use['site'] == site) & (odf_use['summer_non_summer'] == season) & (odf_use['surf_deep'] == depth) & (odf_use['var'] == var)
+                                    
+                                    
+                            
+                        plot_df = odf_use[mask]
+                        
+                        x = plot_df['date_ordinal']
+                        
+                        x_plot = plot_df['datetime']
+                        
+                        y = plot_df['val']
+                        
+                        for stat in stat_list:
+                            
+                            plot_df = odf_use[mask]
+                            
+                            if stat == 'linreg':
+                                
+                                plot_df['stat'] = stat
+                        
+                                result = stats.linregress(x, y)
+                                
+                                B1 = result.slope
+                                
+                                B0 = result.intercept
+                                
+                                plot_df['B1'] = B1
+
+                                plot_df['B0'] = B0
+                                
+                                sB1 = result.stderr
+                                
+                                plot_df['p'] = result.pvalue
+                                
+                                slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                
+                                slope_datetime_s = (B0 + sB1*x.max() - (B0 + sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                        
+                                plot_df['slope_datetime'] = slope_datetime #per year
+                                
+                                plot_df['slope_datetime_s'] = slope_datetime_s #per year
+                                                                
+                                if depth != 'all':
+                                                            
+                                    plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
+                                                                
+                                plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s', 'B1', 'B0']].head(1) #slope_datetime_unc_cent
+                                
+                                plot_df_concat['deep_DO_q'] = deep_DO_q
+                                
+                                plot_df_concat['summer_non_summer'] = season
+                    
+                                all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
+                        
+                            elif stat == 'mk_ts':
+                                
+                                plot_df['stat'] = stat
+                                
+                                reject_null, p_value, Z = mann_kendall(y, alpha) #dfun
+                                            
+                                plot_df['p'] = p_value
+                        
+                        
+                                result = stats.theilslopes(y,x,alpha=alpha)
+                        
+                                B1 = result.slope
+                        
+                                B0 = result.intercept
+                                
+                                plot_df['B1'] = B1
+
+                                plot_df['B0'] = B0
+                                
+                                high_sB1 = result.high_slope
+                                
+                                low_sB1 = result.low_slope
+        
+                                slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                        
+                                plot_df['slope_datetime'] = slope_datetime #per year
+                                
+                                slope_datetime_s_hi = (B0 + high_sB1*x.max() - (B0 + high_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                
+                                slope_datetime_s_lo = (B0 + low_sB1*x.max() - (B0 + low_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                
+                                plot_df['slope_datetime_s_hi'] = slope_datetime_s_hi #per year
+                                
+                                plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
+                                
+                                if depth != 'all':
+                                                            
+                                    plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
+                                                                                                        
+                                plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
+                                
+                                plot_df_concat['deep_DO_q'] = deep_DO_q
+                                
+                                plot_df_concat['summer_non_summer'] = season
+                    
+                                all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
+                        
+                        
+    return all_stats_filt
+
+# %%
+
+def calcSeriesAvgs(odf_depth_mean, odf_depth_mean_deep_DO_percentiles, deep_DO_q = 'deep_DO_q50'):
+    
+    # note 9/6/2024: build in flexibility to not deal with DO percentiles and seasons
+    
+    # to work with the longShortDF build...
+    
+    
+    odf_depth_mean_deep_DO_less_than_median = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
+    
+    cid_deep_DO_less_than_median= odf_depth_mean_deep_DO_less_than_median['cid']
+
+
+
+
+
+    series_counts_summer_CTSA = (odf_depth_mean
+                          .dropna()
+                          #.set_index('datetime')
+                          .groupby(['site', 'summer_non_summer', 'surf_deep', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .reset_index()
+                          .rename(columns={'cid':'cid_count'})
+                          )
+    
+    
+    odf_use_summer_CTSA = odf_depth_mean.groupby(['site', 'surf_deep', 'summer_non_summer','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+    
+    
+    odf_use_summer_CTSA.columns = odf_use_summer_CTSA.columns.to_flat_index().map('_'.join)
+    
+    odf_use_summer_CTSA = odf_use_summer_CTSA.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+    
+    
+    odf_use_summer_CTSA = (odf_use_summer_CTSA
+                      # .drop(columns=['date_ordinal_std'])
+                      .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                      #.reset_index() 
+                      .dropna()
+                      .assign(
+                              #segment=(lambda x: key),
+                              # year=(lambda x: pd.DatetimeIndex(x['datetime']).year),
+                              # month=(lambda x: pd.DatetimeIndex(x['datetime']).month),
+                              # season=(lambda x: pd.cut(x['month'],
+                              #                          bins=[0,3,6,9,12],
+                              #                          labels=['winter', 'spring', 'summer', 'fall'])),
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+    
+    
+    
+    odf_use_summer_CTSA = pd.merge(odf_use_summer_CTSA, series_counts_summer_CTSA, how='left', on=['site','surf_deep','summer_non_summer','var'])
+    
+    odf_use_summer_CTSA = odf_use_summer_CTSA[odf_use_summer_CTSA['cid_count'] >1] #redundant but fine (see note line 234)
+    
+    odf_use_summer_CTSA['val_ci95hi'] = odf_use_summer_CTSA['val_mean'] + 1.96*odf_use_summer_CTSA['val_std']/np.sqrt(odf_use_summer_CTSA['cid_count'])
+    
+    odf_use_summer_CTSA['val_ci95lo'] = odf_use_summer_CTSA['val_mean'] - 1.96*odf_use_summer_CTSA['val_std']/np.sqrt(odf_use_summer_CTSA['cid_count'])
+
+
+
+
+    series_counts_summer_DO = (odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep_DO_less_than_median)]
+                          .dropna()
+                          #.set_index('datetime')
+                          .groupby(['site','summer_non_summer', 'surf_deep', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .reset_index()
+                          .rename(columns={'cid':'cid_count'})
+                          )
+    
+    
+    odf_use_summer_DO = odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep_DO_less_than_median)].groupby(['site', 'surf_deep', 'summer_non_summer','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+    
+    
+    odf_use_summer_DO.columns = odf_use_summer_DO.columns.to_flat_index().map('_'.join)
+    
+    odf_use_summer_DO = odf_use_summer_DO.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+    
+    
+    odf_use_summer_DO = (odf_use_summer_DO
+                      # .drop(columns=['date_ordinal_std'])
+                      .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                      #.reset_index() 
+                      .dropna()
+                      .assign(
+                              #segment=(lambda x: key),
+                              # year=(lambda x: pd.DatetimeIndex(x['datetime']).year),
+                              # month=(lambda x: pd.DatetimeIndex(x['datetime']).month),
+                              # season=(lambda x: pd.cut(x['month'],
+                              #                          bins=[0,3,6,9,12],
+                              #                          labels=['winter', 'spring', 'summer', 'fall'])),
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+    
+    
+    
+    odf_use_summer_DO = pd.merge(odf_use_summer_DO, series_counts_summer_DO, how='left', on=['site','surf_deep','summer_non_summer','var'])
+    
+    odf_use_summer_DO = odf_use_summer_DO[odf_use_summer_DO['cid_count'] >1] #redundant but fine (see note line 234)
+    
+    odf_use_summer_DO['val_ci95hi'] = odf_use_summer_DO['val_mean'] + 1.96*odf_use_summer_DO['val_std']/np.sqrt(odf_use_summer_DO['cid_count'])
+    
+    odf_use_summer_DO['val_ci95lo'] = odf_use_summer_DO['val_mean'] - 1.96*odf_use_summer_DO['val_std']/np.sqrt(odf_use_summer_DO['cid_count'])
+    
+
+
+
+    
+    series_counts_annual_CTSA = (odf_depth_mean
+                          .dropna()
+                          #.set_index('datetime')
+                          .groupby(['site', 'surf_deep', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .reset_index()
+                          .rename(columns={'cid':'cid_count'})
+                          )
+    
+    
+    odf_use_annual_CTSA = odf_depth_mean.groupby(['site', 'surf_deep','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+    
+    
+    odf_use_annual_CTSA.columns = odf_use_annual_CTSA.columns.to_flat_index().map('_'.join)
+    
+    odf_use_annual_CTSA = odf_use_annual_CTSA.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+    
+    
+    odf_use_annual_CTSA = (odf_use_annual_CTSA
+                      # .drop(columns=['date_ordinal_std'])
+                      .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                      #.reset_index() 
+                      .dropna()
+                      .assign(
+                              #segment=(lambda x: key),
+                              # year=(lambda x: pd.DatetimeIndex(x['datetime']).year),
+                              # month=(lambda x: pd.DatetimeIndex(x['datetime']).month),
+                              # season=(lambda x: pd.cut(x['month'],
+                              #                          bins=[0,3,6,9,12],
+                              #                          labels=['winter', 'spring', 'summer', 'fall'])),
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+    
+    
+    
+    odf_use_annual_CTSA = pd.merge(odf_use_annual_CTSA, series_counts_annual_CTSA, how='left', on=['site','surf_deep','var'])
+    
+    odf_use_annual_CTSA = odf_use_annual_CTSA[odf_use_annual_CTSA['cid_count'] >1] #redundant but fine (see note line 234)
+    
+    odf_use_annual_CTSA['val_ci95hi'] = odf_use_annual_CTSA['val_mean'] + 1.96*odf_use_annual_CTSA['val_std']/np.sqrt(odf_use_annual_CTSA['cid_count'])
+    
+    odf_use_annual_CTSA['val_ci95lo'] = odf_use_annual_CTSA['val_mean'] - 1.96*odf_use_annual_CTSA['val_std']/np.sqrt(odf_use_annual_CTSA['cid_count'])
+    
+
+
+
+    
+    series_counts_annual_DO = (odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep_DO_less_than_median)]
+                          .dropna()
+                          #.set_index('datetime')
+                          .groupby(['site', 'surf_deep', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .reset_index()
+                          .rename(columns={'cid':'cid_count'})
+                          )
+    
+    
+    odf_use_annual_DO = odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep_DO_less_than_median)].groupby(['site', 'surf_deep','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+    
+    
+    odf_use_annual_DO.columns = odf_use_annual_DO.columns.to_flat_index().map('_'.join)
+    
+    odf_use_annual_DO = odf_use_annual_DO.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+    
+    
+    odf_use_annual_DO = (odf_use_annual_DO
+                      # .drop(columns=['date_ordinal_std'])
+                      .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                      #.reset_index() 
+                      .dropna()
+                      .assign(
+                              #segment=(lambda x: key),
+                              # year=(lambda x: pd.DatetimeIndex(x['datetime']).year),
+                              # month=(lambda x: pd.DatetimeIndex(x['datetime']).month),
+                              # season=(lambda x: pd.cut(x['month'],
+                              #                          bins=[0,3,6,9,12],
+                              #                          labels=['winter', 'spring', 'summer', 'fall'])),
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+    
+    
+    
+    odf_use_annual_DO = pd.merge(odf_use_annual_DO, series_counts_annual_DO, how='left', on=['site','surf_deep','var'])
+    
+    odf_use_annual_DO = odf_use_annual_DO[odf_use_annual_DO['cid_count'] >1] #redundant but fine (see note line 234)
+    
+    odf_use_annual_DO['val_ci95hi'] = odf_use_annual_DO['val_mean'] + 1.96*odf_use_annual_DO['val_std']/np.sqrt(odf_use_annual_DO['cid_count'])
+    
+    odf_use_annual_DO['val_ci95lo'] = odf_use_annual_DO['val_mean'] - 1.96*odf_use_annual_DO['val_std']/np.sqrt(odf_use_annual_DO['cid_count'])
+    
+    
+    return odf_use_summer_DO, odf_use_summer_CTSA, odf_use_annual_DO, odf_use_annual_CTSA
