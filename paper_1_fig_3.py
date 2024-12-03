@@ -167,14 +167,38 @@ temp_df['year_month'] = temp_df['year'].astype(str) + '_' + temp_df['month'].ast
 
 temp_df['date_ordinal'] = temp_df['datetime'].apply(lambda x: x.toordinal())
 
+temp_df.loc[temp_df['month'].isin([4,5,6,7]), 'season'] = 'grow'
 
-temp_monthly_avg_df = temp_df[['datetime', 'date_ordinal', 'year', 'month', 'year_month', 'TMAX', 'TMIN']].groupby(['year_month']).mean().reset_index().dropna()
+temp_df.loc[temp_df['month'].isin([8,9,10,11]), 'season'] = 'loDO'
 
+temp_df.loc[temp_df['month'].isin([12,1,2,3]), 'season'] = 'winter'
+
+
+temp_df['TAVG'] = temp_df[['TMAX', 'TMIN']].mean(axis=1)
+
+temp_df['year_season'] = temp_df['year'].astype(str) + '_' + temp_df['season']
+
+
+temp_df = pd.melt(temp_df, id_vars =['STATION', 'NAME', 'DATE', 'datetime', 'year', 'month', 'year_month', 'date_ordinal', 'season', 'year_season'], value_vars=['PRCP', 'TMAX', 'TMIN', 'TSUN', 'TAVG'], var_name='var', value_name='val')
 
 # %%
 
-odf_depth_mean = (odf_depth_mean
-                  #.rename(columns={'date_ordinal_mean':'date_ordinal'})
+monthly_counts = (temp_df
+                      .dropna()
+                      .groupby(['year_month', 'var']).agg({'val' :lambda x: x.nunique()})
+                      .reset_index()
+                      .rename(columns={'val':'val_count'})
+                      )
+
+temp_monthly_avg_df = temp_df[['datetime', 'date_ordinal', 'year', 'month', 'year_month', 'season', 'year_season', 'var', 'val']].groupby(['year','month','year_month','season', 'year_season', 'var']).agg({'val':['mean', 'std'], 'date_ordinal':['mean']})
+
+temp_monthly_avg_df.columns = temp_monthly_avg_df.columns.to_flat_index().map('_'.join)
+
+temp_monthly_avg_df = temp_monthly_avg_df.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+
+
+temp_monthly_avg_df = (temp_monthly_avg_df
+                  .rename(columns={'date_ordinal_mean':'date_ordinal'})
                   .dropna()
                   .assign(
                           datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
@@ -182,11 +206,109 @@ odf_depth_mean = (odf_depth_mean
                   )
 
 
-odf_depth_mean['year_month'] = odf_depth_mean['year'].astype(str) + '_' + odf_depth_mean['month'].astype(str).apply(lambda x: x.zfill(2))
+temp_monthly_avg_df = pd.merge(temp_monthly_avg_df, monthly_counts, how='left', on=['year_month', 'var'])
 
 
-odf_depth_mean_monthly_avg_df = odf_depth_mean.groupby(['site', 'year_month', 'summer_non_summer','surf_deep', 'var']).mean().reset_index().dropna()
+temp_monthly_avg_df = temp_monthly_avg_df[temp_monthly_avg_df['val_count'] >1] #redundant but fine (see note line 234)
 
+temp_monthly_avg_df['val_ci95hi'] = temp_monthly_avg_df['val_mean'] + 1.96*temp_monthly_avg_df['val_std']/np.sqrt(temp_monthly_avg_df['val_count'])
+
+temp_monthly_avg_df['val_ci95lo'] = temp_monthly_avg_df['val_mean'] - 1.96*temp_monthly_avg_df['val_std']/np.sqrt(temp_monthly_avg_df['val_count'])
+
+temp_monthly_avg_df['val'] = temp_monthly_avg_df['val_mean']
+
+# %%
+
+seasonal_counts = (temp_df
+                      .dropna()
+                      .groupby(['year_season', 'var']).agg({'val' :lambda x: x.nunique()})
+                      .reset_index()
+                      .rename(columns={'val':'val_count'})
+                      )
+
+temp_seasonal_avg_df = temp_df[['datetime', 'date_ordinal', 'year', 'season', 'year_season', 'var','val']].groupby(['year','season', 'year_season','var']).agg({'val':['mean', 'std'], 'date_ordinal':['mean']})
+
+temp_seasonal_avg_df.columns = temp_seasonal_avg_df.columns.to_flat_index().map('_'.join)
+
+temp_seasonal_avg_df = temp_seasonal_avg_df.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+
+
+temp_seasonal_avg_df = (temp_seasonal_avg_df
+                  .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                  .dropna()
+                  .assign(
+                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                          )
+                  )
+
+
+temp_seasonal_avg_df = pd.merge(temp_seasonal_avg_df, seasonal_counts, how='left', on=['year_season', 'var'])
+
+
+temp_seasonal_avg_df = temp_seasonal_avg_df[temp_seasonal_avg_df['val_count'] >1] #redundant but fine (see note line 234)
+
+temp_seasonal_avg_df['val_ci95hi'] = temp_seasonal_avg_df['val_mean'] + 1.96*temp_seasonal_avg_df['val_std']/np.sqrt(temp_seasonal_avg_df['val_count'])
+
+temp_seasonal_avg_df['val_ci95lo'] = temp_seasonal_avg_df['val_mean'] - 1.96*temp_seasonal_avg_df['val_std']/np.sqrt(temp_seasonal_avg_df['val_count'])
+
+temp_seasonal_avg_df['val'] = temp_seasonal_avg_df['val_mean']
+
+# %%
+
+annual_counts = (temp_df
+                      .dropna()
+                      .groupby(['year', 'var']).agg({'val' :lambda x: x.nunique()})
+                      .reset_index()
+                      .rename(columns={'val':'val_count'})
+                      )
+
+temp_annual_avg_df = temp_df[['datetime', 'date_ordinal', 'year','var','val']].groupby(['year', 'var']).agg({'val':['mean', 'std'], 'date_ordinal':['mean']})
+
+temp_annual_avg_df.columns = temp_annual_avg_df.columns.to_flat_index().map('_'.join)
+
+temp_annual_avg_df = temp_annual_avg_df.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
+
+
+temp_annual_avg_df = (temp_annual_avg_df
+                  .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                  .dropna()
+                  .assign(
+                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                          )
+                  )
+
+
+temp_annual_avg_df = pd.merge(temp_annual_avg_df, annual_counts, how='left', on=['year', 'var'])
+
+
+temp_annual_avg_df = temp_annual_avg_df[temp_annual_avg_df['val_count'] >1] #redundant but fine (see note line 234)
+
+temp_annual_avg_df['val_ci95hi'] = temp_annual_avg_df['val_mean'] + 1.96*temp_annual_avg_df['val_std']/np.sqrt(temp_annual_avg_df['val_count'])
+
+temp_annual_avg_df['val_ci95lo'] = temp_annual_avg_df['val_mean'] - 1.96*temp_annual_avg_df['val_std']/np.sqrt(temp_annual_avg_df['val_count'])
+
+temp_annual_avg_df['val'] = temp_annual_avg_df['val_mean']
+
+
+# %%
+
+# odf_depth_mean = (odf_depth_mean
+#                   #.rename(columns={'date_ordinal_mean':'date_ordinal'})
+#                   .dropna()
+#                   .assign(
+#                           datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+#                           )
+#                   )
+
+#odf_depth_mean['year_month'] = odf_depth_mean['year'].astype(str) + '_' + odf_depth_mean['month'].astype(str).apply(lambda x: x.zfill(2))
+
+
+# odf_depth_mean_monthly_avg_df = odf_depth_mean.groupby(['site', 'year_month', 'summer_non_summer','surf_deep', 'var']).mean().reset_index().dropna()
+
+
+# %%
+
+odf_annual_use, odf_annual_long_use = dfun.annualDepthAverageDF(odf_depth_mean, odf_calc_long)
 
 # %%
 
@@ -200,38 +322,31 @@ stat = 'mk_ts'
 
 alpha = 0.05
 
+
     
 for season in ['allyear', 'grow', 'loDO', 'winter']:
             
     if season == 'allyear':
                 
-        plot_df = temp_monthly_avg_df
+        plot_df = temp_monthly_avg_df.copy()
         
-    elif season == 'grow':
+    else:
         
-        plot_df = temp_monthly_avg_df[temp_monthly_avg_df['month'].isin([4,5,6,7])]
-        
-    elif season == 'loDO':
-        
-        plot_df = temp_monthly_avg_df[temp_monthly_avg_df['month'].isin([8,9,10,11])]
-        
-    elif season == 'winter':
-        
-        plot_df = temp_monthly_avg_df[temp_monthly_avg_df['month'].isin([12,1,2,3])]
-        
-    x = plot_df['date_ordinal']
-    
-    x_plot = plot_df['datetime']
+        plot_df = temp_monthly_avg_df[temp_monthly_avg_df['season'] == season].copy()
 
-    for var in ['TMAX', 'TMIN']:
+    for var in ['TAVG']:
         
-        y = plot_df[var]
+        x = plot_df[plot_df['var'] == var]['date_ordinal']
+        
+        x_plot = plot_df[plot_df['var'] == var]['datetime']
+        
+        y = plot_df[plot_df['var'] == var]['val']
         
         plot_df['stat'] = stat
                 
-        reject_null, p_value, Z = dfun.mann_kendall(y, alpha) #dfun
+        # reject_null, p_value, Z = dfun.mann_kendall(y, alpha) #dfun
                             
-        plot_df['p'] = p_value
+        #plot_df['p'] = p_value
         
         result = stats.theilslopes(y,x,alpha=alpha)
         
@@ -262,8 +377,10 @@ for season in ['allyear', 'grow', 'loDO', 'winter']:
         plot_df['season'] = season
         
         plot_df['var'] = var
+        
+        # 'p' for below
                                                                                         
-        plot_df_concat = plot_df[['season','var', 'p', 'hi_sB1', 'lo_sB1', 'B1', 'B0', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo']].head(1) #slope_datetime_unc_cent, slope_datetime_s
+        plot_df_concat = plot_df[['season','var', 'hi_sB1', 'lo_sB1', 'B1', 'B0', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo']].head(1) #slope_datetime_unc_cent, slope_datetime_s
     
         stats_df = pd.concat([stats_df, plot_df_concat])
         
@@ -277,23 +394,51 @@ fig, axd = plt.subplot_mosaic(mosaic, figsize=(10,4), layout='constrained', grid
 
 ax = axd['time_series']
 
-#plot_df = temp_monthly_avg_df[(temp_monthly_avg_df['month'].isin([8,9,10,11]))]
 
-sns.scatterplot(data=temp_monthly_avg_df, x='datetime', y='TMIN', ax=ax, alpha=0.3, color = 'gray', label='Monthly TMIN')
+
+plot_df = temp_annual_avg_df[temp_annual_avg_df['var'] == 'TAVG']
+
+for idx in plot_df.index:
+
+    ax.plot([plot_df.loc[idx,'datetime'], plot_df.loc[idx,'datetime']],[plot_df.loc[idx,'val_ci95lo'], plot_df.loc[idx,'val_ci95hi']], color='gray', alpha =0.3, linewidth=1,zorder=-5)
+
+sns.scatterplot(data=plot_df, x='datetime', y='val', ax=ax, alpha=0.5, color = 'gray', label='Sea-Tac Annual Average')
+
+
+
+plot_df = temp_seasonal_avg_df[(temp_seasonal_avg_df['season'] == 'loDO') & (temp_seasonal_avg_df['var'] == 'TAVG')]
+
+for idx in plot_df.index:
+
+    ax.plot([plot_df.loc[idx,'datetime'], plot_df.loc[idx,'datetime']],[plot_df.loc[idx,'val_ci95lo'], plot_df.loc[idx,'val_ci95hi']], color='gray', alpha =0.3, linewidth=1, zorder=-5)
+
+sns.scatterplot(data=plot_df, x='datetime', y='val', ax=ax, alpha=0.5, color = 'black', label='Sea-Tac Annual August-November Average')
  
-#sns.scatterplot(data=plot_df, x='datetime', y='TMAX', ax=ax, alpha=0.3, color = '#ff7f0e', label='TMAX')
 
-plot_df_surf_CT = odf_depth_mean_monthly_avg_df[(odf_depth_mean_monthly_avg_df['site'] == 'point_jefferson') & (odf_depth_mean_monthly_avg_df['surf_deep'] == 'surf') & (odf_depth_mean_monthly_avg_df['var'] == 'CT') & (odf_depth_mean_monthly_avg_df['summer_non_summer'] == 'summer')]
- 
-sns.scatterplot(data=plot_df_surf_CT, x='datetime', y='val', ax=ax, color = '#4565e8', label = 'August-November Monthly Surface')
 
-plot_df_deep_CT = odf_depth_mean_monthly_avg_df[(odf_depth_mean_monthly_avg_df['site'] == 'point_jefferson') & (odf_depth_mean_monthly_avg_df['surf_deep'] == 'deep') & (odf_depth_mean_monthly_avg_df['var'] == 'CT') & (odf_depth_mean_monthly_avg_df['summer_non_summer'] == 'summer')]
+plot_df_surf_CT = odf_annual_use[(odf_annual_use['site'] == 'point_jefferson') & (odf_annual_use['surf_deep'] == 'surf') & (odf_annual_use['var'] == 'CT') & (odf_annual_use['summer_non_summer'] == 'summer')]
 
-sns.scatterplot(data=plot_df_deep_CT, x='datetime', y='val', ax=ax, color = '#e04256', label = 'August-November Monthly Deep')
+for idx in plot_df_surf_CT.index:
+
+    ax.plot([plot_df_surf_CT.loc[idx,'datetime'], plot_df_surf_CT.loc[idx,'datetime']],[plot_df_surf_CT.loc[idx,'val_ci95lo'], plot_df_surf_CT.loc[idx,'val_ci95hi']], color='#4565e8', linewidth=1, zorder=-5, alpha=0.5)
+
+sns.scatterplot(data=plot_df_surf_CT, x='datetime', y='val', ax=ax, color = '#4565e8', label = 'PJ Surface Annual August-November Average')
+
+
+
+plot_df_deep_CT = odf_annual_use[(odf_annual_use['site'] == 'point_jefferson') & (odf_annual_use['surf_deep'] == 'deep') & (odf_annual_use['var'] == 'CT') & (odf_annual_use['summer_non_summer'] == 'summer')]
+
+for idx in plot_df_deep_CT.index:
+
+    ax.plot([plot_df_deep_CT.loc[idx,'datetime'], plot_df_deep_CT.loc[idx,'datetime']],[plot_df_deep_CT.loc[idx,'val_ci95lo'], plot_df_deep_CT.loc[idx,'val_ci95hi']], color='#e04256', linewidth=1, zorder=-5, alpha=0.5)
+
+sns.scatterplot(data=plot_df_deep_CT, x='datetime', y='val', ax=ax, color = '#e04256', label = 'PJ Deep Annual August-November Average')
+
+
 
 ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3, zorder=-5)
 
-ax.legend()
+ax.legend(loc = 'upper left')
 
 #ax.set_ylim(0,18)
 
@@ -301,16 +446,40 @@ ax.set_xlabel('')
 
 ax.set_ylabel(r'Temperature [$^{\circ}$C]', wrap=True)
 
+ax.set_ylim(7,20)
+
+ax.text(0.05,0.05, 'a', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+
 
 
 ax = axd['trends']
 
+P4_trend = 0.0084*100 #degC per century
+
 plot_df = stats_df.copy()
 
+plot_df.loc[plot_df['season'] == 'loDO','season_label'] = 'Aug-Nov'
 
-plot_df['season_minmax'] = plot_df['season'] + '_' + plot_df['var']
+plot_df.loc[plot_df['season'] == 'loDO','season_number'] = 3
 
-plot_df = plot_df.sort_values(by='season_minmax').reset_index()
+
+plot_df.loc[plot_df['season'] == 'grow','season_label'] = 'Apr-Jul'
+
+plot_df.loc[plot_df['season'] == 'grow','season_number'] = 2
+
+
+plot_df.loc[plot_df['season'] == 'winter','season_label'] = 'Dec-Mar'
+
+plot_df.loc[plot_df['season'] == 'winter','season_number'] = 1
+
+
+plot_df.loc[plot_df['season'] == 'allyear','season_label'] = 'Full-Year'
+
+plot_df.loc[plot_df['season'] == 'allyear','season_number'] = 0
+
+
+
+
 
 plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_s_hi']*100
 
@@ -321,44 +490,51 @@ plot_df['slope_datetime_cent'] = plot_df['slope_datetime']*100
 
  
 
-sns.scatterplot(data = plot_df, x= 'season_minmax', y = 'slope_datetime_cent_95hi', hue='var', hue_order = ['TMIN', 'TMAX'], style = 'season', style_order = ['allyear', 'winter', 'grow', 'loDO'], ax = ax, s= 10, legend=False)
+sns.scatterplot(data = plot_df, x= 'season_number', y = 'slope_datetime_cent_95hi', color = 'gray', ax = ax, s= 10, legend = False)
 
-sns.scatterplot(data = plot_df, x= 'season_minmax', y = 'slope_datetime_cent_95lo', hue='var', hue_order = ['TMIN', 'TMAX'], style = 'season', ax = ax, s= 10, legend=False)
+sns.scatterplot(data = plot_df, x= 'season_number', y = 'slope_datetime_cent_95lo', color = 'gray', ax = ax, s= 10, legend=False)
 
-sns.scatterplot(data = plot_df, x= 'season_minmax', y = 'slope_datetime_cent', hue='var', hue_order = ['TMIN', 'TMAX'], style = 'season', ax = ax, s =50, legend=False)
+sns.scatterplot(data = plot_df, x= 'season_number', y = 'slope_datetime_cent', color = 'gray', ax = ax, s =50, label = 'Sea-Tac Monthly (Seasonal)')
 
-for idx in plot_df.index:
-    
-    if plot_df.loc[idx,'var'] == 'TMIN': 
+for idx in plot_df.index:        
         
-        ax.plot([plot_df.loc[idx,'season_minmax'], plot_df.loc[idx,'season_minmax']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color='#1f77b4', alpha =0.7, zorder = -5, linewidth=1)
-
-    else:
-        
-        
-        
-        ax.plot([plot_df.loc[idx,'season_minmax'], plot_df.loc[idx,'season_minmax']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color='#ff7f0e', alpha =0.7, zorder = -4, linewidth=1)
+    ax.plot([plot_df.loc[idx,'season_number'], plot_df.loc[idx,'season_number']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color='gray', alpha =0.7, zorder = -4, linewidth=1)
 
 
 pj_surf = all_stats_filt[(all_stats_filt['site'] == 'point_jefferson') & (all_stats_filt['summer_non_summer'] =='summer') & (all_stats_filt['var'] == 'surf_CT')]['slope_datetime'].iloc[0]*100
-
+ 
 pj_deep = all_stats_filt[(all_stats_filt['site'] == 'point_jefferson') & (all_stats_filt['summer_non_summer'] =='summer') & (all_stats_filt['var'] == 'deep_CT')]['slope_datetime'].iloc[0]*100
 
-ax.axhline(pj_surf, color='#4565e8', label = 'August-November Monthly Surface')
-
-ax.axhline(pj_deep, color = '#e04256', label = 'August-November Monthly Deep')
 
 
-ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3)
+ax.axhline(pj_surf, color='#4565e8', label = 'PJ Surface August-November')
 
-ax.axhline(0, color='gray', linestyle = '--', zorder = -5)
+ax.axhline(pj_deep, color = '#e04256', label = 'PJ Deep August-November')
 
 
-ax.tick_params(axis='x', rotation=45)
+ax.axhline(P4_trend, color = 'black', linestyle = '--', label = 'Whitney et al. (2007) at P4')
+
+
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3) 
+ 
+#ax.axhline(0, color='gray', linestyle = '--', zorder = -5)
+
+
+#ax.tick_params(axis='x', rotation=45)
+
+ax.set_ylim(0,7)
+
+ax.set_xticks([0,1,2,3],['Full-Year', 'Dec-Mar', 'Apr-Jul', 'Aug-Nov'])
+
 
 ax.set_ylabel(r'[$^{\circ}$C]/century', wrap=True)
 
 ax.set_xlabel('')
+
+ax.legend(loc = 'upper left')
+
+ax.text(0.05,0.05, 'b', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+
 
 
 
