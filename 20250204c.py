@@ -189,7 +189,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             if 'DO' in var:
                 
-                label_var = 'c  [DO]'
+                label_var = '[DO]'
                 
                 ymin = -2
                 
@@ -201,7 +201,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             elif 'CT' in var:
                 
-                label_var = 'a  Temperature'
+                label_var = 'Temperature'
                 
                 ymin = -2.5
                 
@@ -213,7 +213,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             else:
                 
-                label_var = 'b  Salinity'
+                label_var = 'Salinity'
                 
                 ymin = -1
                 
@@ -240,50 +240,13 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             
             palette = {'Main Basin':'#e04256', 'Sub-Basins':'#4565e8'}
-            
-            palette_ = {'Main Basin Trend':'#e04256', 'Sub-Basins Trend':'#4565e8'}
-
 
             
             sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95hi', hue ='site_type', palette = palette, marker=marker, ax = ax, s= 10, legend=False)
     
             sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95lo', hue ='site_type', palette = palette, marker=marker, ax = ax, s= 10, legend=False)
-            
-            if var == 'deep_DO_mg_L':
-                
-                plot_df_ = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['season'] == 'loDO') & (all_stats_filt['var'] == 'deep_DO_sol') & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q)]
-                
-                plot_df_ = plot_df_.sort_values(by=['site'])
-                
-                plot_df_['slope_datetime_cent'] = plot_df_['slope_datetime']*100
-                
-                plot_df_['slope_datetime_cent_95hi'] = plot_df_['slope_datetime_s_hi']*100
-                
-                plot_df_['slope_datetime_cent_95lo'] = plot_df_['slope_datetime_s_lo']*100
-                
-                plot_df.loc[plot_df['site_type'] == 'Main Basin', 'site_type_label'] = 'Main Basin Trend'
-                
-                plot_df.loc[plot_df['site_type'] == 'Sub-Basins', 'site_type_label'] = 'Sub-Basins Trend'
-
-                
-                
-                marker_ = "$\circ$"
-        
-                
-                # sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent_95hi', color = '#dd9404', marker=marker, ax = ax, s= 20, legend=False)
-        
-                # sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent_95lo', color = '#dd9404', marker=marker, ax = ax, s= 20, legend=False)
-        
-                sns.scatterplot(data = plot_df_, x= 'site_num', y = 'slope_datetime_cent', color = '#dd9404', marker=marker_, ax = ax, s =150, label= 'Expected DO Trend')
-                
-                
-                
-                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', hue = 'site_type_label', palette=palette_, marker=marker, ax = ax, s =50)
-
-                
-            else:
     
-                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', hue ='site_type', palette = palette, marker=marker, ax = ax, s =50, legend=False)
+            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', hue ='site_type', palette = palette, marker=marker, ax = ax, s =50, legend=False)
             
             for idx in plot_df.index:
                 
@@ -297,13 +260,13 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             
             label = label_var #label_depth + ' ' + label_var
-                            
+                
             ax.text(0.05,0.05, label, transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
                 
                 
             
             # ymin = -max(abs(plot_df['slope_datetime_cent']))*2.5
-             
+            
             # ymax = max(abs(plot_df['slope_datetime_cent']))*2.5
             
             #ax.set_xticks(sorted(all_stats_filt['site_num'].unique().tolist()),site_labels, rotation=90) 
@@ -320,12 +283,137 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             ax.set_ylim(ymin, ymax)
             
-            if var == 'deep_DO_mg_L':
-                
-                ax.legend(loc = 'upper left')
             
-            
-#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_2.png', dpi=500,transparent=True, bbox_inches='tight')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/longsites_trends_0_ws.png', dpi=500,transparent=True, bbox_inches='tight')   
+
 
 # %%
- 
+
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(8.5,2.5), layout='constrained', sharex=True, gridspec_kw=dict(wspace=0.1))
+
+    
+
+for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
+    
+    for stat in ['mk_ts']:
+                
+        for deep_DO_q in ['deep_DO_q50']:
+            
+            if 'surf' in var:
+                
+                label_depth = 'Surface'
+                
+                color = '#E91E63'
+                
+            else:
+                
+                label_depth = 'Deep'
+                
+                color = '#673AB7'
+
+            
+            if 'DO' in var:
+                
+                label_var = '[DO]'
+                
+                ymin = -2
+                
+                ymax = 2
+                
+                marker = 'o'
+                
+                unit = r'[mg/L]/century'
+            
+            elif 'CT' in var:
+                
+                label_var = 'Temperature'
+                
+                ymin = -2.5
+                
+                ymax = 2.5
+                
+                marker = 'D'
+                
+                unit = r'[$^{\circ}$C]/century'
+            
+            else:
+                
+                label_var = 'Salinity'
+                
+                ymin = -1
+                
+                ymax = 1
+                
+                marker = 's'
+                
+                unit = r'[PSU]/century'
+
+                
+                
+            
+            ax = axd[var]
+
+            plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['var'] == var) & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q) & (all_stats_filt['season'] == 'loDO')]
+            
+            plot_df = plot_df.sort_values(by=['site']).reset_index()
+            
+            plot_df['slope_datetime_cent'] = plot_df['slope_datetime']*100
+            
+            plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_s_hi']*100
+            
+            plot_df['slope_datetime_cent_95lo'] = plot_df['slope_datetime_s_lo']*100
+            
+            
+            palette = {'Main Basin':'#e04256', 'Sub-Basins':'#4565e8'}
+
+            
+            sns.scatterplot(data = plot_df[plot_df['site_type'] == 'Main Basin'], x= 'site_num', y = 'slope_datetime_cent_95hi', hue ='site_type', palette = palette, marker=marker, ax = ax, s= 10, legend=False)
+    
+            sns.scatterplot(data = plot_df[plot_df['site_type'] == 'Main Basin'], x= 'site_num', y = 'slope_datetime_cent_95lo', hue ='site_type', palette = palette, marker=marker, ax = ax, s= 10, legend=False)
+    
+            sns.scatterplot(data = plot_df[plot_df['site_type'] == 'Main Basin'], x= 'site_num', y = 'slope_datetime_cent', hue ='site_type', palette = palette, marker=marker, ax = ax, s =50, legend=False)
+            
+            
+            sns.scatterplot(data = plot_df[plot_df['site_type'] == 'Sub-Basins'], x= 'site_num', y = 'slope_datetime_cent_95hi', hue ='site_type', palette = palette, marker=marker, ax = ax, s= 10, legend=False, alpha=0)
+    
+            sns.scatterplot(data = plot_df[plot_df['site_type'] == 'Sub-Basins'], x= 'site_num', y = 'slope_datetime_cent_95lo', hue ='site_type', palette = palette, marker=marker, ax = ax, s= 10, legend=False, alpha=0)
+    
+            sns.scatterplot(data = plot_df[plot_df['site_type'] == 'Sub-Basins'], x= 'site_num', y = 'slope_datetime_cent', hue ='site_type', palette = palette, marker=marker, ax = ax, s =50, legend=False, alpha=0)
+                        
+            for idx in plot_df.index:
+                
+                if plot_df.loc[idx,'site_type'] == 'Main Basin':
+                    
+                    ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=palette['Main Basin'], alpha =0.7, zorder = -5, linewidth=1)
+
+                else:
+                    
+                    ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=palette['Sub-Basins'], alpha =0, zorder = -4, linewidth=1)
+            
+            
+            label = label_var #label_depth + ' ' + label_var
+                
+            ax.text(0.05,0.05, label, transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+                
+                
+            
+            # ymin = -max(abs(plot_df['slope_datetime_cent']))*2.5
+            
+            # ymax = max(abs(plot_df['slope_datetime_cent']))*2.5
+            
+            #ax.set_xticks(sorted(all_stats_filt['site_num'].unique().tolist()),site_labels, rotation=90) 
+            
+            ax.set_xticks([1,2,3,4,5],['PJ', 'NS', ' ', ' ', ' '])
+            
+            ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3)
+                                    
+            ax.axhline(0, color='gray', linestyle = '--', zorder = -5)
+            
+            ax.set_ylabel(unit, wrap=True)
+            
+            ax.set_xlabel('')
+            
+            ax.set_ylim(ymin, ymax)
+            
+            
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/longsites_trends_1_ws.png', dpi=500,transparent=True, bbox_inches='tight')   

@@ -162,10 +162,13 @@ all_stats_filt.loc[all_stats_filt['site'] == 'lynch_cove_mid', 'site_num'] = 5
 
 mosaic = [['deep_CT', 'deep_SA', 'deep_DO_mg_L']]
 
+        
+  
+
+# %%
+
 fig, axd = plt.subplot_mosaic(mosaic, figsize=(8.5,2.5), layout='constrained', sharex=True, gridspec_kw=dict(wspace=0.1))
 
-        
-    
     
 
 for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
@@ -189,7 +192,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             if 'DO' in var:
                 
-                label_var = 'c  [DO]'
+                label_var = '[DO]'
                 
                 ymin = -2
                 
@@ -201,7 +204,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             elif 'CT' in var:
                 
-                label_var = 'a  Temperature'
+                label_var = 'Temperature'
                 
                 ymin = -2.5
                 
@@ -213,7 +216,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             else:
                 
-                label_var = 'b  Salinity'
+                label_var = 'Salinity'
                 
                 ymin = -1
                 
@@ -227,6 +230,8 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
                 
             
             ax = axd[var]
+            
+            
 
             plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['var'] == var) & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q) & (all_stats_filt['season'] == 'loDO')]
             
@@ -278,7 +283,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
                 
                 
                 
-                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', hue = 'site_type_label', palette=palette_, marker=marker, ax = ax, s =50)
+                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', hue = 'site_type_label', palette=palette_, marker=marker, ax = ax, s =50, legend=False)
 
                 
             else:
@@ -320,12 +325,11 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             ax.set_ylim(ymin, ymax)
             
-            if var == 'deep_DO_mg_L':
+            ax.legend()
+            
+            # if var == 'deep_DO_mg_L':
                 
-                ax.legend(loc = 'upper left')
+            #     ax.legend(loc = 'upper left')
             
             
-#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_2.png', dpi=500,transparent=True, bbox_inches='tight')
-
-# %%
- 
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/longsites_deepDOvDOsat_ws.png', dpi=500,transparent=True, bbox_inches='tight')   

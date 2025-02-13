@@ -82,7 +82,7 @@ j2 = 1170
 i1 = 220
 i2 = 652
 
-
+# I MODIFIED LINES 399-401 in D functions here to to test if Lynch Cove depth exclusion would change results
 
 
 poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson'] # 5 sites + 4 basins
@@ -325,7 +325,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
                 ax.legend(loc = 'upper left')
             
             
-#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_2.png', dpi=500,transparent=True, bbox_inches='tight')
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_2_lcnodepthexclusion.png', dpi=500,transparent=True, bbox_inches='tight')
 
 # %%
  

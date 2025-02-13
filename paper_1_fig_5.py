@@ -179,12 +179,12 @@ palette_label = {'Main Basin Observed DO Trend':'#e04256', 'Sub-Basins Observed 
     
 for stat in ['mk_ts']:
     
-    for season in ['summer']:
+    for season in ['loDO']:
     
         for deep_DO_q in ['deep_DO_q50']:
 
         
-            plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['summer_non_summer'] == season) & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q) & (all_stats_filt['var'].isin(['deep_DO_sol','deep_DO_mg_L']))]
+            plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['season'] == season) & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q) & (all_stats_filt['var'].isin(['deep_DO_sol','deep_DO_mg_L']))]
             
             plot_df = plot_df.sort_values(by=['site'])
             
@@ -198,9 +198,16 @@ for stat in ['mk_ts']:
             
             plot_df.loc[plot_df['site_type'] == 'Sub-Basins', 'site_type_label'] = 'Sub-Basins Observed DO Trend'
 
-        
             
-
+            
+            marker = "$\circ$"
+    
+            
+            # sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent_95hi', color = '#dd9404', marker=marker, ax = ax, s= 20, legend=False)
+    
+            # sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent_95lo', color = '#dd9404', marker=marker, ax = ax, s= 20, legend=False)
+    
+            sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent', color = '#dd9404', marker=marker, ax = ax, s =150, label= 'Expected DO Trend')
             
             
             marker = 'o'
@@ -211,15 +218,7 @@ for stat in ['mk_ts']:
                
             sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_mg_L'], x= 'site_num', y = 'slope_datetime_cent', hue = 'site_type_label', palette=palette_label, marker=marker, ax = ax, s =50)
             
-            
-            marker = "$\circ$"
-    
-            
-            sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent_95hi', color = '#dd9404', marker=marker, ax = ax, s= 10, legend=False)
-    
-            sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent_95lo', color = '#dd9404', marker=marker, ax = ax, s= 10, legend=False)
-    
-            sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent', color = '#dd9404', marker=marker, ax = ax, s =50, label= 'Expected DO Trend')
+        
             
         
             
@@ -239,11 +238,11 @@ for stat in ['mk_ts']:
                         
                         ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=color, alpha =0.7, zorder = -4, linewidth=1)
             
-                else:
+                # else:
                     
-                    color = '#dd9404'
+                #     color = '#dd9404'
                     
-                    ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=color, alpha =0.7, zorder = -3, linewidth=1)
+                #     ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=color, alpha =0.7, zorder = -3, linewidth=1)
 
             
                                 

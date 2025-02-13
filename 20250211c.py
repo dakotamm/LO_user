@@ -200,77 +200,77 @@ odf_use = (odf_use
 # %%
 
 
-mosaic = [['map_source', 'CT', 'CT'], ['map_source', 'SA', 'SA'], ['map_source', 'DO_mg_L', 'DO_mg_L']] #, ['map_source', '.', '.'],]
+mosaic = [['CT', 'CT'], ['SA', 'SA'], [ 'DO_mg_L', 'DO_mg_L']] #, ['map_source', '.', '.'],]
 
-fig, axd = plt.subplot_mosaic(mosaic, figsize=(10,7), layout='constrained', gridspec_kw=dict(wspace=0.1))
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,6), layout='constrained', gridspec_kw=dict(wspace=0.1), sharex = True)
 
 
 
-ax = axd['map_source']
+# ax = axd['map_source']
  
-ax.set_xlim(X[i1],-121.4)#X[i2]) # Salish Sea
-ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
+# ax.set_xlim(X[i1],-121.4)#X[i2]) # Salish Sea
+# ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
         
-ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
+# ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
 
-sns.scatterplot(data=odf_ixiy_unique, x='lon', y='lat', ax = ax, color = 'gray', alpha=0.3, label= 'Cast Location')
+# sns.scatterplot(data=odf_ixiy_unique, x='lon', y='lat', ax = ax, color = 'gray', alpha=0.3, label= 'Cast Location')
 
 
-pfun.add_coast(ax)
+# pfun.add_coast(ax)
 
-pfun.dar(ax)
+# pfun.dar(ax)
 
-for site in long_site_list:
+# for site in long_site_list:
     
-    path = path_dict[site]
+#     path = path_dict[site]
         
-    if site in ['near_seattle_offshore']:
+#     if site in ['near_seattle_offshore']:
         
-        patch = patches.PathPatch(path, facecolor='#e04256', edgecolor='white', zorder=1, label='Main Basin')
+#         patch = patches.PathPatch(path, facecolor='#e04256', edgecolor='white', zorder=1, label='Main Basin')
     
-    elif site in ['point_jefferson']:
+#     elif site in ['point_jefferson']:
             
 
-        patch = patches.PathPatch(path, facecolor='#e04256', edgecolor='white', zorder=1)
+#         patch = patches.PathPatch(path, facecolor='#e04256', edgecolor='white', zorder=1)
                 
-    elif site in ['saratoga_passage_mid']:
+#     elif site in ['saratoga_passage_mid']:
         
-        patch = patches.PathPatch(path, facecolor='#4565e8', edgecolor='white', zorder=1, label = 'Sub-Basins')
+#         patch = patches.PathPatch(path, facecolor='#4565e8', edgecolor='white', zorder=1, label = 'Sub-Basins')
         
-    else:
+#     else:
         
-        patch = patches.PathPatch(path, facecolor='#4565e8', edgecolor='white', zorder=1)
+#         patch = patches.PathPatch(path, facecolor='#4565e8', edgecolor='white', zorder=1)
          
-    ax.add_patch(patch)
+#     ax.add_patch(patch)
     
-ax.text(0.75,0.5, 'PJ', transform=ax.transAxes, fontsize=14, color = '#e04256')
+# ax.text(0.75,0.5, 'PJ', transform=ax.transAxes, fontsize=14, color = '#e04256')
 
-ax.text(0.54,0.32, 'NS', transform=ax.transAxes, fontsize=12, color = '#e04256')
+# ax.text(0.54,0.32, 'NS', transform=ax.transAxes, fontsize=12, color = '#e04256')
 
     
-ax.text(0.62,0.67, 'SP', transform=ax.transAxes, fontsize=14, color = '#4565e8')
+# ax.text(0.62,0.67, 'SP', transform=ax.transAxes, fontsize=14, color = '#4565e8')
 
-ax.text(0.22,0.29, 'LC', transform=ax.transAxes, fontsize=14, color = '#4565e8')
+# ax.text(0.22,0.29, 'LC', transform=ax.transAxes, fontsize=14, color = '#4565e8')
  
-ax.text(0.49,0.2, 'CI', transform=ax.transAxes, fontsize=14, color = '#4565e8')
+# ax.text(0.49,0.2, 'CI', transform=ax.transAxes, fontsize=14, color = '#4565e8')
 
 
-ax.text(0.05,0.025, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+# ax.text(0.05,0.025, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
 
 
 
-ax.legend(loc = 'upper left')
+# ax.legend(loc = 'upper left')
 
-ax.set_xlim(-123.2, -122.1) 
+# ax.set_xlim(-123.2, -122.1) 
 
-ax.set_ylim(47,48.5)
+# ax.set_ylim(47,48.5)
 
 
-ax.set_xlabel('')
+# ax.set_xlabel('')
 
-ax.set_ylabel('')
+# ax.set_ylabel('')
 
-ax.tick_params(axis='x', labelrotation=45)
+# ax.tick_params(axis='x', labelrotation=45)
 
 palette = {'point_jefferson':'#e04256', 'lynch_cove_mid':'#4565e8'}
 
@@ -349,22 +349,22 @@ for var in var_list:
     
     if var == 'DO_mg_L':  
     
-        ax.axhspan(0,2, color = 'lightgray', alpha = 0.3, zorder=-5, label='Hypoxia')
+        ax.axhspan(0,2, color = 'gray', alpha = 0.3, zorder=-5, label='Hypoxia')
         
         ax.legend(loc='upper left')
         
-        ax.text(0.025,0.05, 'd', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+       # ax.text(0.025,0.05, 'd', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
         
     
     elif var == 'CT':
         
         ax.legend(ncol=2, loc='upper left')
         
-        ax.text(0.025,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+       # ax.text(0.025,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
         
-    else:
+    #else:
         
-        ax.text(0.025,0.05, 'c', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+       # ax.text(0.025,0.05, 'c', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
 
             
             
@@ -377,5 +377,5 @@ for var in var_list:
     ax.set_xlabel('')
         
         
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_1.png', bbox_inches='tight', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pj_lc_timeseries.png', bbox_inches='tight', dpi=500, transparent=True)
     
