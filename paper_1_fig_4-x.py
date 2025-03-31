@@ -237,11 +237,11 @@ for season in ['allyear', 'grow', 'loDO', 'winter']:
     stats_df = pd.concat([stats_df, plot_df_concat])
     
 
-stats_df.loc[stats_df['season'] == 'allyear', 'season_label'] = 'Full-Year*'
+stats_df.loc[stats_df['season'] == 'allyear', 'season_label'] = 'Full-Year'
 
 stats_df.loc[stats_df['season'] == 'grow', 'season_label'] = 'Apr-Jul'
 
-stats_df.loc[stats_df['season'] == 'loDO', 'season_label'] = 'Aug-Nov*'
+stats_df.loc[stats_df['season'] == 'loDO', 'season_label'] = 'Aug-Nov'
 
 stats_df.loc[stats_df['season'] == 'winter', 'season_label'] = 'Dec-Mar'
 
@@ -270,13 +270,13 @@ for decade in decadal_yearday_mean['decade'].unique():
 
 # %%
 
-fig, ax = plt.subplots(nrows=2, figsize = (9,7))
+fig, ax = plt.subplots(nrows=2, figsize = (6,6))
 
-plt.subplots_adjust(hspace=0.3)
+plt.subplots_adjust(hspace=0.4)
 
 
 
-ax[0].plot(monthly_skagit_df['datetime'], monthly_skagit_df['val'], color= 'lightgray', label = 'Skagit Flow', alpha=0.7)
+ax[0].plot(monthly_skagit_df['datetime'], monthly_skagit_df['val'], color= 'lightgray', label = 'Skagit Monthly Flow', alpha=0.7)
 
 x_plot = monthly_skagit_df['datetime']
 
@@ -284,7 +284,7 @@ x = monthly_skagit_df['date_ordinal']
  
 y = monthly_skagit_df['val']
 
-for season in stats_df['season'].unique(): 
+for season in stats_df['season'].unique():
     
     plot_df = stats_df[stats_df['season'] == season]
     
@@ -310,13 +310,13 @@ for season in stats_df['season'].unique():
         
         linestyle = '-'
         
-        label = plot_df['season_label'].iloc[0] #+ ' Trend\n[' + "{:.1f}".format(plot_df['slope_datetime'].iloc[0]*100) + r' $m^3/s$]'
+        label = plot_df['season_label'].iloc[0] + ' Trend (' + "{:.1f}".format(plot_df['slope_datetime'].iloc[0]*100) + r' $m^3/s$)'
         
     else:
         
         linestyle = '--' 
         
-        label = plot_df['season_label'].iloc[0] #+ ' Trend\n[not significant]'
+        label = plot_df['season_label'].iloc[0] + ' Trend  (not significant)'
 
     
     ax[0].plot([x_plot.min(), x_plot.max()], [plot_df['B0'].iloc[0] + plot_df['B1'].iloc[0]*x.min(), plot_df['B0'].iloc[0] + plot_df['B1'].iloc[0]*x.max()], color = color, linestyle=linestyle, linewidth=2, label=label)
@@ -330,7 +330,7 @@ ax[1].legend(bbox_to_anchor=(1.05, 0.5), loc='center left')
 
 ax[1].set_xlim([1,365])
 
-ax[1].set_ylim(0,1800)
+ax[1].set_ylim(0,1500)
 
 ax[1].axvline(90, color = 'gray', linestyle = '--')
  
@@ -338,19 +338,19 @@ ax[1].axvline(212, color = 'gray', linestyle = '--')
 
 ax[1].axvline(334, color = 'gray', linestyle = '--')
  
-ax[1].text(30,1350, 'Dec-Mar', horizontalalignment='center', verticalalignment='center', color='gray', fontweight = 'bold')
+ax[1].text(30,1350, 'Dec-Mar', horizontalalignment='center', verticalalignment='center', color='gray')
 
-ax[1].text(151,1350, 'Apr-Jul', horizontalalignment='center', verticalalignment='center', color='gray', fontweight = 'bold')
+ax[1].text(151,1350, 'Apr-Jul', horizontalalignment='center', verticalalignment='center', color='gray')
 
-ax[1].text(273,1350, 'Aug-Nov', horizontalalignment='center', verticalalignment='center', color='gray', fontweight = 'bold')
+ax[1].text(273,1350, 'Aug-Nov', horizontalalignment='center', verticalalignment='center', color='gray')
  
 
 
  
 
-ax[0].text(0.025,0.05, 'a', transform=ax[0].transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+ax[0].text(0.05,0.05, 'a', transform=ax[0].transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
 
-ax[1].text(0.025,0.05, 'b', transform=ax[1].transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+ax[1].text(0.05,0.05, 'b', transform=ax[1].transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
 
 
   
@@ -364,36 +364,19 @@ ax[1].set_ylabel(r'Discharge [$m^3/s$]')
 
 ax[0].set_xlabel('Year') 
 
-ax[1].set_xlabel('Yearday') 
+ax[1].set_xlabel('Yearday')
 
-ax[0].set_ylim(0,1800) 
- 
+ax[0].set_ylim(0,1500)
 
 
- 
-ax[1].grid(color = 'lightgray', linestyle = '--', alpha=0.5) 
+
+
+ax[1].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
 
 ax[0].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-  
-ax[0].legend(loc='upper center', ncol = 5)  
- 
-#ax[1].legend(loc='upper center', ncol = 9)
 
-h, l = ax[1].get_legend_handles_labels() 
+ax[0].legend(bbox_to_anchor=(1.05, 0.5), loc='center left')
 
-h.insert(0, plt.Line2D([0], [0], color='white', lw=0, marker='o', markersize=0))  # Empty entry
-
-#h.insert(len(h), plt.Line2D([0], [0], color='white', lw=0, marker='o', markersize=0))  # Empty entry
-
-#l.insert(0, "1940s")  # Title as an entry
-
-ax[1].legend(h, ['1940s','','','','','','','','','     2020s      '], loc='upper center', ncol=11, handlelength=1)
-
-
-
-#ax[0].legend(bbox_to_anchor=(1.05, 0.5), loc='upper left')
-
-#ax[0].legend(bbox_to_anchor=(0.5, 0), loc='upper center')
 
 
 

@@ -162,7 +162,7 @@ all_stats_filt.loc[all_stats_filt['site'] == 'lynch_cove_mid', 'site_num'] = 5
 
 mosaic = [['deep_CT', 'deep_SA', 'deep_DO_mg_L']]
 
-fig, axd = plt.subplot_mosaic(mosaic, figsize=(8.5,2.5), layout='constrained', sharex=True, gridspec_kw=dict(wspace=0.1))
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,2.5), layout='constrained', sharex=True, gridspec_kw=dict(wspace=0.1))
 
         
     
@@ -221,7 +221,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
                 
                 marker = 's'
                 
-                unit = r'[PSU]/century'
+                unit = r'[g/kg]/century'
 
                 
                 
@@ -323,9 +323,34 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             if var == 'deep_DO_mg_L':
                 
                 ax.legend(loc = 'upper left')
+                
+#plt.show()
             
             
 #plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_2.png', dpi=500,transparent=True, bbox_inches='tight')
 
 # %%
  
+sats = plot_df_['slope_datetime'].to_numpy()
+
+sats_avg = sats.mean()
+
+sats_std = sats.std()
+
+sats_95dif = 1.96*sats_std/len(sats)
+
+sats_95hi = sats_avg + 1.96*sats_std/len(sats)
+
+sats_95lo = sats_avg - 1.96*sats_std/len(sats)
+
+# %%
+
+plot_df_['slope_datetime_sat'] = plot_df_['slope_datetime']
+
+plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['var'] == 'deep_DO_mg_L') & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q) & (all_stats_filt['season'] == 'loDO')]
+
+plot_df = plot_df.sort_values(by=['site']).reset_index()
+
+plot_df = pd.merge(plot_df, plot_df_[['site', 'slope_datetime_sat']], on='site', how='left')
+
+plot_df['pct_expl'] = plot_df['slope_datetime_sat']/plot_df['slope_datetime']

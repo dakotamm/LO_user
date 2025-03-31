@@ -38,6 +38,8 @@ import matplotlib.patches as patches
 
 import cmocean
 
+import matplotlib.patheffects as pe
+
 
 
 
@@ -200,9 +202,9 @@ odf_use = (odf_use
 # %%
 
 
-mosaic = [['map_source', 'CT', 'CT'], ['map_source', 'SA', 'SA'], ['map_source', 'DO_mg_L', 'DO_mg_L']] #, ['map_source', '.', '.'],]
+mosaic = [['map_source', 'map_source','CT', 'CT', 'CT'], ['map_source', 'map_source','SA','SA', 'SA'], ['map_source', 'map_source','DO_mg_L','DO_mg_L', 'DO_mg_L']] #, ['map_source', '.', '.'],]
 
-fig, axd = plt.subplot_mosaic(mosaic, figsize=(10,7), layout='constrained', gridspec_kw=dict(wspace=0.1))
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,6), layout='constrained', gridspec_kw=dict(wspace=0.1))
 
 
 
@@ -243,34 +245,79 @@ for site in long_site_list:
          
     ax.add_patch(patch)
     
-ax.text(0.75,0.5, 'PJ', transform=ax.transAxes, fontsize=14, color = '#e04256')
+ax.text(0.57,0.5, 'PJ', transform=ax.transAxes, fontsize=18, color = '#e04256', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
 
-ax.text(0.54,0.32, 'NS', transform=ax.transAxes, fontsize=12, color = '#e04256')
+ax.text(0.54,0.32, 'NS', transform=ax.transAxes, fontsize=18, color = '#e04256', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
 
     
-ax.text(0.62,0.67, 'SP', transform=ax.transAxes, fontsize=14, color = '#4565e8')
+ax.text(0.62,0.67, 'SP', transform=ax.transAxes, fontsize=18, color = '#4565e8', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
 
-ax.text(0.22,0.29, 'LC', transform=ax.transAxes, fontsize=14, color = '#4565e8')
+ax.text(0.22,0.29, 'LC', transform=ax.transAxes, fontsize=18, color = '#4565e8', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
  
-ax.text(0.49,0.2, 'CI', transform=ax.transAxes, fontsize=14, color = '#4565e8')
+ax.text(0.48,0.2, 'CI', transform=ax.transAxes, fontsize=18, color = '#4565e8', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
 
+ax.text(0.15,0.81, 'Strait of\nJuan de Fuca', transform=ax.transAxes, fontsize = 8, color = 'black', ha='center', va='center', rotation = -30)
+
+ax.text(0.3,0.85, '^ to Strait\nof Georgia', transform=ax.transAxes, fontsize = 7, color = 'black', ha='center', va='center')
+
+ax.text(0.36,0.785, 'Admiralty\nInlet', transform=ax.transAxes, fontsize = 6, color = 'black', ha='center', va='center')
+
+
+ax.text(0.02,0.64 , 'Puget Sound', transform=ax.transAxes, fontsize = 12, color = 'black')
+
+ax.text(0.025,0.36, 'Hood Canal', transform=ax.transAxes, fontsize = 10, color = 'gray', rotation = 55)
+
+ax.text(0.57,0.1, 'South Sound', transform=ax.transAxes, fontsize = 10, color = 'gray')
+
+ax.text(0.77,0.5, 'Main Basin', transform=ax.transAxes, fontsize = 10, color = 'gray', rotation = 50)
+
+ax.text(0.82,0.73, 'Whidbey Basin', transform=ax.transAxes, fontsize = 10, color = 'gray', rotation = -70)
+ 
+ax.text(0.86,0.95, 'Skagit\nRiver', transform=ax.transAxes, fontsize = 6, color = 'black', ha='center', va='center')
+
+ 
+
+
+ 
 
 ax.text(0.05,0.025, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
 
 
+ax.plot([-122.65,-122.65],[48.35, 48.45], color = 'black', linestyle='--', linewidth=3)
 
+ax.plot([-122.8,-122.7],[48.1, 48.2], color = 'black', linestyle='--', linewidth=3)
+
+
+
+ax.plot([-122.75,-122.55],[47.95, 47.9], color = 'gray', linestyle='--', linewidth=2)
+
+ax.plot([-122.61,-122.49],[47.37, 47.27], color = 'gray', linestyle='--', linewidth=2)
+
+ax.plot([-122.61,-122.49],[47.37, 47.27], color = 'gray', linestyle='--', linewidth=2)
+
+ax.plot([-122.40,-122.27],[47.95, 47.87], color = 'gray', linestyle='--', linewidth=2)
+
+
+
+ 
 ax.legend(loc = 'upper left')
 
 ax.set_xlim(-123.2, -122.1) 
-
+ 
 ax.set_ylim(47,48.5)
 
 
 ax.set_xlabel('')
 
 ax.set_ylabel('')
+ 
+#xlbl = ax.get_xticklabels()
 
-ax.tick_params(axis='x', labelrotation=45)
+ax.set_xticks([-123.0, -122.6, -122.2], ['-123.0','-122.6', '-122.2']) #['','-123.0', '', '-122.6', '', '-122.2'])
+
+
+
+#ax.tick_params(axis='x', labelrotation=45)
 
 palette = {'point_jefferson':'#e04256', 'lynch_cove_mid':'#4565e8'}
 
@@ -308,22 +355,22 @@ for var in var_list:
         label_var = 'Salinity'
         
         ymin = 28
-        
+         
         ymax = 34
         
         marker = 's'
         
-        unit = r'[PSU]'
+        unit = r'[g/kg]'
 
     for site in ['point_jefferson', 'lynch_cove_mid']:
         
         if site == 'point_jefferson':
             
-            site_label = 'Point Jefferson'
+            site_label = 'Point Jefferson (PJ)'
         
         else:
             
-            site_label = 'Lynch Cove'
+            site_label = 'Lynch Cove (LC)'
         
         if var == 'DO_mg_L':
             
@@ -349,9 +396,9 @@ for var in var_list:
     
     if var == 'DO_mg_L':  
     
-        ax.axhspan(0,2, color = 'lightgray', alpha = 0.3, zorder=-5, label='Hypoxia')
+        ax.axhspan(0,2, color = 'gray', alpha = 0.3, zorder=-5, label='Hypoxia')
         
-        ax.legend(loc='upper left')
+        ax.legend(loc='upper right')
         
         ax.text(0.025,0.05, 'd', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
         
@@ -370,7 +417,7 @@ for var in var_list:
             
     ax.set_ylim(ymin, ymax) 
             
-    ax.set_ylabel('Filtered ' + label_var + ' ' + unit)
+    ax.set_ylabel(label_var + ' ' + unit)
     
     ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
     

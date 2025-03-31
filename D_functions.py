@@ -393,8 +393,10 @@ def longShortClean(odf):
     
     odf.loc[odf['short_long'] == 'long', 'site'] = odf[odf['short_long'] == 'long']['segment']
     
+    print('done')
     
-    temp = odf.groupby(['site','cid']).min().reset_index()
+    
+    temp = odf.groupby(['site','cid']).min(numeric_only=True).reset_index()
     
     cid_exclude = temp[(temp['site'].isin(['HCB005', 'HCB007', 'lynch_cove_mid'])) & (temp['z'] < -50)]['cid']
     

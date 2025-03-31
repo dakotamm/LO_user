@@ -374,7 +374,7 @@ for season in ['allyear', 'grow', 'loDO', 'winter']:
 
 mosaic = [['time_series', 'time_series', 'trends']]
 
-fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,3), layout='constrained', gridspec_kw=dict(wspace=0.1))
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(10,4), layout='constrained', gridspec_kw=dict(wspace=0.1))
 
 ax = axd['time_series']
 
@@ -386,17 +386,17 @@ for idx in plot_df.index:
 
     ax.plot([plot_df.loc[idx,'datetime'], plot_df.loc[idx,'datetime']],[plot_df.loc[idx,'val_ci95lo'], plot_df.loc[idx,'val_ci95hi']], color='gray', alpha =0.3, linewidth=1,zorder=-5)
 
-sns.scatterplot(data=plot_df, x='datetime', y='val', ax=ax, alpha=0.5, color = 'gray', label='Seattle Air')
+sns.scatterplot(data=plot_df, x='datetime', y='val', ax=ax, alpha=0.5, color = 'gray', label='Sea-Tac Annual Average')
 
 
 
-# plot_df = temp_seasonal_avg_df[(temp_seasonal_avg_df['season'] == 'loDO') & (temp_seasonal_avg_df['var'] == 'TAVG')]
+plot_df = temp_seasonal_avg_df[(temp_seasonal_avg_df['season'] == 'loDO') & (temp_seasonal_avg_df['var'] == 'TAVG')]
 
-# for idx in plot_df.index:
+for idx in plot_df.index:
 
-#     ax.plot([plot_df.loc[idx,'datetime'], plot_df.loc[idx,'datetime']],[plot_df.loc[idx,'val_ci95lo'], plot_df.loc[idx,'val_ci95hi']], color='gray', alpha =0.3, linewidth=1, zorder=-5)
+    ax.plot([plot_df.loc[idx,'datetime'], plot_df.loc[idx,'datetime']],[plot_df.loc[idx,'val_ci95lo'], plot_df.loc[idx,'val_ci95hi']], color='gray', alpha =0.3, linewidth=1, zorder=-5)
 
-# sns.scatterplot(data=plot_df, x='datetime', y='val', ax=ax, alpha=0.5, color = 'black', label='Atmospheric Fall Averages')
+sns.scatterplot(data=plot_df, x='datetime', y='val', ax=ax, alpha=0.5, color = 'black', label='Sea-Tac Annual August-November Average')
  
 
 
@@ -406,7 +406,7 @@ for idx in plot_df_surf_CT.index:
 
     ax.plot([plot_df_surf_CT.loc[idx,'datetime'], plot_df_surf_CT.loc[idx,'datetime']],[plot_df_surf_CT.loc[idx,'val_ci95lo'], plot_df_surf_CT.loc[idx,'val_ci95hi']], color='#4565e8', linewidth=1, zorder=-5, alpha=0.5)
 
-sns.scatterplot(data=plot_df_surf_CT, x='datetime', y='val', ax=ax, color = '#4565e8', label = 'Point Jefferson Surface')
+sns.scatterplot(data=plot_df_surf_CT, x='datetime', y='val', ax=ax, color = '#4565e8', label = 'PJ Surface Annual August-November Average')
 
 
 
@@ -416,7 +416,7 @@ for idx in plot_df_deep_CT.index:
 
     ax.plot([plot_df_deep_CT.loc[idx,'datetime'], plot_df_deep_CT.loc[idx,'datetime']],[plot_df_deep_CT.loc[idx,'val_ci95lo'], plot_df_deep_CT.loc[idx,'val_ci95hi']], color='#e04256', linewidth=1, zorder=-5, alpha=0.5)
 
-sns.scatterplot(data=plot_df_deep_CT, x='datetime', y='val', ax=ax, color = '#e04256', label = 'Point Jefferson Deep')
+sns.scatterplot(data=plot_df_deep_CT, x='datetime', y='val', ax=ax, color = '#e04256', label = 'PJ Deep Annual August-November Average')
 
 
 
@@ -440,17 +440,30 @@ ax = axd['trends']
 
 P4_trend = 0.0084*100 #degC per century
 
-plot_df = stats_df[stats_df['season'] == 'allyear']
+plot_df = stats_df.copy()
 
-plot_df = plot_df[['var', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo']]
+plot_df.loc[plot_df['season'] == 'loDO','season_label'] = 'Aug-Nov'
 
-
-plot_df_concat = all_stats_filt[(all_stats_filt['site'] == 'point_jefferson') & (all_stats_filt['season'] =='loDO') & (all_stats_filt['var'].isin(['surf_CT', 'deep_CT']))]
-
-plot_df_concat = plot_df_concat[['var', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo']]
+plot_df.loc[plot_df['season'] == 'loDO','season_number'] = 3
 
 
-plot_df = pd.concat([plot_df,plot_df_concat]).reset_index(drop=True)
+plot_df.loc[plot_df['season'] == 'grow','season_label'] = 'Apr-Jul'
+
+plot_df.loc[plot_df['season'] == 'grow','season_number'] = 2
+
+
+plot_df.loc[plot_df['season'] == 'winter','season_label'] = 'Dec-Mar'
+
+plot_df.loc[plot_df['season'] == 'winter','season_number'] = 1
+
+
+plot_df.loc[plot_df['season'] == 'allyear','season_label'] = 'Full-Year'
+
+plot_df.loc[plot_df['season'] == 'allyear','season_number'] = 0
+
+
+
+
 
 plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_s_hi']*100
 
@@ -458,63 +471,32 @@ plot_df['slope_datetime_cent_95lo'] = plot_df['slope_datetime_s_lo']*100
 
 plot_df['slope_datetime_cent'] = plot_df['slope_datetime']*100
 
-plot_df = plot_df[['var', 'slope_datetime_cent', 'slope_datetime_cent_95lo', 'slope_datetime_cent_95hi']]
-
-
-plot_df_concat = pd.DataFrame()
-
-plot_df_concat['var'] = ['P4']
-
-plot_df_concat['slope_datetime_cent'] = [P4_trend]
-
-plot_df_concat['slope_datetime_cent_95lo'] = [np.nan]
-
-plot_df_concat['slope_datetime_cent_95hi'] = [np.nan]
-
-
-plot_df = pd.concat([plot_df,plot_df_concat]).reset_index(drop=True)
- 
-
-
-
-
-plot_df.loc[plot_df['var'] == 'TAVG','label'] = 'Atmospheric'
-
-plot_df.loc[plot_df['var'] == 'TAVG','number'] = 3
-
-
-plot_df.loc[plot_df['var'] == 'surf_CT','label'] = 'PJ Surface Fall'
-
-plot_df.loc[plot_df['var'] == 'surf_CT','number'] = 2
-
-
-plot_df.loc[plot_df['var'] == 'deep_CT','label'] = 'PJ Deep Fall'
-
-plot_df.loc[plot_df['var'] == 'deep_CT','number'] = 1
-
-
-plot_df.loc[plot_df['var'] == 'P4','label'] = 'Offshore'
-
-plot_df.loc[plot_df['var'] == 'P4','number'] = 0
-
-
-palette = {'TAVG': 'gray', 'P4':'darkgray', 'surf_CT':'#4565e8', 'deep_CT': '#e04256'}
-
 
  
 
-sns.scatterplot(data = plot_df, x= 'number', y = 'slope_datetime_cent_95hi', hue = 'var', palette= palette, ax = ax, s= 10, legend = False)
+sns.scatterplot(data = plot_df, x= 'season_number', y = 'slope_datetime_cent_95hi', color = 'gray', ax = ax, s= 10, legend = False)
 
-sns.scatterplot(data = plot_df, x= 'number', y = 'slope_datetime_cent_95lo', hue = 'var', palette= palette, ax = ax, s= 10, legend = False)
+sns.scatterplot(data = plot_df, x= 'season_number', y = 'slope_datetime_cent_95lo', color = 'gray', ax = ax, s= 10, legend=False)
 
-sns.scatterplot(data = plot_df, x= 'number', y = 'slope_datetime_cent', hue = 'var', palette= palette, ax = ax, s= 50, legend = False)
+sns.scatterplot(data = plot_df, x= 'season_number', y = 'slope_datetime_cent', color = 'gray', ax = ax, s =50, label = 'Sea-Tac Monthly (Seasonal)')
 
-for idx in plot_df.index:
-
-    var = plot_df.loc[idx, 'var']       
+for idx in plot_df.index:        
         
-    ax.plot([plot_df.loc[idx,'number'], plot_df.loc[idx,'number']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=palette[var], alpha =0.7, zorder = -4, linewidth=1)
+    ax.plot([plot_df.loc[idx,'season_number'], plot_df.loc[idx,'season_number']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color='gray', alpha =0.7, zorder = -4, linewidth=1)
 
+
+pj_surf = all_stats_filt[(all_stats_filt['site'] == 'point_jefferson') & (all_stats_filt['season'] =='loDO') & (all_stats_filt['var'] == 'surf_CT')]['slope_datetime'].iloc[0]*100
+ 
+pj_deep = all_stats_filt[(all_stats_filt['site'] == 'point_jefferson') & (all_stats_filt['season'] =='loDO') & (all_stats_filt['var'] == 'deep_CT')]['slope_datetime'].iloc[0]*100
+
+
+
+ax.axhline(pj_surf, color='#4565e8', label = 'PJ Surface August-November')
+
+ax.axhline(pj_deep, color = '#e04256', label = 'PJ Deep August-November')
+
+
+ax.axhline(P4_trend, color = 'black', linestyle = '--', label = 'Whitney et al. (2007) at P4')
 
 
 ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3) 
@@ -524,21 +506,16 @@ ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3)
 
 #ax.tick_params(axis='x', rotation=45)
 
-ax.set_ylim(0,5)
+ax.set_ylim(0,7)
 
-ax.set_xlim(-0.75,3.75)
-
-ax.set_xticks([0,1,2,3],['Offshore', 'Deep', 'Surface', 'Air'])
- 
-ax.tick_params(axis='x')
-
+ax.set_xticks([0,1,2,3],['Full-Year', 'Dec-Mar', 'Apr-Jul', 'Aug-Nov'])
 
 
 ax.set_ylabel(r'[$^{\circ}$C]/century', wrap=True)
 
 ax.set_xlabel('')
 
-# ax.legend(loc = 'upper left')
+ax.legend(loc = 'upper left')
 
 ax.text(0.05,0.05, 'b', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
 
