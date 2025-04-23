@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 31 14:35:24 2025
+Created on Tue Apr 22 11:56:49 2025
 
 @author: dakotamascarenas
 """
@@ -100,10 +100,26 @@ odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_l
 
 # %%
 
-puget_sound_casts_DF = odf
-
-puget_sound_casts_DF.to_pickle('./paper_1/puget_sound_casts_DF.p')
+odf['ix_iy'] = odf['ix'].astype(str).apply(lambda x: x.zfill(4)) + '_' + odf['iy'].astype(str).apply(lambda x: x.zfill(4))
 
 # %%
 
-new_df = pd.read_pickle()
+yearly_averages = odf.groupby(['year', 'var']).mean(numeric_only=True).reset_index()
+
+# %%
+
+fig, ax = plt.subplots()
+
+plot_df = yearly_averages[yearly_averages['var'] == 'DO_mg_L']
+
+sns.scatterplot(data=plot_df, x='year', y='val')
+
+#ax.set_ylim(ymin, ymax) 
+        
+ax.set_ylabel('Annual Average DO [mg/L]')
+
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+
+ax.set_xlabel('')
+
+plt.savefig('/Users/dakotamascarenas/Desktop/test.png', bbox_inches='tight', dpi=500, transparent=False)

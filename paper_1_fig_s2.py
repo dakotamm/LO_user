@@ -170,7 +170,7 @@ mosaic = [['loDO_deep_CT', 'loDO_deep_SA', 'loDO_deep_DO_mg_L'],
             ['winter_surf_CT', 'winter_surf_SA', 'winter_surf_DO_mg_L'],
             ['grow_surf_CT', 'grow_surf_SA', 'grow_surf_DO_mg_L']]
 
-fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,12.5), layout='constrained', sharex=True, gridspec_kw=dict(wspace=0.1))
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,11), layout='constrained', sharex=True, gridspec_kw=dict(wspace=0.1))
 
     
 for season in ['loDO', 'winter', 'grow']:
