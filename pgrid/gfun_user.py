@@ -16,7 +16,7 @@ import gfun_utility as gfu
 import gfun
 
 # This is the name of the grid that you are working on.
-gridname = 'test0'
+gridname = 'wb1'
 
 # default s-coordinate info (could override below)
 s_dict = {'THETA_S': 4, 'THETA_B': 2, 'TCLINE': 10, 'N': 30,
@@ -79,7 +79,7 @@ def make_initial_info(gridname=gridname):
         if dch['use_z_offset']:
             z = z + dch['z_offset']
             
-    elif gridname == 'oly1':
+    elif gridname == 'oly1': # USE THIS EXAMPLE
         # South Sound, new version, 2024.11.25
         # Includes Vashon Island and Colvos Passage
         dch = gfun.default_choices()
@@ -106,6 +106,37 @@ def make_initial_info(gridname=gridname):
         
         # Initialize bathymetry
         dch['t_list'] = ['psdem']
+        z = gfu.combine_bathy_from_sources(lon, lat, dch)
+                
+        if dch['use_z_offset']:
+            z = z + dch['z_offset']
+            
+    elif gridname == 'wb1': #DM edits
+        # Whidbey Basin 20250520
+        dch = gfun.default_choices()
+        dch['z_offset'] = -2 # same logic as wgh2
+
+        # dch['excluded_rivers'] = ['skokomish']
+        # dch['do_traps'] = True
+        # dch['excluded_triv'] = ['Lynch Cove','Tahuya']
+        # dch['excluded_wwtp'] = ['Alderbrook']
+
+        aa = [-122.836, -122.1, 47.836, 48.5] #lat/lon area
+        res = 200 # target resolution (m)
+        Lon_vec, Lat_vec = gfu.simple_grid(aa, res)
+        dch['nudging_edges'] = ['north', 'west', 'south'] #separate netCDF ultimately fed to ROMS
+        dch['nudging_days'] = (0.1, 1.0)
+        
+        # by setting a small min_depth were are planning to use
+        # wetting and drying in ROMS, but maintaining positive depth
+        # for all water cells
+        dch['min_depth'] = 0.2 # meters (positive down)
+        
+        # Make the rho grid.
+        lon, lat = np.meshgrid(Lon_vec, Lat_vec)
+        
+        # Initialize bathymetry
+        dch['t_list'] = ['nw_pacific', 'psdem'] #processed bathy in LO_data...can also handle list > psdem ~10m resolution
         z = gfu.combine_bathy_from_sources(lon, lat, dch)
                 
         if dch['use_z_offset']:
