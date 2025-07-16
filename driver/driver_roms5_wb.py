@@ -35,7 +35,7 @@ For testing/debugging these flags can be very useful:
 --move_his False (don't move the results to apogee)
 
 testing on mac:
-python5 driver_roms5_wb.py -g wb1 -t test1 -x xn11b -0 2017.01.01 -np 160 -N 32 -v True --get_forcing False --run_roms False --move_his False
+python5 driver_roms5_wb.py -g wb1 -t test1 -x xn11b -0 2017.01.01 -np 160 -N 32 -v True -s new --get_forcing False --run_roms False --move_his False
 
 
 """
