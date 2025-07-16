@@ -37,6 +37,10 @@ For testing/debugging these flags can be very useful:
 testing on mac:
 python5 driver_roms5_wb.py -g wb1 -t test1 -x xn11b -0 2017.01.01 -np 160 -N 32 -v True -s new --get_forcing False --run_roms False --move_his False
 
+run on klone:
+python3 driver_roms5_wb.py -g wb1 -t test1 -x xn11b -0 2017.01.01 -np 160 -N 32 -v True -s new --cpu_choice ckpt-g2
+
+
 
 """
 
@@ -51,7 +55,7 @@ import random
 import string
 
 # add the path by hand so that it will run on klone or mox (outside of loenv)
-pth = Path(__file__).absolute().parent.parent / 'LO' / 'lo_tools' / 'lo_tools' #DM modified oer AL assistance 20250716
+pth = Path(__file__).absolute().parent.parent.parent / 'LO' / 'lo_tools' / 'lo_tools' #DM modified oer AL assistance 20250716
 if str(pth) not in sys.path:
     sys.path.append(str(pth))
 import Lfun
