@@ -75,8 +75,8 @@ elif (str(HOME) == '/usr/lusers/dakotamm'):
 elif (str(HOME) == '/mmfs1/home/dakotamm'): # or (str(HOME) == '/mmfs1/home/darrd')):
     lo_env = 'dm_klone'
     remote_user = 'dakotamm'
-    remote_machine = 'perigee.ocean.washington.edu'
-    remote_dir0 = '/data1/dakotamm'
+    remote_machine = 'apogee.ocean.washington.edu'
+    remote_dir0 = '/dat1/dakotamm'
     local_user = 'dakotamm'
 
 Ldir0 = dict()
