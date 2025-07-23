@@ -800,17 +800,31 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                         
                                         sB1 = result.stderr
                                         
+                                        n = len(x)
+                                        
+                                        dof = n-2
+                                        
+                                        t = stats.t.ppf(1-alpha/2, dof)
+                                        
+                                        high_sB1 = B1 + t * sB1
+                                        
+                                        low_sB1 = B1 - t * sB1
+                                        
                                         plot_df['p'] = result.pvalue
                                         
                                         slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
                                         
-                                        slope_datetime_s = (B0 + sB1*x.max() - (B0 + sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                        slope_datetime_s_hi = (B0 + high_sB1*x.max() - (B0 + high_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                        
+                                        slope_datetime_s_lo = (B0 + low_sB1*x.max() - (B0 + low_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
                                 
                                         plot_df['slope_datetime'] = slope_datetime #per year
                                         
-                                        plot_df['slope_datetime_s'] = slope_datetime_s #per year
+                                        plot_df['slope_datetime_s_hi'] = slope_datetime_s_hi #per year
+                                        
+                                        plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
                                                                                 
-                                        plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s', 'B1', 'B0']].head(1) #slope_datetime_unc_cent
+                                        plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
                                         
                                         plot_df_concat['deep_DO_q'] = deep_DO_q
                                         
@@ -942,21 +956,37 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                 
                                 sB1 = result.stderr
                                 
+                                n = len(x)
+                                
+                                dof = n-2
+                                
+                                t = stats.t.ppf(1-alpha/2, dof)
+                                
+                                high_sB1 = B1 + t * sB1
+                                
+                                low_sB1 = B1 - t * sB1
+                                
                                 plot_df['p'] = result.pvalue
                                 
                                 slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
                                 
-                                slope_datetime_s = (B0 + sB1*x.max() - (B0 + sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                slope_datetime_s_hi = (B0 + high_sB1*x.max() - (B0 + high_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
+                                
+                                slope_datetime_s_lo = (B0 + low_sB1*x.max() - (B0 + low_sB1*x.min()))/(x_plot.max().year - x_plot.min().year)
                         
                                 plot_df['slope_datetime'] = slope_datetime #per year
                                 
-                                plot_df['slope_datetime_s'] = slope_datetime_s #per year
+                                plot_df['slope_datetime_s_hi'] = slope_datetime_s_hi #per year
+                                
+                                plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
+                    
+                                all_stats_filt = pd.concat([all_stats_filt, plot_df_concat])
                                                                 
                                 if depth != 'all':
                                                             
                                     plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
                                                                 
-                                plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s', 'B1', 'B0']].head(1) #slope_datetime_unc_cent
+                                plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
                                 
                                 plot_df_concat['deep_DO_q'] = deep_DO_q
                                 
