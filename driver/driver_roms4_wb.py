@@ -47,7 +47,7 @@ import random
 import string
 
 # add the path by hand so that it will run on klone or mox (outside of loenv)
-pth = Path(__file__).absolute().parent.parent / 'lo_tools' / 'lo_tools'
+pth = Path(__file__).absolute().parent.parent.parent / 'LO' / 'lo_tools' / 'lo_tools' # DM updated since in LO_user 20250723
 if str(pth) not in sys.path:
     sys.path.append(str(pth))
 import Lfun
@@ -205,7 +205,7 @@ while dt <= dt1:
     # use updated ROMS
     roms_ex_dir = Ldir['parent'] / 'LO_roms_user' / Ldir['ex_name']
     roms_ex_name = 'romsM'
-    
+        
     print(str(roms_out_dir)) # always print this
     if args.verbose:
         print(' - force_dir:    ' + str(force_dir))

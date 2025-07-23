@@ -47,9 +47,9 @@ except KeyError:
     HOSTNAME = 'BLANK'
     
 # debugging
-print('** from get_lo_info.py **')
-print('HOME = ' + str(HOME))
-print('HOSTNAME = ' + HOSTNAME)
+# print('** from get_lo_info.py **')
+# print('HOME = ' + str(HOME))
+# print('HOSTNAME = ' + HOSTNAME)
 
 if str(HOME) == '/Users/dakotamascarenas':
     lo_env = 'dm_mac'
