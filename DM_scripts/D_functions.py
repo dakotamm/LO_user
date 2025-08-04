@@ -302,7 +302,6 @@ def dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_list, pa
     odf = odf[odf['val'] >0]
 
 
-
     max_depths_dict = dict()
 
     ox = lon
@@ -403,7 +402,11 @@ def longShortClean(odf):
     odf = odf[~odf['cid'].isin(cid_exclude)]
     
     
+    
     temp0 = odf[odf['surf_deep'] != 'nan']
+    
+    # DM addition 20250801
+    temp0.loc[(temp0['var'] == 'CT') & (temp0['val'] >27)] = np.nan
 
 
     odf_depth_mean = temp0.groupby(['site','surf_deep', 'year', 'season', 'var','cid']).mean(numeric_only=True).reset_index().dropna() #####
@@ -473,32 +476,20 @@ def longShortClean(odf):
     odf_calc_long = pd.melt(odf_calc, id_vars = ['site', 'year', 'month', 'season', 'date_ordinal','cid'], value_vars=['strat_sigma', 'surf_DO_sol', 'deep_DO_sol'], var_name='var', value_name='val')
 
 
-    # low_DO_season_start = 213 #aug1
-
-    # low_DO_season_end = 335 #nov30
-
-    # summer_mask_odf_depth_mean = (odf_depth_mean['yearday'] >= low_DO_season_start) & (odf_depth_mean['yearday']<= low_DO_season_end)
-
-    # odf_depth_mean.loc[summer_mask_odf_depth_mean, 'summer_non_summer'] = 'summer'
-
-    # odf_depth_mean.loc[~summer_mask_odf_depth_mean, 'summer_non_summer'] = 'non_summer'
-
-
-
-    # summer_mask_odf_calc_long = (odf_calc_long['yearday'] >= low_DO_season_start) & (odf_calc_long['yearday']<= low_DO_season_end)
-
-    # odf_calc_long.loc[summer_mask_odf_calc_long, 'summer_non_summer'] = 'summer'
-
-    # odf_calc_long.loc[~summer_mask_odf_calc_long, 'summer_non_summer'] = 'non_summer'
-
-
     odf_depth_mean_deep_DO = odf_depth_mean[(odf_depth_mean['var'] == 'DO_mg_L') & (odf_depth_mean['surf_deep'] == 'deep')]
+    
+    
+    odf_depth_mean_deep_DO['year_fudge'] = odf_depth_mean_deep_DO['year']
+    
+    odf_depth_mean_deep_DO.loc[odf_depth_mean_deep_DO['month'] == 12, 'year_fudge'] = odf_depth_mean_deep_DO['year'] + 1
+    
 
 
 
-    odf_depth_mean_deep_DO_q50 = odf_depth_mean_deep_DO[['site', 'year', 'season','val']].groupby(['site', 'year', 'season']).quantile(0.5)
+    odf_depth_mean_deep_DO_q50 = odf_depth_mean_deep_DO[['site', 'year_fudge', 'season','val']].groupby(['site', 'year_fudge', 'season']).quantile(0.5)
 
     odf_depth_mean_deep_DO_q50 = odf_depth_mean_deep_DO_q50.rename(columns={'val':'deep_DO_q50'})
+        
 
     # odf_depth_mean_deep_DO_q75 = odf_depth_mean_deep_DO[['site', 'year', 'summer_non_summer','val']].groupby(['site', 'year', 'summer_non_summer']).quantile(0.75)
 
@@ -509,7 +500,7 @@ def longShortClean(odf):
     # odf_depth_mean_deep_DO_q25 = odf_depth_mean_deep_DO_q25.rename(columns={'val':'deep_DO_q25'})
 
 
-    odf_depth_mean_deep_DO_percentiles = pd.merge(odf_depth_mean_deep_DO, odf_depth_mean_deep_DO_q50, how='left', on=['site','season','year'])
+    odf_depth_mean_deep_DO_percentiles = pd.merge(odf_depth_mean_deep_DO, odf_depth_mean_deep_DO_q50, how='left', on=['site','season','year_fudge'])
 
     # odf_depth_mean_deep_DO_percentiles = pd.merge(odf_depth_mean_deep_DO_percentiles, odf_depth_mean_deep_DO_q75, how='left', on=['site','summer_non_summer','year'])
 
@@ -524,14 +515,20 @@ def longShortClean(odf):
 
 def seasonalDepthAverageDF(odf_depth_mean, odf_calc_long):
     
-    seasonal_counts_0 = (odf_depth_mean
+    odf_working = odf_depth_mean.copy()
+    
+    odf_working['year_fudge'] = odf_working['year'] # this is to make seasons chronological because winter overlaps calendar years!
+    
+    odf_working.loc[odf_working['month'] == 12, 'year_fudge'] = odf_working['year'] + 1
+    
+    seasonal_counts_0 = (odf_working
                           .dropna()
-                          .groupby(['site','year','surf_deep', 'season', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .groupby(['site','year_fudge','surf_deep', 'season', 'var']).agg({'cid' :lambda x: x.nunique()})
                           .reset_index()
                           .rename(columns={'cid':'cid_count'})
                           )
 
-    odf_use= odf_depth_mean.groupby(['site', 'surf_deep', 'season', 'year','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+    odf_use= odf_working.groupby(['site', 'surf_deep', 'season', 'year_fudge','var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
 
 
     odf_use.columns = odf_use.columns.to_flat_index().map('_'.join)
@@ -548,7 +545,7 @@ def seasonalDepthAverageDF(odf_depth_mean, odf_calc_long):
                       )
 
 
-    odf_use = pd.merge(odf_use, seasonal_counts_0, how='left', on=['site','surf_deep', 'season', 'year','var'])
+    odf_use = pd.merge(odf_use, seasonal_counts_0, how='left', on=['site','surf_deep', 'season', 'year_fudge','var'])
 
 
     odf_use = odf_use[odf_use['cid_count'] >1] #redundant but fine (see note line 234)
@@ -559,17 +556,25 @@ def seasonalDepthAverageDF(odf_depth_mean, odf_calc_long):
     
     odf_use['val'] = odf_use['val_mean']
     
+    odf_use['year'] = odf_use['year_fudge']
     
     
     
-    seasonal_counts_1 = (odf_calc_long
+    odf_calc_working = odf_calc_long.copy()
+    
+    odf_calc_working['year_fudge'] = odf_calc_working['year'] # this is to make seasons chronological because winter overlaps calendar years!
+    
+    odf_calc_working.loc[odf_calc_working['month'] == 12, 'year_fudge'] = odf_calc_working['year'] + 1
+    
+    
+    seasonal_counts_1 = (odf_calc_working
                           .dropna()
-                          .groupby(['site','year', 'season', 'var']).agg({'cid' :lambda x: x.nunique()})
+                          .groupby(['site','year_fudge', 'season', 'var']).agg({'cid' :lambda x: x.nunique()})
                           .reset_index()
                           .rename(columns={'cid':'cid_count'})
                           )
 
-    odf_calc_use= odf_calc_long.groupby(['site', 'season', 'year','var']).agg({'val':['mean', 'std'], 'date_ordinal':['mean']})
+    odf_calc_use= odf_calc_working.groupby(['site', 'season', 'year_fudge','var']).agg({'val':['mean', 'std'], 'date_ordinal':['mean']})
 
 
     odf_calc_use.columns = odf_calc_use.columns.to_flat_index().map('_'.join)
@@ -586,7 +591,7 @@ def seasonalDepthAverageDF(odf_depth_mean, odf_calc_long):
                       )
 
 
-    odf_calc_use = pd.merge(odf_calc_use, seasonal_counts_1, how='left', on=['site','year', 'season', 'var'])
+    odf_calc_use = pd.merge(odf_calc_use, seasonal_counts_1, how='left', on=['site','year_fudge', 'season', 'var'])
 
 
     odf_calc_use = odf_calc_use[odf_calc_use['cid_count'] >1] #redundant but fine (see note line 234)
@@ -597,7 +602,9 @@ def seasonalDepthAverageDF(odf_depth_mean, odf_calc_long):
     
     odf_calc_use['val'] = odf_calc_use['val_mean']
 
-    
+    odf_calc_use['year'] = odf_calc_use['year_fudge']
+
+
     
     return odf_use, odf_calc_use
 
@@ -802,6 +809,8 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                         
                                         n = len(x)
                                         
+                                        plot_df['n'] = n 
+                                        
                                         dof = n-2
                                         
                                         t = stats.t.ppf(1-alpha/2, dof)
@@ -824,7 +833,7 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                         
                                         plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
                                                                                 
-                                        plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
+                                        plot_df_concat = plot_df[['site','stat','var', 'p', 'n', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
                                         
                                         plot_df_concat['deep_DO_q'] = deep_DO_q
                                         
@@ -839,6 +848,10 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                         reject_null, p_value, Z = mann_kendall(y, alpha) #dfun
                                                     
                                         plot_df['p'] = p_value
+                                        
+                                        n = len(x)
+                                        
+                                        plot_df['n'] = n
                                                     
                                         result = stats.theilslopes(y,x,alpha=alpha)
                                 
@@ -866,7 +879,7 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                         
                                         plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
                                         
-                                        plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
+                                        plot_df_concat = plot_df[['site','stat','var', 'p', 'n', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
                                         
                                         plot_df_concat['deep_DO_q'] = deep_DO_q
                                         
@@ -958,6 +971,8 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                 
                                 n = len(x)
                                 
+                                plot_df['n'] = n
+                                
                                 dof = n-2
                                 
                                 t = stats.t.ppf(1-alpha/2, dof)
@@ -986,7 +1001,7 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                                             
                                     plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
                                                                 
-                                plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
+                                plot_df_concat = plot_df[['site','stat','var', 'p', 'n', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
                                 
                                 plot_df_concat['deep_DO_q'] = deep_DO_q
                                 
@@ -1001,6 +1016,10 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                 reject_null, p_value, Z = mann_kendall(y, alpha) #dfun
                                             
                                 plot_df['p'] = p_value
+                                
+                                n = len(x)
+                                
+                                plot_df['n'] = n
                         
                         
                                 result = stats.theilslopes(y,x,alpha=alpha)
@@ -1033,7 +1052,7 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
                                                             
                                     plot_df['var'] = plot_df['surf_deep'] + '_' + plot_df['var']
                                                                                                         
-                                plot_df_concat = plot_df[['site','stat','var', 'p', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
+                                plot_df_concat = plot_df[['site','stat','var', 'p', 'n', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo', 'B1', 'B0']].head(1) #slope_datetime_unc_cent, slope_datetime_s
                                 
                                 plot_df_concat['deep_DO_q'] = deep_DO_q
                                 

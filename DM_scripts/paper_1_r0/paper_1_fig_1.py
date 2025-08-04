@@ -111,100 +111,100 @@ odf_ixiy_unique = odf.groupby(['ix_iy']).first().reset_index()
 
 
 
-# #poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson', 'mb', 'hc', 'ss', 'wb'] # 5 sites + 4 basins
+#poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson', 'mb', 'hc', 'ss', 'wb'] # 5 sites + 4 basins
 
-# poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
+poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
 
-# odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
-
-
-# basin_list = list(odf_dict.keys())
-
-# var_list = ['DO_mg_L','SA', 'CT'] #, 'NO3_uM', 'Chl_mg_m3'] #, 'NO2 (uM), 'NH4_uM', 'SiO4 (uM)', 'PO4 (uM)', 'TA (uM)','DIC (uM)', 'DO (uM)']
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
-# odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_list, path_dict, basin_list)
+basin_list = list(odf_dict.keys())
 
-# # %%
-
-# odf, odf_depth_mean, odf_calc_long, odf_depth_mean_deep_DO_percentiles, long_site_list, short_site_list, big_basin_list, site_list = dfun.longShortClean(odf)
-
-# # %%
-
-# odf_use = odf_depth_mean.copy()
-
-# odf_calc_use = odf_calc_long.copy()
+var_list = ['DO_mg_L','SA', 'CT'] #, 'NO3_uM', 'Chl_mg_m3'] #, 'NO2 (uM), 'NH4_uM', 'SiO4 (uM)', 'PO4 (uM)', 'TA (uM)','DIC (uM)', 'DO (uM)']
 
 
+odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_list, path_dict, basin_list)
+
+# %%
+
+odf, odf_depth_mean, odf_calc_long, odf_depth_mean_deep_DO_percentiles, long_site_list, short_site_list, big_basin_list, site_list = dfun.longShortClean(odf)
+
+# %%
+
+odf_use = odf_depth_mean.copy()
+
+odf_calc_use = odf_calc_long.copy()
 
 
 
 
-# for deep_DO_q in ['deep_DO_q50']:
 
 
-#     odf_depth_mean_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
+for deep_DO_q in ['deep_DO_q50']:
 
-#     cid_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_less_than_percentile['cid']
 
-#     odf_use_DO_q = odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep_DO_less_than_percentile)]
+    odf_depth_mean_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
 
-#     odf_calc_use_DO_q = odf_calc_long[odf_calc_long['cid'].isin(cid_deep_DO_less_than_percentile)]
+    cid_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_less_than_percentile['cid']
 
-#     odf_use_DO_q = (odf_use_DO_q
-#                       .dropna()
-#                       .assign(
-#                               datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-#                               )
-#                       )
+    odf_use_DO_q = odf_depth_mean[odf_depth_mean['cid'].isin(cid_deep_DO_less_than_percentile)]
+
+    odf_calc_use_DO_q = odf_calc_long[odf_calc_long['cid'].isin(cid_deep_DO_less_than_percentile)]
+
+    odf_use_DO_q = (odf_use_DO_q
+                      .dropna()
+                      .assign(
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
     
-#     odf_calc_use_DO_q = (odf_calc_use_DO_q
-#                       .dropna()
-#                       .assign(
-#                               datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-#                               )
-#                       )
-
-    
-#     odf_use_DO_q_AugNov = odf_use_DO_q[odf_use_DO_q['season'] == 'loDO']
-    
-#     odf_calc_use_DO_q_AugNov = odf_calc_use_DO_q[odf_calc_use_DO_q['season'] == 'loDO']
+    odf_calc_use_DO_q = (odf_calc_use_DO_q
+                      .dropna()
+                      .assign(
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
 
     
-#     if deep_DO_q == 'deep_DO_q25':
+    odf_use_DO_q_AugNov = odf_use_DO_q[odf_use_DO_q['season'] == 'loDO']
     
-#         odf_use_q25 = odf_use_DO_q_AugNov
+    odf_calc_use_DO_q_AugNov = odf_calc_use_DO_q[odf_calc_use_DO_q['season'] == 'loDO']
+
+    
+    if deep_DO_q == 'deep_DO_q25':
+    
+        odf_use_q25 = odf_use_DO_q_AugNov
         
-#         odf_calc_use_q25 = odf_calc_use_DO_q_AugNov
+        odf_calc_use_q25 = odf_calc_use_DO_q_AugNov
         
-#     elif deep_DO_q == 'deep_DO_q50':
+    elif deep_DO_q == 'deep_DO_q50':
         
-#         odf_use_q50 = odf_use_DO_q_AugNov
+        odf_use_q50 = odf_use_DO_q_AugNov
         
-#         odf_calc_use_q50 = odf_calc_use_DO_q_AugNov
+        odf_calc_use_q50 = odf_calc_use_DO_q_AugNov
         
-#     elif deep_DO_q == 'deep_DO_q75':
+    elif deep_DO_q == 'deep_DO_q75':
         
-#         odf_use_q75 = odf_use_DO_q_AugNov
+        odf_use_q75 = odf_use_DO_q_AugNov
         
-#         odf_calc_use_q75 = odf_calc_use_DO_q_AugNov
+        odf_calc_use_q75 = odf_calc_use_DO_q_AugNov
 
 
-# # %%
+# %%
 
-# odf_use = (odf_use
-#                   .dropna()
-#                   .assign(
-#                           datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-#                           )
-#                   )
+odf_use = (odf_use
+                  .dropna()
+                  .assign(
+                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                          )
+                  )
 
 # %%
 
 
-#mosaic = [['map_source', 'map_source','CT', 'CT', 'CT'], ['map_source', 'map_source','SA','SA', 'SA'], ['map_source', 'map_source','DO_mg_L','DO_mg_L', 'DO_mg_L']] #, ['map_source', '.', '.'],]
+mosaic = [['map_source', 'map_source','CT', 'CT', 'CT'], ['map_source', 'map_source','SA','SA', 'SA'], ['map_source', 'map_source','DO_mg_L','DO_mg_L', 'DO_mg_L']] #, ['map_source', '.', '.'],]
 
-fig, axd = plt.subplot_mosaic([['map_source']], figsize=(9,9), layout='constrained', gridspec_kw=dict(wspace=0.1))
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,6), layout='constrained', gridspec_kw=dict(wspace=0.1))
 
 
 
@@ -222,7 +222,7 @@ pfun.add_coast(ax)
 
 pfun.dar(ax)
 
-for site in ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'point_jefferson', 'saratoga_passage_mid']:
+for site in long_site_list:
     
     path = path_dict[site]
         
@@ -280,7 +280,7 @@ ax.text(0.86,0.95, 'Skagit\nRiver', transform=ax.transAxes, fontsize = 6, color 
 
  
 
-#ax.text(0.05,0.025, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+ax.text(0.05,0.025, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
 
 
 ax.plot([-122.65,-122.65],[48.35, 48.45], color = 'black', linestyle='--', linewidth=3)
@@ -317,112 +317,112 @@ ax.set_xticks([-123.0, -122.6, -122.2], ['-123.0','-122.6', '-122.2']) #['','-12
 
 
 
-# #ax.tick_params(axis='x', labelrotation=45)
+#ax.tick_params(axis='x', labelrotation=45)
 
-# palette = {'point_jefferson':'#e04256', 'lynch_cove_mid':'#4565e8'}
+palette = {'point_jefferson':'#e04256', 'lynch_cove_mid':'#4565e8'}
 
 
-# for var in var_list:
+for var in var_list:
     
-#     ax = axd[var]
+    ax = axd[var]
                         
-#     if 'DO' in var:
+    if 'DO' in var:
         
-#         label_var = '[DO]'
+        label_var = '[DO]'
         
-#         ymin = 0
+        ymin = 0
         
-#         ymax = 8
+        ymax = 8
         
-#         marker = 'o'
+        marker = 'o'
         
-#         unit = r'[mg/L]'
+        unit = r'[mg/L]'
         
-#     elif 'CT' in var:
+    elif 'CT' in var:
         
-#         label_var = 'Temperature'
+        label_var = 'Temperature'
         
-#         ymin = 8
+        ymin = 8
         
-#         ymax = 14
+        ymax = 14
         
-#         marker = 'D'
+        marker = 'D'
         
-#         unit = r'[$^{\circ}$C]'
+        unit = r'[$^{\circ}$C]'
     
-#     else:
+    else:
         
-#         label_var = 'Salinity'
+        label_var = 'Salinity'
         
-#         ymin = 28
+        ymin = 28
          
-#         ymax = 34
+        ymax = 34
         
-#         marker = 's'
+        marker = 's'
         
-#         unit = r'[g/kg]'
+        unit = r'[g/kg]'
 
-#     for site in ['point_jefferson', 'lynch_cove_mid']:
+    for site in ['point_jefferson', 'lynch_cove_mid']:
         
-#         if site == 'point_jefferson':
+        if site == 'point_jefferson':
             
-#             site_label = 'Point Jefferson (PJ)'
+            site_label = 'Point Jefferson (PJ)'
         
-#         else:
+        else:
             
-#             site_label = 'Lynch Cove (LC)'
+            site_label = 'Lynch Cove (LC)'
         
-#         if var == 'DO_mg_L':
+        if var == 'DO_mg_L':
             
-#             plot_df_q50 = odf_use_q50[(odf_use_q50['site'] == site) & (odf_use_q50['var'] == var) & (odf_use_q50['surf_deep'] == 'deep')] #already filtered to loDO
+            plot_df_q50 = odf_use_q50[(odf_use_q50['site'] == site) & (odf_use_q50['var'] == var) & (odf_use_q50['surf_deep'] == 'deep')] #already filtered to loDO
         
-#             sns.scatterplot(data=plot_df_q50, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
+            sns.scatterplot(data=plot_df_q50, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
             
-#         elif var == 'CT':
+        elif var == 'CT':
             
-#             plot_df = odf_use[(odf_use['site'] == site) & (odf_use['var'] == var) & (odf_use['surf_deep'] == 'deep') & (odf_use['season'] == 'loDO')]
+            plot_df = odf_use[(odf_use['site'] == site) & (odf_use['var'] == var) & (odf_use['surf_deep'] == 'deep') & (odf_use['season'] == 'loDO')]
             
-#             sns.scatterplot(data=plot_df, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
+            sns.scatterplot(data=plot_df, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
             
-#             ax.scatter(x=0, y =0, color = palette[site], marker='o', label = site_label)
-
-            
-#         else:
-            
-#             plot_df = odf_use[(odf_use['site'] == site) & (odf_use['var'] == var) & (odf_use['surf_deep'] == 'deep') & (odf_use['season'] == 'loDO')]
-            
-#             sns.scatterplot(data=plot_df, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
-            
-    
-#     if var == 'DO_mg_L':  
-    
-#         ax.axhspan(0,2, color = 'gray', alpha = 0.3, zorder=-5, label='Hypoxia')
-        
-#         ax.legend(loc='upper right')
-        
-#         ax.text(0.025,0.05, 'd', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
-        
-    
-#     elif var == 'CT':
-        
-#         ax.legend(ncol=2, loc='upper left')
-        
-#         ax.text(0.025,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
-        
-#     else:
-        
-#         ax.text(0.025,0.05, 'c', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+            ax.scatter(x=0, y =0, color = palette[site], marker='o', label = site_label)
 
             
+        else:
             
-#     ax.set_ylim(ymin, ymax) 
+            plot_df = odf_use[(odf_use['site'] == site) & (odf_use['var'] == var) & (odf_use['surf_deep'] == 'deep') & (odf_use['season'] == 'loDO')]
             
-#     ax.set_ylabel(label_var + ' ' + unit)
+            sns.scatterplot(data=plot_df, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
+            
     
-#     ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+    if var == 'DO_mg_L':  
     
-#     ax.set_xlabel('')
+        ax.axhspan(0,2, color = 'gray', alpha = 0.3, zorder=-5, label='Hypoxia')
+        
+        ax.legend(loc='upper right')
+        
+        ax.text(0.025,0.05, 'd', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+        
+    
+    elif var == 'CT':
+        
+        ax.legend(ncol=2, loc='upper left')
+        
+        ax.text(0.025,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+        
+    else:
+        
+        ax.text(0.025,0.05, 'c', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+
+            
+            
+    ax.set_ylim(ymin, ymax) 
+            
+    ax.set_ylabel(label_var + ' ' + unit)
+    
+    ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+    
+    ax.set_xlabel('')
         
         
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_3.png', bbox_inches='tight', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_1.png', bbox_inches='tight', dpi=500, transparent=True)
     

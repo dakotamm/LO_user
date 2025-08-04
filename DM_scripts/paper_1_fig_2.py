@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep 19 12:39:49 2024
+Created on Thu Jul 31 13:38:28 2025
 
 @author: dakotamascarenas
 """
@@ -85,9 +85,9 @@ i2 = 652
 
 
 
-poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson'] # 5 sites + 4 basins
+#poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson', 'mb', 'hc', 'ss', 'wb'] # 5 sites + 4 basins
 
-#poly_list = ['ps']
+poly_list = ['ps', 'carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
 
 odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
@@ -101,256 +101,112 @@ odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_l
 
 # %%
 
-odf, odf_depth_mean, odf_calc_long, odf_depth_mean_deep_DO_percentiles, long_site_list, short_site_list, big_basin_list, site_list = dfun.longShortClean(odf)
+odf.loc[odf['source'].isin(['kc_taylor', 'kc_whidbey', 'kc_point_jefferson', 'kc']), 'Data Source'] = 'King County'
 
-# %%
+odf.loc[odf['source'].isin(['ecology_nc', 'ecology_his']), 'Data Source'] = 'WA Dept. of Ecology'
 
-site_list =  odf['site'].unique()
+odf.loc[odf['source'].isin(['collias']), 'Data Source'] = 'Collias'
+
+odf.loc[odf['source'].isin(['nceiSalish']), 'Data Source'] = 'NCEI Salish Sea'
 
 
-
-
-odf_use = odf_depth_mean.copy()
-
-odf_calc_use = odf_calc_long.copy()
-
-all_stats_filt = dfun.buildStatsDF(odf_use, site_list, odf_calc_use=odf_calc_use, odf_depth_mean_deep_DO_percentiles=odf_depth_mean_deep_DO_percentiles)
-
+odf['site'] = odf['segment']
 
 
 # %%
 
-c=0
-
-all_stats_filt.loc[all_stats_filt['site'] == 'point_jefferson', 'site_label'] = 'PJ'
-
-all_stats_filt.loc[all_stats_filt['site'] == 'near_seattle_offshore', 'site_label'] = 'NS'
-
-all_stats_filt.loc[all_stats_filt['site'] == 'saratoga_passage_mid', 'site_label'] = 'SP'
-
-all_stats_filt.loc[all_stats_filt['site'] == 'carr_inlet_mid', 'site_label'] = 'CI'
-
-all_stats_filt.loc[all_stats_filt['site'] == 'lynch_cove_mid', 'site_label'] = 'LC'
 
 
-all_stats_filt.loc[all_stats_filt['site'] == 'point_jefferson', 'site_type'] = 'Main Basin'
+for site in ['point_jefferson']:
 
-all_stats_filt.loc[all_stats_filt['site'] == 'near_seattle_offshore', 'site_type'] = 'Main Basin'
+    mosaic = [['map_source', 'depth_time_series', 'depth_time_series'], ['map_source', 'count_time_series', 'count_time_series']] #, ['map_source', '.', '.'],]
+    
+    fig, ax = plt.subplot_mosaic(mosaic, figsize=(9,5), layout='constrained', gridspec_kw=dict(wspace=0.1))
+    
+    plot_df = odf[odf['site'].isin(['ps', site])].groupby(['site','cid']).first().reset_index()
+    
+    ax['map_source'].pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-100, vmax=0, cmap = 'gray')
+    
+    sns.scatterplot(data=plot_df[plot_df['site'] == 'ps'], x='lon', y='lat', ax = ax['map_source'], color = 'gray', alpha=0.1, legend=False)
+    
+    sns.scatterplot(data=plot_df[plot_df['site'] == site], x='lon', y='lat', ax = ax['map_source'], color = '#ff4040', alpha=0.3, legend=False)
+    
+    pfun.add_coast(ax['map_source'])
+    
+    pfun.dar(ax['map_source'])
+    
+    ax['map_source'].set_xlim(-123.2, -122.1)
+    
+    ax['map_source'].set_ylim(47,48.5)
+    
+    #ax['map_source'].legend(loc='upper center', title ='Data Source') #, bbox_to_anchor=(0.5, -0.1), title='Data Source')
+    
+    ax['map_source'].set_xlabel('')
+    
+    ax['map_source'].set_ylabel('')
+    
+    #ax['map_source'].tick_params(axis='x', labelrotation=45)
+    
+    ax['map_source'].set_xticks([-123.0, -122.6, -122.2], ['-123.0','-122.6', '-122.2']) #['','-123.0', '', '-122.6', '', '-122.2'])
 
-all_stats_filt.loc[all_stats_filt['site'] == 'saratoga_passage_mid', 'site_type'] = 'Sub-Basins'
-
-all_stats_filt.loc[all_stats_filt['site'] == 'carr_inlet_mid', 'site_type'] = 'Sub-Basins'
-
-all_stats_filt.loc[all_stats_filt['site'] == 'lynch_cove_mid', 'site_type'] = 'Sub-Basins'
-
-
-all_stats_filt.loc[all_stats_filt['site'] == 'point_jefferson', 'site_num'] = 1
-
-all_stats_filt.loc[all_stats_filt['site'] == 'near_seattle_offshore', 'site_num'] = 2
-
-all_stats_filt.loc[all_stats_filt['site'] == 'saratoga_passage_mid', 'site_num'] = 3
-
-all_stats_filt.loc[all_stats_filt['site'] == 'carr_inlet_mid', 'site_num'] = 4
-
-all_stats_filt.loc[all_stats_filt['site'] == 'lynch_cove_mid', 'site_num'] = 5
-
-
-
-
-
-
-
-mosaic = [['deep_CT', 'deep_SA', 'deep_DO_mg_L']]
-
-fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,2.5), layout='constrained', sharex=True, gridspec_kw=dict(wspace=0.1))
-
-        
+    ax['map_source'].text(0.05,0.025, 'a', transform=ax['map_source'].transAxes, fontsize=14, fontweight='bold', color = 'k')
     
     
-
-for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
     
-    for stat in ['mk_ts']:
-                
-        for deep_DO_q in ['deep_DO_q50']:
-            
-            if 'surf' in var:
-                
-                label_depth = 'Surface'
-                
-                color = '#E91E63'
-                
-            else:
-                
-                label_depth = 'Deep'
-                
-                color = '#673AB7'
-
-            
-            if 'DO' in var:
-                
-                label_var = 'c  [DO]'
-                
-                ymin = -2
-                
-                ymax = 2
-                
-                marker = 'o'
-                
-                unit = r'[mg/L]/century'
-            
-            elif 'CT' in var:
-                
-                label_var = 'a  Temperature'
-                
-                ymin = -2.5
-                
-                ymax = 2.5
-                
-                marker = 'D'
-                
-                unit = r'[$^{\circ}$C]/century'
-            
-            else:
-                
-                label_var = 'b  Salinity'
-                
-                ymin = -1
-                
-                ymax = 1
-                
-                marker = 's'
-                
-                unit = r'[g/kg]/century'
-
-                
-                
-            
-            ax = axd[var]
-
-            plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['var'] == var) & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q) & (all_stats_filt['season'] == 'loDO')]
-            
-            plot_df = plot_df.sort_values(by=['site']).reset_index()
-            
-            plot_df['slope_datetime_cent'] = plot_df['slope_datetime']*100
-            
-            plot_df['slope_datetime_cent_95hi'] = plot_df['slope_datetime_s_hi']*100
-            
-            plot_df['slope_datetime_cent_95lo'] = plot_df['slope_datetime_s_lo']*100
-            
-            
-            palette = {'Main Basin':'#e04256', 'Sub-Basins':'#4565e8'}
-            
-            palette_ = {'Main Basin Trend':'#e04256', 'Sub-Basins Trend':'#4565e8'}
-
-
-            
-            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95hi', hue ='site_type', palette = palette, marker=marker, ax = ax, s= 10, legend=False)
     
-            sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent_95lo', hue ='site_type', palette = palette, marker=marker, ax = ax, s= 10, legend=False)
-            
-            if var == 'deep_DO_mg_L':
-                
-                plot_df_ = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['season'] == 'loDO') & (all_stats_filt['var'] == 'deep_DO_sol') & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q)]
-                
-                plot_df_ = plot_df_.sort_values(by=['site'])
-                
-                plot_df_['slope_datetime_cent'] = plot_df_['slope_datetime']*100
-                
-                plot_df_['slope_datetime_cent_95hi'] = plot_df_['slope_datetime_s_hi']*100
-                
-                plot_df_['slope_datetime_cent_95lo'] = plot_df_['slope_datetime_s_lo']*100
-                
-                plot_df.loc[plot_df['site_type'] == 'Main Basin', 'site_type_label'] = 'Main Basin Trend'
-                
-                plot_df.loc[plot_df['site_type'] == 'Sub-Basins', 'site_type_label'] = 'Sub-Basins Trend'
-
-                
-                
-                marker_ = "$\circ$"
-        
-                
-                # sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent_95hi', color = '#dd9404', marker=marker, ax = ax, s= 20, legend=False)
-        
-                # sns.scatterplot(data = plot_df[plot_df['var'] == 'deep_DO_sol'], x= 'site_num', y = 'slope_datetime_cent_95lo', color = '#dd9404', marker=marker, ax = ax, s= 20, legend=False)
-        
-                sns.scatterplot(data = plot_df_, x= 'site_num', y = 'slope_datetime_cent', color = '#dd9404', marker=marker_, ax = ax, s =150, label= 'Expected DO Trend')
-                
-                
-                
-                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', hue = 'site_type_label', palette=palette_, marker=marker, ax = ax, s =50)
-
-                
-            else:
+    plot_df = (odf[odf['site'].isin(['ps', site])]
+                          .groupby(['site','year']).agg({'cid' :lambda x: x.nunique()})
+                          .reset_index()
+                          .rename(columns={'cid':'cid_count'})
+                          )
     
-                sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', hue ='site_type', palette = palette, marker=marker, ax = ax, s =50, legend=False)
-            
-            for idx in plot_df.index:
-                
-                if plot_df.loc[idx,'site_type'] == 'Main Basin':
-                    
-                    ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=palette['Main Basin'], alpha =0.7, zorder = -5, linewidth=1)
+   # sns.scatterplot(data=plot_df[plot_df['site'] == 'ps'], x='year', y='cid', ax=ax['count_time_series'], color = 'gray', alpha=0.9, legend=False)
+    
+    sns.scatterplot(data=plot_df[plot_df['site'] == site], x='year', y='cid_count', ax=ax['count_time_series'], color = '#ff4040', alpha=0.9, legend = False)
 
-                else:
-                    
-                    ax.plot([plot_df.loc[idx,'site_num'], plot_df.loc[idx,'site_num']],[plot_df.loc[idx,'slope_datetime_cent_95lo'], plot_df.loc[idx,'slope_datetime_cent_95hi']], color=palette['Sub-Basins'], alpha =0.7, zorder = -4, linewidth=1)
-            
-            
-            label = label_var #label_depth + ' ' + label_var
-                            
-            ax.text(0.05,0.05, label, transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
-                
-                
-            
-            # ymin = -max(abs(plot_df['slope_datetime_cent']))*2.5
-             
-            # ymax = max(abs(plot_df['slope_datetime_cent']))*2.5
-            
-            #ax.set_xticks(sorted(all_stats_filt['site_num'].unique().tolist()),site_labels, rotation=90) 
-            
-            ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'SP', 'CI', 'LC'])
-            
-            ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3)
-                                    
-            ax.axhline(0, color='gray', linestyle = '--', zorder = -5)
-            
-            ax.set_ylabel(unit, wrap=True)
-            
-            ax.set_xlabel('')
-            
-            ax.set_ylim(ymin, ymax)
-            
-            if var == 'deep_DO_mg_L':
-                
-                ax.legend(loc = 'upper left')
-                
-#plt.show()
-            
-            
-#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_2.png', dpi=500,transparent=True, bbox_inches='tight')
+    ax['count_time_series'].set_xlabel('')
+    
+    ax['count_time_series'].set_ylabel('Annual Cast Count')
+    
+    #ax['count_time_series'].set_ylim(0,1300)
+    
+    ax['count_time_series'].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+    
+    #ax['count_time_series'].legend(loc='upper left', title ='Data Source') #, bbox_to_anchor=(0.5, -0.1), title='Data Source')
+    
+    
+    ax['count_time_series'].text(0.025,0.075, 'c', transform=ax['count_time_series'].transAxes, fontsize=14, fontweight='bold', color = 'k')
 
-# %%
- 
-sats = plot_df_['slope_datetime'].to_numpy()
+    
+    
+    
+    plot_df_ = odf[odf['site'].isin(['ps', site])].groupby(['site','year', 'cid']).min().reset_index()
+    
+    plot_df = plot_df_.groupby(['site', 'year']).mean(numeric_only=True).reset_index()
+    
+    #plot_df.loc[plot_df['site'] == 'ps', 'label']
+    
+   # sns.scatterplot(data=plot_df[plot_df['site'] == 'ps'], x='year', y='z', ax=ax['depth_time_series'],  color='gray', legend=False) #, label='Puget Sound Annual Average')
+    
+   # sns.scatterplot(data=plot_df[plot_df['site'] == site], x='year', y='z', ax=ax['depth_time_series'],  color='#ff4040', legend=False)
+    
+    sns.scatterplot(data=plot_df_[plot_df_['site'] == site], x='year', y='z', ax=ax['depth_time_series'],  color='#ff4040', legend=False, alpha = 0.1) #, label='Point Jefferson (Per Cast)')
 
-sats_avg = sats.mean()
 
-sats_std = sats.std()
+    
+    ax['depth_time_series'].set_xlabel('')
+    
+    ax['depth_time_series'].set_ylabel('Cast Depth [m]')
+    
+    ax['depth_time_series'].set_ylim(-300,0)
+    
+    ax['depth_time_series'].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+    
+    #ax['depth_time_series'].legend(loc='upper left') #, title ='Data Source') #, bbox_to_anchor=(0.5, -0.1), title='Data Source')
 
-sats_95dif = 1.96*sats_std/len(sats)
+    ax['depth_time_series'].text(0.025,0.075, 'b', transform=ax['depth_time_series'].transAxes, fontsize=14, fontweight='bold', color = 'k')
 
-sats_95hi = sats_avg + 1.96*sats_std/len(sats)
-
-sats_95lo = sats_avg - 1.96*sats_std/len(sats)
-
-# %%
-
-plot_df_['slope_datetime_sat'] = plot_df_['slope_datetime']
-
-plot_df = all_stats_filt[(all_stats_filt['stat'] == stat) & (all_stats_filt['var'] == 'deep_DO_mg_L') & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['deep_DO_q'] == deep_DO_q) & (all_stats_filt['season'] == 'loDO')]
-
-plot_df = plot_df.sort_values(by=['site']).reset_index()
-
-plot_df = pd.merge(plot_df, plot_df_[['site', 'slope_datetime_sat']], on='site', how='left')
-
-plot_df['pct_expl'] = plot_df['slope_datetime_sat']/plot_df['slope_datetime']
+    
+    
+    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_2.png', bbox_inches='tight', dpi=500, transparent=True)
+    

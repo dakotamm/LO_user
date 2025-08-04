@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Dec  2 12:54:44 2024
+Created on Fri Mar  7 10:35:03 2025
 
 @author: dakotamascarenas
 """
@@ -82,323 +82,188 @@ j2 = 1170
 i1 = 220
 i2 = 652
 
+
+
+
+poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson'] # 5 sites + 4 basins
+
+#poly_list = ['ps']
+
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+
+
+basin_list = list(odf_dict.keys())
+
+var_list = ['DO_mg_L','SA', 'CT'] #, 'NO3_uM', 'Chl_mg_m3'] #, 'NO2 (uM), 'NH4_uM', 'SiO4 (uM)', 'PO4 (uM)', 'TA (uM)','DIC (uM)', 'DO (uM)']
+
+
+odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_list, path_dict, basin_list)
+
 # %%
 
-monthly_skagit_df = pd.read_csv('/Users/dakotamascarenas/Desktop/skagit_monthly.txt',sep='\t',header=(35), skiprows=(36,36))
 
-
-# %%
-
-
-
-monthly_skagit_df['day'] = 1
-
-monthly_skagit_df['datetime'] = pd.to_datetime(dict(year=monthly_skagit_df['year_nu'], month=monthly_skagit_df['month_nu'], day=monthly_skagit_df['day']))
-
-monthly_skagit_df.loc[monthly_skagit_df['month_nu'].isin([12,1,2,3]), 'season'] = 'winter'
-
-monthly_skagit_df.loc[monthly_skagit_df['month_nu'].isin([4,5,6,7]), 'season'] = 'grow'
-
-monthly_skagit_df.loc[monthly_skagit_df['month_nu'].isin([8,9,10,11]), 'season'] = 'loDO'
-
-
-
-monthly_skagit_df = monthly_skagit_df.assign(
-                    decade=(lambda x: pd.cut(x['year_nu'],
-                         bins=[1939, 1949, 1959, 1969, 1979, 1989, 1999, 2009, 2019, 2029], #removed 30s*************
-                         labels=['1940s', '1950s', '1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '2020s'], right=True)),
-                    date_ordinal=(lambda x: x['datetime'].apply(lambda x: x.toordinal())))
-
-monthly_skagit_df['yearday'] = monthly_skagit_df['datetime'].dt.dayofyear
-
-for i in [61, 92, 122, 153, 183, 214, 245, 275, 306, 336]:
-    
-    monthly_skagit_df.loc[monthly_skagit_df['yearday'] == i, 'yearday'] = i-1
-
-monthly_skagit_df['mean_va'] = monthly_skagit_df['mean_va']*0.028316832 #cfs to m^3/s
+odf, odf_depth_mean, odf_calc_long, odf_depth_mean_deep_DO_percentiles, long_site_list, short_site_list, big_basin_list, site_list = dfun.longShortClean(odf)
 
 
 # %%
 
-annual_counts_skagit = (monthly_skagit_df
-                      .dropna()
-                      .groupby(['year_nu','season']).agg({'month_nu' :lambda x: x.nunique()})
-                      .reset_index()
-                      .rename(columns={'month_nu':'month_count'})
-                      )
+odf_depth_mean_0 = odf_depth_mean.copy()
 
-
-skagit_means = monthly_skagit_df.groupby(['year_nu', 'season']).agg({'mean_va':['mean', 'std'], 'date_ordinal':['mean']})
-
-skagit_means.columns = skagit_means.columns.to_flat_index().map('_'.join)
-
-skagit_means = skagit_means.reset_index().dropna() #this drops std nan I think! which removes years with 1 cast!
-
-
-skagit_means = (skagit_means
-                  .rename(columns={'date_ordinal_mean':'date_ordinal'})
-                  .dropna()
-                  .assign(
-                          datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
-                          )
-                  )
-
-
-skagit_means = pd.merge(skagit_means, annual_counts_skagit, how='left', on=['year_nu','season'])
-
-
-skagit_means = skagit_means[skagit_means['month_count'] >1] #redundant but fine (see note line 234)
-
-skagit_means['mean_va_ci95hi'] = skagit_means['mean_va_mean'] + 1.96*skagit_means['mean_va_std']/np.sqrt(skagit_means['month_count'])
-
-skagit_means['mean_va_ci95lo'] = skagit_means['mean_va_mean'] - 1.96*skagit_means['mean_va_std']/np.sqrt(skagit_means['month_count'])
+cid_deep = odf_depth_mean_0.loc[odf_depth_mean_0['surf_deep'] == 'deep', 'cid']
 
 # %%
 
-skagit_means['year'] = skagit_means['year_nu']
+odf_depth_mean_0 = odf_depth_mean_0[odf_depth_mean_0['cid'].isin(cid_deep)]
 
-skagit_means = skagit_means[['year', 'season', 'mean_va_mean']].pivot(index='year', columns = 'season', values = 'mean_va_mean').reset_index()
-
-# %%
-
-monthly_skagit_df['val'] = monthly_skagit_df['mean_va']
+# NOTE THIS IS JUST TAKING FULL DEPTH CASTS, DON'T NECESSARILY NEED THIS FOR DO SOL
 
 # %%
 
-monthly_skagit_df = monthly_skagit_df.assign(
-    datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x)))))
-
-# %%
-
-stats_df = pd.DataFrame()
-
-stat = 'mk_ts'
-
-alpha = 0.05
+odf_use = odf_depth_mean.copy()
 
 
-    
-for season in ['allyear', 'grow', 'loDO', 'winter']:
-            
-    if season == 'allyear':
-                
-        plot_df = monthly_skagit_df.copy()
-        
-    else:
-        
-        plot_df = monthly_skagit_df[monthly_skagit_df['season'] == season].copy()
-        
-    x = plot_df['date_ordinal']
-    
-    x_plot = plot_df['datetime']
-    
-    y = plot_df['val']
-    
-    plot_df['stat'] = stat
-            
-    reject_null, p_value, Z = dfun.mann_kendall(y, alpha) #dfun
-                        
-    plot_df['p'] = p_value
-    
-    result = stats.theilslopes(y,x,alpha=alpha)
-    
-    B1 = result.slope
-    
-    B0 = result.intercept
-            
-    plot_df['B1'] = B1
-
-    plot_df['B0'] = B0
-    
-    plot_df['hi_sB1'] = result.high_slope
-    
-    plot_df['lo_sB1']  = result.low_slope
-    
-    slope_datetime = (B0 + B1*x.max() - (B0 + B1*x.min()))/(x_plot.max().year - x_plot.min().year)
-
-    plot_df['slope_datetime'] = slope_datetime #per year
-    
-    slope_datetime_s_hi = (B0 + result.high_slope*x.max() - (B0 + result.high_slope*x.min()))/(x_plot.max().year - x_plot.min().year)
-    
-    slope_datetime_s_lo = (B0 + result.low_slope*x.max() - (B0 + result.low_slope*x.min()))/(x_plot.max().year - x_plot.min().year)
-    
-    plot_df['slope_datetime_s_hi'] = slope_datetime_s_hi #per year
-    
-    plot_df['slope_datetime_s_lo'] = slope_datetime_s_lo #per year
-    
-    plot_df['season'] = season
-    
-    #plot_df['var'] = var
-    
-    #  'var'
-                                                                                    
-    plot_df_concat = plot_df[['season', 'p', 'hi_sB1', 'lo_sB1', 'B1', 'B0', 'slope_datetime', 'slope_datetime_s_hi', 'slope_datetime_s_lo']].head(1) #slope_datetime_unc_cent, slope_datetime_s
-
-    stats_df = pd.concat([stats_df, plot_df_concat])
-    
-
-stats_df.loc[stats_df['season'] == 'allyear', 'season_label'] = 'Full-Year*'
-
-stats_df.loc[stats_df['season'] == 'grow', 'season_label'] = 'Apr-Jul'
-
-stats_df.loc[stats_df['season'] == 'loDO', 'season_label'] = 'Aug-Nov*'
-
-stats_df.loc[stats_df['season'] == 'winter', 'season_label'] = 'Dec-Mar'
-
-
-# %%
-
-decadal_yearday_mean = monthly_skagit_df.groupby(['decade', 'yearday']).mean(numeric_only=True).reset_index()
-
-decadal_yearday_mean = (decadal_yearday_mean
+odf_use = (odf_use
+                  # .drop(columns=['date_ordinal_std'])
                   #.rename(columns={'date_ordinal_mean':'date_ordinal'})
+                  #.reset_index() 
                   .dropna()
                   .assign(
+                          #segment=(lambda x: key),
+                          # year=(lambda x: pd.DatetimeIndex(x['datetime']).year),
+                          # month=(lambda x: pd.DatetimeIndex(x['datetime']).month),
+                          # season=(lambda x: pd.cut(x['month'],
+                          #                          bins=[0,3,6,9,12],
+                          #                          labels=['winter', 'spring', 'summer', 'fall'])),
                           datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
                           )
                   )
 
-# %%
-
-for decade in decadal_yearday_mean['decade'].unique():
-    
-    temp = decadal_yearday_mean[(decadal_yearday_mean['decade'] == decade) & (decadal_yearday_mean['yearday'] == 1)]
-    
-    temp['yearday'] = 366
-    
-    decadal_yearday_mean = pd.concat([decadal_yearday_mean, temp])
 
 # %%
 
-fig, ax = plt.subplots(nrows=2, figsize = (9,7))
+odf_use_DO = odf_use[odf_use['var'] == 'DO_mg_L'].reset_index(drop=True)
 
-plt.subplots_adjust(hspace=0.3)
+# %%
 
+DO_min_idx = odf_use_DO.groupby(['site','var','year']).idxmin()['val'].to_numpy()
 
+# %%
 
-ax[0].plot(monthly_skagit_df['datetime'], monthly_skagit_df['val'], color= 'lightgray', label = 'Skagit Flow', alpha=0.7)
-
-x_plot = monthly_skagit_df['datetime']
-
-x = monthly_skagit_df['date_ordinal']
- 
-y = monthly_skagit_df['val']
-
-for season in stats_df['season'].unique(): 
+odf_use_DO_min = odf_use_DO[odf_use_DO.index.isin(DO_min_idx)]
     
-    plot_df = stats_df[stats_df['season'] == season]
+# %%
+
+odf_use_DO_deep = odf_use[(odf_use['var'] == 'DO_mg_L') & (odf_use['surf_deep'] == 'deep')].reset_index(drop=True)
+
+# %%
+
+DO_min_deep_idx = odf_use_DO_deep.groupby(['site','var','year']).idxmin()['val'].to_numpy()
+
+# %%
+
+odf_use_DO_min_deep = odf_use_DO_deep[odf_use_DO_deep.index.isin(DO_min_deep_idx)]
+
+# %%
+
+odf_DO_deep = odf[(odf['var'] == 'DO_mg_L') & (odf['cid'].isin(cid_deep))].dropna()
+
+odf_cast_mins = odf_DO_deep.groupby('cid').min(numeric_only=True).reset_index()
+
+odf_cast_mins['min_z'] = odf_cast_mins['z']
+
+# %%
+
+odf_z_at_min_val = odf_DO_deep.loc[odf_DO_deep.groupby('cid')['val'].idxmin()].dropna()
+
+odf_test = pd.merge(odf_z_at_min_val, odf_cast_mins[['cid','min_z']], on = 'cid', how='left')
+
+# %%
+
+odf_test_test = odf_test[odf_test['z'] <= odf_test['min_z']*0.95]
+
+# %%
+
+
+odf_val_at_min_z = odf_DO_deep.loc[odf_DO_deep.groupby('cid')['z'].idxmin()].dropna()
+
+
+# %%
+
+odf_Aug_Nov = odf_use_DO_min_deep[odf_use_DO_min_deep['month'].isin([8,9,10,11])]
+
+# %%
+
+mosaic = [['depth', 'yearday', 'yearday']]
+
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,3), layout='constrained', gridspec_kw=dict(wspace=0.1))
+
+
     
-    if season == 'allyear':
-        
-        color = 'black'
-        
-    elif season == 'grow':
-        
-        color = '#dd9404'
-        
-    elif season == 'loDO':
-        
-        color = '#e04256'
-        
-    elif season == 'winter':
-        
-        color = '#4565e8'
+
+ax = axd['yearday']
+
+plot_df = odf_use_DO_min_deep.copy()
+
+
+
+ax.scatter(plot_df['year'], plot_df['yearday'],  color = 'gray', alpha=0.9)
+
+ax.scatter(plot_df[plot_df['val'] <2]['year'], plot_df[plot_df['val'] <2]['yearday'], color = '#ff4040', label='value <2 [mg/L] (hypoxic)', alpha=0.9)
+
+
+ax.set_ylim(0,366)
+
+ax.set_ylabel('Yearday Occurence of Min. DO') 
+
+ax.set_xlabel('Year')
+
+
+ax.axhspan(213,335, color = 'lightgray', alpha = 0.5, label = 'August-November', zorder=-4) #july31/august1-september30/oct1
+
+ax.legend()
+
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+
+ax.text(0.025,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+
+
+
+
+
+
+ax = axd['depth']
+
+ax.scatter(odf_val_at_min_z['val'], odf_cast_mins['val'], alpha=0.1, color = 'gray')
+
+#ax.hist2d(odf_val_at_min_z['val'], odf_cast_mins['val'], bins=100, cmap='inferno', cmin=1)
+ 
+#ax.colorbar(label='Cast Count')
+
+ax.set_xlabel('DO at Min. Cast Depth [mg/L]')
+
+ax.set_ylabel('Min. Cast DO [mg/L]')
+
+#ax.axhspan(0,2, color = 'lightgray', alpha = 0.5)
+
+#ax.axvspan(0,2, color = 'lightgray', alpha = 0.5)
+
+
+
+ax.axis('square') 
+
+#ax.set_ylim(0,18)
+
+ax.set_xlim(xmin=0) 
+
+ax.set_ylim(ymin=0) 
+
+
+
+
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5) 
+
+ax.text(0.05,0.05, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+
+
     
-    
-    
-    if plot_df['p'].iloc[0] < alpha:
-        
-        linestyle = '-'
-        
-        label = plot_df['season_label'].iloc[0] #+ ' Trend\n[' + "{:.1f}".format(plot_df['slope_datetime'].iloc[0]*100) + r' $m^3/s$]'
-        
-    else:
-        
-        linestyle = '--' 
-        
-        label = plot_df['season_label'].iloc[0] #+ ' Trend\n[not significant]'
-
-    
-    ax[0].plot([x_plot.min(), x_plot.max()], [plot_df['B0'].iloc[0] + plot_df['B1'].iloc[0]*x.min(), plot_df['B0'].iloc[0] + plot_df['B1'].iloc[0]*x.max()], color = color, linestyle=linestyle, linewidth=2, label=label)
-
-
-
-  
-sns.lineplot(data = decadal_yearday_mean, x='yearday', y = 'val', hue='decade', ax=ax[1], palette='plasma_r')
-
-ax[1].legend(bbox_to_anchor=(1.05, 0.5), loc='center left')
-
-ax[1].set_xlim([1,365])
-
-ax[1].set_ylim(0,1800)
-
-ax[1].axvline(90, color = 'gray', linestyle = '--')
- 
-ax[1].axvline(212, color = 'gray', linestyle = '--')
-
-ax[1].axvline(334, color = 'gray', linestyle = '--')
- 
-ax[1].text(30,1350, 'Dec-Mar', horizontalalignment='center', verticalalignment='center', color='gray', fontweight = 'bold')
-
-ax[1].text(151,1350, 'Apr-Jul', horizontalalignment='center', verticalalignment='center', color='gray', fontweight = 'bold')
-
-ax[1].text(273,1350, 'Aug-Nov', horizontalalignment='center', verticalalignment='center', color='gray', fontweight = 'bold')
- 
-
-
- 
-
-ax[0].text(0.025,0.05, 'a', transform=ax[0].transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
-
-ax[1].text(0.025,0.05, 'b', transform=ax[1].transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
-
-
-  
-
-
-
-ax[0].set_ylabel(r'Discharge [$m^3/s$]')
-
-ax[1].set_ylabel(r'Discharge [$m^3/s$]')
- 
-
-ax[0].set_xlabel('Year') 
-
-ax[1].set_xlabel('Yearday') 
-
-ax[0].set_ylim(0,1800) 
- 
-
-
- 
-ax[1].grid(color = 'lightgray', linestyle = '--', alpha=0.5) 
-
-ax[0].grid(color = 'lightgray', linestyle = '--', alpha=0.5)
-  
-ax[0].legend(loc='upper center', ncol = 5)  
- 
-#ax[1].legend(loc='upper center', ncol = 9)
-
-h, l = ax[1].get_legend_handles_labels() 
-
-h.insert(0, plt.Line2D([0], [0], color='white', lw=0, marker='o', markersize=0))  # Empty entry
-
-#h.insert(len(h), plt.Line2D([0], [0], color='white', lw=0, marker='o', markersize=0))  # Empty entry
-
-#l.insert(0, "1940s")  # Title as an entry
-
-ax[1].legend(h, ['1940s','','','','','','','','','     2020s      '], loc='upper center', ncol=11, handlelength=1)
-
-
-
-#ax[0].legend(bbox_to_anchor=(1.05, 0.5), loc='upper left')
-
-#ax[0].legend(bbox_to_anchor=(0.5, 0), loc='upper center')
-
-
-
-
-#plt.tight_layout()
-
-
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_4.png', bbox_inches='tight', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_4.png', bbox_inches='tight', dpi=500, transparent=False)
