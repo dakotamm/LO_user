@@ -19,7 +19,7 @@ outdir = '/Users/dakotamascarenas/Desktop/pltz/'
 #for basin in basin_list:
     
 
-fileprefix = "pc_transect"
+fileprefix = "pc_DO_profile_bydate"
 
 ff_str = ("ffmpeg -r 8 -i " + outdir + "'" + fileprefix + "_%04d.png' -vf 'crop=trunc(iw/2)*2:trunc(ih/2)*2' -vcodec libx264 -pix_fmt yuv420p -crf 25 " + outdir + "'" + fileprefix + "_temp.mp4'")
 os.system(ff_str)

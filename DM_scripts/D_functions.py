@@ -410,6 +410,10 @@ def longShortClean(odf):
 
 
     odf_depth_mean = temp0.groupby(['site','surf_deep', 'year', 'season', 'var','cid']).mean(numeric_only=True).reset_index().dropna() #####
+    
+    # DM addition 20250812
+    odf_depth_mean.loc[(odf_depth_mean['site'] == 'near_seattle_offshore') & (odf_depth_mean['var'] == 'SA') & (odf_depth_mean['surf_deep'] == 'deep') & (odf_depth_mean['val'] < 29)] = np.nan
+    odf_depth_mean = odf_depth_mean.dropna()
 
 
     cid_deep = odf_depth_mean.loc[odf_depth_mean['surf_deep'] == 'deep', 'cid']

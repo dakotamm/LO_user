@@ -148,9 +148,9 @@ all_stats_filt.loc[all_stats_filt['site'] == 'point_jefferson', 'site_num'] = 1
 
 all_stats_filt.loc[all_stats_filt['site'] == 'near_seattle_offshore', 'site_num'] = 2
 
-all_stats_filt.loc[all_stats_filt['site'] == 'saratoga_passage_mid', 'site_num'] = 3
+all_stats_filt.loc[all_stats_filt['site'] == 'saratoga_passage_mid', 'site_num'] = 4
 
-all_stats_filt.loc[all_stats_filt['site'] == 'carr_inlet_mid', 'site_num'] = 4
+all_stats_filt.loc[all_stats_filt['site'] == 'carr_inlet_mid', 'site_num'] = 3
 
 all_stats_filt.loc[all_stats_filt['site'] == 'lynch_cove_mid', 'site_num'] = 5
 
@@ -310,7 +310,7 @@ for var in ['deep_DO_mg_L', 'deep_CT', 'deep_SA']:
             
             #ax.set_xticks(sorted(all_stats_filt['site_num'].unique().tolist()),site_labels, rotation=90) 
             
-            ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'SP', 'CI', 'LC'])
+            ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'CI', 'SP', 'LC'])
             
             ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3)
                                     
