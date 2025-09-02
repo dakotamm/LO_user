@@ -614,16 +614,16 @@ def seasonalDepthAverageDF(odf_depth_mean, odf_calc_long):
 
 # %%
 
-def annualDepthAverageDF(odf, odf_calc_long):
+def annualDepthAverageDF(odf_depth_mean, odf_calc_long):
     
-    annual_counts_0 = (odf
+    annual_counts_0 = (odf_depth_mean
                           .dropna()
                           .groupby(['site','year', 'surf_deep','var']).agg({'cid' :lambda x: x.nunique()})
                           .reset_index()
                           .rename(columns={'cid':'cid_count'})
                           )
 
-    odf_use= odf.groupby(['site', 'year','surf_deep', 'var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
+    odf_use= odf_depth_mean.groupby(['site', 'year','surf_deep', 'var']).agg({'val':['mean', 'std'], 'z':['mean'], 'date_ordinal':['mean']})
 
 
     odf_use.columns = odf_use.columns.to_flat_index().map('_'.join)
@@ -688,6 +688,30 @@ def annualDepthAverageDF(odf, odf_calc_long):
     odf_calc_use['val'] = odf_calc_use['val_mean']
     
     return odf_use
+
+# %%
+
+def monthlyDepthAverageDF(odf_depth_mean): #NO STD DEVIATION
+
+    odf_use= odf_depth_mean.groupby(['site', 'year','month', 'surf_deep', 'var']).agg({'val':['mean'], 'z':['mean'], 'date_ordinal':['mean']})
+    
+    odf_use.columns = odf_use.columns.to_flat_index().map('_'.join)
+    
+    odf_use = odf_use.reset_index().dropna()
+    
+    odf_use = (odf_use
+                      .rename(columns={'date_ordinal_mean':'date_ordinal'})
+                      .dropna()
+                      .assign(
+                              datetime=(lambda x: x['date_ordinal'].apply(lambda x: pd.Timestamp.fromordinal(int(x))))
+                              )
+                      )
+
+    odf_use['val'] = odf_use['val_mean']
+    
+    return odf_use
+
+
 
 # %%
 
