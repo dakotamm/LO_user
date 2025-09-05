@@ -113,12 +113,12 @@ Folders on perigee in `/data1/parker/LO_output/obs` and on apogee in `/dat1/park
   - ctd 1989-1998
   - bottle 1973-1998 
   
-- **kc** King Country monitoring data from modern stations. Station information was downloaded from: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf. Bottle data was downloaded from: https://data.kingcounty.gov/Environment-Waste-Management/Water-Quality/vwmt-pvjw. CTD data was received via email from Greg Ikeda, King County, to Dakota Mascarenas. Processed by Dakota Mascarenas. See the README in the associated folder for details. 
+- **kc** King County monitoring data from modern stations. Station information was downloaded from: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf. Bottle data was downloaded from: https://data.kingcounty.gov/Environment-Waste-Management/Water-Quality/vwmt-pvjw. CTD data was received via email from Greg Ikeda, King County, to Dakota Mascarenas. Processed by Dakota Mascarenas. See the README in the associated folder for details. 
   - ctd 1998-2024
   - bottle 1965-2023
 
-- **kc_his** King County monitoring data from historical stations. Received via email from Taylor Martin, King County, to Dakota Mascarenas. Processed by Dakota Mascarenas. See the README in the associated folder for details. 
-  - ctd None
+- **kc_his** King County monitoring data from historical stations. Received via email from Taylor Martin, King County, to Dakota Mascarenas. Processed by Dakota Mascarenas. See the README in the associated folder for details. Please note that temperature data for the full time range is included in both CTD and bottles, but comes from CTD cast. Salinity for the full time range is only in bottle data, but some CTD-measured salinity is included in ctd data at the end of the time range.
+  - ctd 1965-2000
   - bottle 1965-2000
   
 - **kc_pointJefferson** King County data collected near Point Jefferson. Received via email from Taylor Martin, King County, to Dakota Mascarenas. Station information was downloaded from: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf. Processed by Dakota Mascarenas. See the README in the associated folder for details.

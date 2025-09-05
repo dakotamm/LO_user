@@ -96,9 +96,12 @@ def getPolyData(Ldir, poly_list, source_list=['ecology_nc', 'nceiSalish', 'dfo1'
                         if 'ecology' in source_list:
                             if source == 'ecology' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
                                 odf['DO (uM)'] == np.nan
-                        if 'kc_point_jefferson' in source_list:
-                            if source == 'kc_point_jefferson' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
-                                odf['CT'] == np.nan                        
+                        if 'kc_pointJefferson' in source_list:
+                            if source == 'kc_pointJefferson' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
+                                odf['CT'] == np.nan    
+                        if 'kc_his' in source_list:
+                            if source == 'kc_his' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
+                                odf['CT'] == np.nan    
                         odf['source'] = source
                         odf['otype'] = otype
                         # print(odf.columns)
@@ -107,9 +110,12 @@ def getPolyData(Ldir, poly_list, source_list=['ecology_nc', 'nceiSalish', 'dfo1'
                         if 'ecology' in source_list:
                             if source == 'ecology' and otype == 'bottle':
                                 this_odf['DO (uM)'] == np.nan
-                        if 'kc_point_jefferson' in source_list:
-                            if source == 'kc_point_jefferson' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
-                                odf['CT'] == np.nan                          
+                        if 'kc_pointJefferson' in source_list:
+                            if source == 'kc_pointJefferson' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
+                                odf['CT'] == np.nan   
+                        if 'kc_his' in source_list:
+                            if source == 'kc_his' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
+                                odf['CT'] == np.nan
                         this_odf['cid'] = this_odf['cid'] + odf['cid'].max() + 1
                         this_odf['source'] = source
                         this_odf['otype'] = otype
@@ -251,8 +257,8 @@ def dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_list, pa
                               #                         bins=[0,3,7,11,12],
                               #                         labels=['winter', 'grow', 'loDO', 'winter'], ordered=False)),
                               DO_mg_L=(lambda x: x['DO (uM)']*32/1000),
-                              NO3_uM=(lambda x: x['NO3 (uM)']),
-                              Chl_mg_m3=(lambda x: x['Chl (mg m-3)']),
+                              # NO3_uM=(lambda x: x['NO3 (uM)']),
+                              # Chl_mg_m3=(lambda x: x['Chl (mg m-3)']),
                               date_ordinal=(lambda x: x['datetime'].apply(lambda x: x.toordinal())),
                               segment=(lambda x: key),
                               decade=(lambda x: pd.cut(x['year'],
@@ -1093,14 +1099,23 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
 
 # %%
 
-def calcSeriesAvgs(odf_depth_mean, odf_depth_mean_deep_DO_percentiles, deep_DO_q = 'deep_DO_q50'):
+def calcSeriesAvgs(odf_depth_mean, odf_depth_mean_deep_DO_percentiles, deep_DO_q = 'deep_DO_q50', filter_out = False):
     
     # note 9/6/2024: build in flexibility to not deal with DO percentiles and seasons
     
     # to work with the longShortDF build...
     
+    # sloppy edits 9/2/2025 to make the filter a flag - so messy - just using the odf_use_seasonal_CTSA gives the unfiltered DO values too
     
-    odf_depth_mean_deep_DO_less_than_median = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
+    if filter_out:
+        
+
+        odf_depth_mean_deep_DO_less_than_median = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
+        
+    else:
+        
+        odf_depth_mean_deep_DO_less_than_median = odf_depth_mean_deep_DO_percentiles.copy()
+        
     
     cid_deep_DO_less_than_median= odf_depth_mean_deep_DO_less_than_median['cid']
 
