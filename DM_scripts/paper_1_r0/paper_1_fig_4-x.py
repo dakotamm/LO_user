@@ -310,7 +310,7 @@ for season in stats_df['season'].unique():
         
         linestyle = '-'
         
-        label = plot_df['season_label'].iloc[0] + ' Trend (' + "{:.1f}".format(plot_df['slope_datetime'].iloc[0]*100) + r' $m^3/s$)'
+        label = plot_df['season_label'].iloc[0] + ' Trend (' + "{:.1f}".format(plot_df['slope_datetime'].iloc[0]*100) + r' $m^3/s/cent.$)'
         
     else:
         

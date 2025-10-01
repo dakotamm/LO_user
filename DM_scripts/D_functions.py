@@ -433,15 +433,36 @@ def longShortClean(odf):
     odf_calc.columns = odf_calc.columns.to_flat_index().map('_'.join)
 
     odf_calc = odf_calc.reset_index()
+    
+    
+    
+    odf_calc['surf_CT_const'] = odf_calc['surf_CT'].mean()
+    
+    odf_calc['deep_CT_const'] = odf_calc['deep_CT'].mean()
+    
+    odf_calc['surf_SA_const'] = odf_calc['surf_SA'].mean()
+    
+    odf_calc['deep_SA_const'] = odf_calc['deep_SA'].mean()
+
 
 
     odf_calc['surf_dens'] = gsw.density.sigma0(odf_calc['surf_SA'], odf_calc['surf_CT'])
 
     odf_calc['deep_dens'] = gsw.density.sigma0(odf_calc['deep_SA'], odf_calc['deep_CT'])
+    
+    
+    odf_calc['surf_dens_const_CT'] = gsw.density.sigma0(odf_calc['surf_SA'], odf_calc['surf_CT_const'])
+
+    odf_calc['deep_dens_const_CT'] = gsw.density.sigma0(odf_calc['deep_SA'], odf_calc['deep_CT_const'])
+    
+    
+    odf_calc['surf_dens_const_SA'] = gsw.density.sigma0(odf_calc['surf_SA_const'], odf_calc['surf_CT'])
+
+    odf_calc['deep_dens_const_SA'] = gsw.density.sigma0(odf_calc['deep_SA_const'], odf_calc['deep_CT'])
 
 
     odf_calc['strat_sigma'] = odf_calc['deep_dens'] - odf_calc['surf_dens']
-
+    
 
     A_0 = 5.80818 #all in umol/kg, from Gordon & Garcia (1992)
 
@@ -472,18 +493,49 @@ def longShortClean(odf):
                            odf_calc['surf_SA']*(B_0 + B_1*odf_calc['surf_T_s'] + B_2*odf_calc['surf_T_s']**2 + B_3*odf_calc['surf_T_s']**3) + C_0*odf_calc['surf_SA']**2)
 
     odf_calc['surf_DO_sol'] =  odf_calc['surf_C_o_*']*(odf_calc['surf_dens']/1000 + 1)*32/1000
+    
+    
+    odf_calc['surf_T_s_const'] = np.log((298.15 - odf_calc['surf_CT_const'])/(273.15 + odf_calc['surf_CT_const']))
+    
+    odf_calc['surf_C_o_*_const_CT'] = np.exp(A_0 + A_1*odf_calc['surf_T_s_const'] + A_2*odf_calc['surf_T_s_const']**2 + A_3*odf_calc['surf_T_s_const']**3 + A_4*odf_calc['surf_T_s_const']**4 + A_5*odf_calc['surf_T_s_const']**5 + 
+                           odf_calc['surf_SA']*(B_0 + B_1*odf_calc['surf_T_s_const'] + B_2*odf_calc['surf_T_s_const']**2 + B_3*odf_calc['surf_T_s_const']**3) + C_0*odf_calc['surf_SA']**2)
 
+    odf_calc['surf_DO_sol_const_CT'] =  odf_calc['surf_C_o_*_const_CT']*(odf_calc['surf_dens_const_CT']/1000 + 1)*32/1000
+    
+        
+    odf_calc['surf_C_o_*_const_SA'] = np.exp(A_0 + A_1*odf_calc['surf_T_s'] + A_2*odf_calc['surf_T_s']**2 + A_3*odf_calc['surf_T_s']**3 + A_4*odf_calc['surf_T_s']**4 + A_5*odf_calc['surf_T_s']**5 + 
+                           odf_calc['surf_SA_const']*(B_0 + B_1*odf_calc['surf_T_s'] + B_2*odf_calc['surf_T_s']**2 + B_3*odf_calc['surf_T_s']**3) + C_0*odf_calc['surf_SA_const']**2)
 
+    odf_calc['surf_DO_sol_const_SA'] =  odf_calc['surf_C_o_*_const_SA']*(odf_calc['surf_dens_const_SA']/1000 + 1)*32/1000
+    
+    
+
+    
+    
     odf_calc['deep_T_s'] = np.log((298.15 - odf_calc['deep_CT'])/(273.15 + odf_calc['deep_CT']))
 
     odf_calc['deep_C_o_*'] = np.exp(A_0 + A_1*odf_calc['deep_T_s'] + A_2*odf_calc['deep_T_s']**2 + A_3*odf_calc['deep_T_s']**3 + A_4*odf_calc['deep_T_s']**4 + A_5*odf_calc['deep_T_s']**5 + 
                            odf_calc['deep_SA']*(B_0 + B_1*odf_calc['deep_T_s'] + B_2*odf_calc['deep_T_s']**2 + B_3*odf_calc['deep_T_s']**3) + C_0*odf_calc['deep_SA']**2)
 
     odf_calc['deep_DO_sol'] =  odf_calc['deep_C_o_*']*(odf_calc['deep_dens']/1000 + 1)*32/1000
+    
+    
+    odf_calc['deep_T_s_const'] = np.log((298.15 - odf_calc['deep_CT_const'])/(273.15 + odf_calc['deep_CT_const']))
+    
+    odf_calc['deep_C_o_*_const_CT'] = np.exp(A_0 + A_1*odf_calc['deep_T_s_const'] + A_2*odf_calc['deep_T_s_const']**2 + A_3*odf_calc['deep_T_s_const']**3 + A_4*odf_calc['deep_T_s_const']**4 + A_5*odf_calc['deep_T_s_const']**5 + 
+                           odf_calc['deep_SA']*(B_0 + B_1*odf_calc['deep_T_s_const'] + B_2*odf_calc['deep_T_s_const']**2 + B_3*odf_calc['deep_T_s_const']**3) + C_0*odf_calc['deep_SA']**2)
+
+    odf_calc['deep_DO_sol_const_CT'] =  odf_calc['deep_C_o_*_const_CT']*(odf_calc['deep_dens_const_CT']/1000 + 1)*32/1000
+    
+        
+    odf_calc['deep_C_o_*_const_SA'] = np.exp(A_0 + A_1*odf_calc['deep_T_s'] + A_2*odf_calc['deep_T_s']**2 + A_3*odf_calc['deep_T_s']**3 + A_4*odf_calc['deep_T_s']**4 + A_5*odf_calc['deep_T_s']**5 + 
+                           odf_calc['deep_SA_const']*(B_0 + B_1*odf_calc['deep_T_s'] + B_2*odf_calc['deep_T_s']**2 + B_3*odf_calc['deep_T_s']**3) + C_0*odf_calc['deep_SA_const']**2)
+
+    odf_calc['deep_DO_sol_const_SA'] =  odf_calc['deep_C_o_*_const_SA']*(odf_calc['deep_dens_const_SA']/1000 + 1)*32/1000
 
 
 
-    odf_calc_long = pd.melt(odf_calc, id_vars = ['site', 'year', 'month', 'season', 'date_ordinal','cid'], value_vars=['strat_sigma', 'surf_DO_sol', 'deep_DO_sol'], var_name='var', value_name='val')
+    odf_calc_long = pd.melt(odf_calc, id_vars = ['site', 'year', 'month', 'season', 'date_ordinal','cid'], value_vars=['strat_sigma', 'surf_DO_sol', 'surf_DO_sol_const_CT', 'surf_DO_sol_const_SA', 'deep_DO_sol', 'deep_DO_sol_const_CT', 'deep_DO_sol_const_SA'], var_name='var', value_name='val')
 
 
     odf_depth_mean_deep_DO = odf_depth_mean[(odf_depth_mean['var'] == 'DO_mg_L') & (odf_depth_mean['surf_deep'] == 'deep')]

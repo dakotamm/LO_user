@@ -147,19 +147,6 @@ odf_use_seasonal_CTSA.loc[odf_use_seasonal_CTSA['site'] == 'carr_inlet_mid', 'si
 
 odf_use_seasonal_CTSA.loc[odf_use_seasonal_CTSA['site'] == 'lynch_cove_mid', 'site_num'] = 5
 
-
-odf_use_seasonal_CTSA.loc[odf_use_seasonal_CTSA['season'] == 'grow', 'season_label'] = 'Apr-Jul'
-
-odf_use_seasonal_CTSA.loc[odf_use_seasonal_CTSA['season'] == 'loDO', 'season_label'] = 'Aug-Nov'
-
-odf_use_seasonal_CTSA.loc[odf_use_seasonal_CTSA['season'] == 'winter', 'season_label'] = 'Dec-Mar'
-
-
-odf_use_seasonal_CTSA.loc[odf_use_seasonal_CTSA['surf_deep'] == 'surf', 'depth_label'] = 'Surface'
-
-odf_use_seasonal_CTSA.loc[odf_use_seasonal_CTSA['surf_deep'] == 'deep', 'depth_label'] = 'Bottom'
-
-
 # %%
 
 odf_use_annual_CTSA.loc[odf_use_annual_CTSA['site'] == 'point_jefferson', 'site_label'] = 'PJ'
@@ -198,9 +185,9 @@ odf_use_annual_CTSA.loc[odf_use_annual_CTSA['site'] == 'lynch_cove_mid', 'site_n
 
 # %%
 
-edgecolors = {'Surface': None, 'Bottom': 'k'}
+edgecolors = {'surf': 'white', 'deep': 'k'}
 
-palette = {'Apr-Jul': '#dd9404', 'Aug-Nov': '#e04256', 'Dec-Mar': '#4565e8'}
+palette = {'grow': '#dd9404', 'loDO': '#e04256', 'winter': '#4565e8'}
 
 markers  = {'DO_mg_L': 'o', 'CT':'D', 'SA':'s'}
 
@@ -214,9 +201,9 @@ ymins = {'DO_mg_L': 0, 'CT': 7, 'SA': 20}
 
 
 
-jitter = {'Dec-Mar': -0.1, 'Apr-Jul':0, 'Aug-Nov': 0.1}
+jitter = {'winter': -0.1, 'grow':0, 'loDO': 0.1}
 
-mosaic = [['CT', 'SA', 'DO_mg_L']]
+mosaic = [['DO_mg_L', 'CT', 'SA']]
 
 
 #mosaic = [['surf_DO_mg_L', 'surf_CT', 'surf_SA'], ['deep_DO_mg_L', 'deep_CT', 'deep_SA']]
@@ -229,30 +216,15 @@ for var in var_list:
     
     ax = axd[ax_name]
     
-    for depth in [ 'Surface', 'Bottom']: 
+    for depth in [ 'surf', 'deep']: 
         
         for site in long_site_list:
             
-            for season in ['Dec-Mar', 'Apr-Jul', 'Aug-Nov']:
+            for season in ['winter', 'grow', 'loDO']:
                 
-                plot_df = odf_use_seasonal_CTSA[(odf_use_seasonal_CTSA['var'] == var) & (odf_use_seasonal_CTSA['season_label'] == season) & (odf_use_seasonal_CTSA['site'] == site) & (odf_use_seasonal_CTSA['depth_label'] == depth)]
+                plot_df = odf_use_seasonal_CTSA[(odf_use_seasonal_CTSA['var'] == var) & (odf_use_seasonal_CTSA['season'] == season) & (odf_use_seasonal_CTSA['site'] == site) & (odf_use_seasonal_CTSA['surf_deep'] == depth)]
 
-
-                if var == 'SA':
-                    
-                    ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color='gray', s=20, marker= markers[var], edgecolors=edgecolors[depth], label=depth)
-                    
-                    ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=20, marker= markers[var], edgecolors=edgecolors[depth])
-                    
-                elif var == 'CT':
-                    
-                    
-                    ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=20, marker= markers[var], edgecolors=edgecolors[depth], label=season)
-                    
-                else:
-                    
-                    ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=20, marker= markers[var], edgecolors=edgecolors[depth])
-
+                ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=20, marker= markers[var], edgecolors=edgecolors[depth])
                  
                 ax.plot([plot_df['site_num'] + jitter[season], plot_df['site_num'] + jitter[season]],[plot_df['val_ci95lo'], plot_df['val_ci95hi']], color=palette[season], alpha =0.5, zorder = -5, linewidth=1)
               
@@ -267,43 +239,17 @@ for var in var_list:
     
         ax.axhspan(0,2, color = 'gray', alpha = 0.3, zorder=-6, label='Hypoxia') 
         
-        ax.text(0.05,0.05, 'c', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
-
-        
         ax.set_ylabel('Mean [DO] [mg/L]')
-        
-        ax.legend()
     
-    elif var == 'SA':
+    elif var == 'CT':
         
-        ax.set_ylabel('Mean Salinity [g/kg]')
-        
-        ax.text(0.05,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
-
-        
-        handles, labels = ax.get_legend_handles_labels()
-        
-        selected_handles = [handles[0], handles[-3]]
-        selected_labels = [labels[0], labels[-3]]
-        
-        ax.legend(selected_handles, selected_labels, loc = 'lower center')        
+        ax.set_ylabel('Mean Temperature [degC]')
         
     else:
         
-        ax.set_ylabel('Mean Temperature [°C]')
+        ax.set_ylabel('Mean Salinity [g/kg]')
 
-        
-        ax.text(0.05,0.05, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
-
-        
-        handles, labels = ax.get_legend_handles_labels()
-            
-        selected_handles = [handles[0], handles[1], handles[2]]
-        selected_labels = [labels[0], labels[1], labels[2]]
-        
-        ax.legend(selected_handles, selected_labels, loc = 'best')
-
-     
+    
     #ax.text(0.05,0.95, var, transform=ax.transAxes, verticalalignment='top', fontweight = 'bold', color='k')
      
     ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3, zorder = -6)
@@ -316,4 +262,4 @@ for var in var_list:
     
     ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'CI', 'SP', 'LC'])
         
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_7.png', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/seasonal_timeseries_avgs.png', dpi=500, transparent=True)
