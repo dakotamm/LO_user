@@ -160,17 +160,22 @@ all_stats_filt['95CI_hi'] = all_stats_filt['slope_datetime_s_hi'] - all_stats_fi
 
 all_stats_filt['95CI_lo'] = all_stats_filt['slope_datetime'] -all_stats_filt['slope_datetime_s_lo']
 
-all_stats_disp = all_stats_filt[all_stats_filt['var'].isin(['deep_DO_mg_L','deep_CT','deep_SA', 'surf_DO_mg_L', 'surf_CT', 'surf_SA'])]
+# %%
 
-all_stats_disp.loc[all_stats_disp['var'].isin(['deep_DO_mg_L','deep_CT','deep_SA']), 'surf_deep'] = 'deep'
+all_stats_disp = all_stats_filt[all_stats_filt['var'].isin(['deep_DO_mg_L','deep_CT','deep_SA', 'surf_DO_mg_L', 'surf_CT', 'surf_SA', 'deep_DO_sol', 'surf_DO_sol'])]
 
-all_stats_disp.loc[all_stats_disp['var'].isin(['surf_DO_mg_L','surf_CT','surf_SA']), 'surf_deep'] = 'surf'
+all_stats_disp.loc[all_stats_disp['var'].isin(['deep_DO_mg_L','deep_CT','deep_SA', 'deep_DO_sol']), 'Depth'] = 'Bottom'
 
-all_stats_disp.loc[all_stats_disp['var'].isin(['deep_DO_mg_L','surf_DO_mg_L']), 'var'] = 'DO_mg_L'
+all_stats_disp.loc[all_stats_disp['var'].isin(['surf_DO_mg_L','surf_CT','surf_SA', 'surf_DO_sol']), 'Depth'] = 'Surface'
 
-all_stats_disp.loc[all_stats_disp['var'].isin(['deep_CT','surf_CT']), 'var'] = 'CT'
+all_stats_disp.loc[all_stats_disp['var'].isin(['deep_DO_mg_L','surf_DO_mg_L']), 'var'] = 'DO [mg/L]'
 
-all_stats_disp.loc[all_stats_disp['var'].isin(['deep_SA','surf_SA']), 'var'] = 'SA'
+all_stats_disp.loc[all_stats_disp['var'].isin(['deep_CT','surf_CT']), 'var'] = 'CT [°C]'
+
+all_stats_disp.loc[all_stats_disp['var'].isin(['deep_SA','surf_SA']), 'var'] = 'SA [g/kg]'
+
+all_stats_disp.loc[all_stats_disp['var'].isin(['deep_DO_sol','surf_DO_sol']), 'var'] = 'Sol.-Based DO [mg/L]'
+
 
 
 
@@ -197,44 +202,80 @@ all_stats_disp['slope_datetime_cent_str'] = all_stats_disp['slope_datetime_cent'
 
 all_stats_disp['trend_95_ci'] = all_stats_disp['slope_datetime_cent_str'] + ' +' + all_stats_disp['95CI_hi_cent_str'] + '/-' + all_stats_disp['95CI_lo_cent_str']
 
+# %%
+
+all_stats_disp['Site'] = all_stats_disp['site_label']
+
+all_stats_disp.loc[all_stats_disp['season'] == 'grow', 'Season'] = 'Apr-Jul'
+
+all_stats_disp.loc[all_stats_disp['season'] == 'loDO', 'Season'] = 'Aug-Nov'
+
+all_stats_disp.loc[all_stats_disp['season'] == 'winter', 'Season'] = 'Dec-Mar'
+
+all_stats_disp = all_stats_disp[all_stats_disp['season'] != 'allyear']
+
+
+all_stats_disp['Var.'] = all_stats_disp['var']
+
+all_stats_disp['Trend Slope (95% CI)'] = all_stats_disp['trend_95_ci']
+
+
+
 
 
 # %%
 
-all_stats_disp_use = all_stats_disp[['site', 'season','var','surf_deep', 'trend_95_ci','p','n']]
+all_stats_disp_use = all_stats_disp[['Site', 'Season','Var.','Depth', 'Trend Slope (95% CI)','p','n']]
 
 # %%
 
 
-all_stats_disp_use_wide = all_stats_disp_use.pivot(index=['site','season',], columns= ['surf_deep', 'var'])
+all_stats_disp_use_wide = all_stats_disp_use.pivot(index=['Site','Season'], columns= ['Depth', 'Var.'])
 
 all_stats_disp_use_wide.columns = all_stats_disp_use_wide.columns.reorder_levels([2, 1, 0])
 
 # %%
 
-var_order = ['CT', 'SA', 'DO_mg_L']
-depth_order = ['surf', 'deep']
-stat_order = ['trend_95_ci', 'p', 'n']
+site_order = ['PJ', 'NS', 'CI', 'SP', 'LC']
+season_order = ['Dec-Mar', 'Apr-Jul', 'Aug-Nov']
+
+
+
+var_order = ['CT [°C]', 'SA [g/kg]', 'DO [mg/L]', 'Sol.-Based DO [mg/L]']
+depth_order = ['Surface', 'Bottom']
+stat_order = ['Trend Slope w/ 95% CI [unit/cent.]', 'p', 'n']
+
+all_stats_disp_use_wide = (
+    all_stats_disp_use_wide
+    .sort_index(
+        level=['Site', 'Season'],
+        key=lambda idx: (
+            idx.map({v: i for i, v in enumerate(site_order)}) 
+            if idx.name == 'Site' else 
+            idx.map({v: i for i, v in enumerate(season_order)}) 
+        )
+    )
+)
 
 
 # Extract current column MultiIndex
 cols = all_stats_disp_use_wide.columns
 
 # Get positions in the custom order
-var_pos = pd.Index(var_order).get_indexer(cols.get_level_values('var'))
-depth_pos = pd.Index(depth_order).get_indexer(cols.get_level_values('surf_deep'))
+var_pos = pd.Index(var_order).get_indexer(cols.get_level_values('Var.'))
+depth_pos = pd.Index(depth_order).get_indexer(cols.get_level_values('Depth'))
 stat_pos = pd.Index(stat_order).get_indexer(cols.get_level_values(None))
 
 # Combine into a DataFrame for sorting
 sort_df = pd.DataFrame({
-    'var': var_pos,
-    'depth': depth_pos,
-    'stat': stat_pos
+    'Var.': var_pos,
+    'Depth': depth_pos,
+    'Stat.': stat_pos
 })
 
 # Get new column order based on sort priorities
 sorted_indexer = sort_df.sort_values(
-    by=['var', 'depth', 'stat']
+    by=['Var.', 'Depth', 'Stat.']
 ).index
 
 # Apply new column order

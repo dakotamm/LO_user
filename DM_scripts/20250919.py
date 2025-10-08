@@ -377,5 +377,5 @@ for var in var_list:
     ax.set_xlabel('')
         
         
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pj_lc_timeseries_EPOC.png', bbox_inches='tight', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pct_exp.png', bbox_inches='tight', dpi=500, transparent=True)
     
