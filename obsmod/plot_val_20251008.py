@@ -167,15 +167,15 @@ if not do_arag:
     vn_list = ['SA','CT','DO (uM)','NO3 (uM)','NH4 (uM)','DIN (uM)',
         'DIC (uM)', 'TA (uM)', 'Chl (mg m-3)']
 else:
-    vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)','pCO2 (uatm)',
-        'DIC (uM)', 'TA (uM)', 'Omega']
+    vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)'] #,'pCO2 (uatm)',
+        #'DIC (uM)', 'TA (uM)', 'Omega']
 
 jj_list = [1,2,3,5,6,7,9,10,11,12] # indices for the data plots
 
 lim_dict = {'SA':(14,36),'CT':(0,20),'DO (uM)':(0,500),'DO (mg L-1)':(0,15),
     'NO3 (uM)':(0,50),'NH4 (uM)':(0,10),'DIN (uM)':(0,50),
-    'DIC (uM)':(1500,2600),'TA (uM)':(1500,2600),'Chl (mg m-3)':(0,20),'Omega':(0,3),
-    'pCO2 (uatm)':(0,6000)}
+    'DIC (uM)':(1500,2600),'TA (uM)':(1500,2600),'Chl (mg m-3)':(0,20)} #,'Omega':(0,3) ,
+    #'pCO2 (uatm)':(0,6000)}
 
 # create DO (mg L-1) and pCO2 (uatm)
 for og in ['obs',gtx]:
