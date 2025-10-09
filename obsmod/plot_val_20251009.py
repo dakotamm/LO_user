@@ -272,7 +272,7 @@ for depth_range in depth_list:
             import bio_fun
             import gsw
             # create salt
-            bio_dict = {'DO (uM)':'oxygen','NO3 (uM)':'NO3','DIC (uM)':'TIC', 'TA (uM)':'alkalinity'}
+            bio_dict = {'DO (uM)':'oxygen','NO3 (uM)':'NO3'} #,'DIC (uM)':'TIC', 'TA (uM)':'alkalinity'}
             if vn in bio_dict.keys():
                 z = df_dict['obs']['z'].to_numpy()
                 lon = df_dict['obs']['lon'].to_numpy()
@@ -326,7 +326,7 @@ for depth_range in depth_list:
 ax = fig.add_subplot(1,4,4)
 df_dict['obs'].plot(x='lon',y='lat',style='.g',legend=False, ax=ax)
 pfun.add_coast(ax)
-ax.axis([-130,-122,42,52])
+ax.axis([-122.9,-122.1,47.8,48.5])
 pfun.dar(ax)
 ax.set_xlabel('')
 ax.set_ylabel('')
