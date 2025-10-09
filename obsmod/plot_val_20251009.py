@@ -229,7 +229,7 @@ if small:
     pfun.start_plot(figsize=(13,8), fs=fs)
 else:
     fs = 14
-    pfun.start_plot(figsize=(20,12), fs=fs)
+    pfun.start_plot(figsize=(18,12), fs=fs)
 
 depth_list = ['deep', 'shallow']
 c_dict = dict(zip(depth_list,['b','r']))
@@ -258,7 +258,7 @@ for depth_range in depth_list:
     for ii in range(len(vn_list)):
         jj = jj_list[ii]
         if depth_range == depth_list[0]:
-            ax = fig.add_subplot(2,4,jj)
+            ax = fig.add_subplot(2,3,jj)
             ax_dict[ii] = ax
         else:
             ax = ax_dict[ii]
@@ -267,6 +267,8 @@ for depth_range in depth_list:
         x = df_dict['obs'][vn].to_numpy()
         y = df_dict[gtx][vn].to_numpy()
         ax.plot(x,y,marker='.',ls='',color=c_dict[depth_range], alpha=alpha)
+        
+        ax.set_box_aspect(1)
 
         if fil_dict['bio_salt']:
             import bio_fun
