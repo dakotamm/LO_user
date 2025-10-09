@@ -34,8 +34,8 @@ source_list = ['ecology_nc']
 otype_list = ['bottle','ctd']
 year_list = [2017]
 #gtx = 'cas7_t1_x11ab'
-#gtx = 'cas7_t0_x4b'
-gtx = 'wb1_r0_xn11b'
+gtx = 'cas7_t0_x4b'
+#gtx = 'wb1_r0_xn11b'
 
 testing = False
 
