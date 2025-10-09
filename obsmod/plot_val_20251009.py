@@ -258,7 +258,7 @@ for depth_range in depth_list:
     for ii in range(len(vn_list)):
         jj = jj_list[ii]
         if depth_range == depth_list[0]:
-            ax = fig.add_subplot(3,4,jj)
+            ax = fig.add_subplot(2,4,jj)
             ax_dict[ii] = ax
         else:
             ax = ax_dict[ii]
