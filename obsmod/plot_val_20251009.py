@@ -258,7 +258,7 @@ for depth_range in depth_list:
     for ii in range(len(vn_list)):
         jj = jj_list[ii]
         if depth_range == depth_list[0]:
-            ax = fig.add_subplot(2,3,jj)
+            ax = fig.add_subplot(2,4,jj)
             ax_dict[ii] = ax
         else:
             ax = ax_dict[ii]
@@ -325,7 +325,7 @@ for depth_range in depth_list:
         ax.grid(True)
         
 # station map
-ax = fig.add_subplot(2,3,5)
+ax = fig.add_subplot(1,4,1)
 df_dict['obs'].plot(x='lon',y='lat',style='.g',legend=False, ax=ax)
 pfun.add_coast(ax)
 ax.axis([-122.9,-122.1,47.8,48.5])
