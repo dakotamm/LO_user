@@ -124,3 +124,5 @@ for ii in ax_dict.keys():
     
 fig.suptitle('Station: %s, %s, %s' % (sta_name,vn,year))
 plt.show()
+
+plt.savefig('/dat1/dakotamm/LO_output/plots/SAR003_wb1_r0_xn11b-cas7_t0_x4b-obs.png', dpi=500)
