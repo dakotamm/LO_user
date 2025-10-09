@@ -194,7 +194,7 @@ if do_arag:
         #DIC0 = df0_dict[og]['DIC (uM)'].to_numpy()
         #TA0 = df0_dict[og]['TA (uM)'].to_numpy()
         # Calculate derived quantities
-        p = gsw.p_from_z(z, lat)x
+        p = gsw.p_from_z(z, lat)
         SP = gsw.SP_from_SA(SA, p, lon, lat)
         rho = gsw.rho(SA, CT, p) # in situ density
         temp = gsw.t_from_CT(SA, CT, p) # in situ temperature
