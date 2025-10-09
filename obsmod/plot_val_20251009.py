@@ -128,7 +128,7 @@ if fil_dict['mask_coast']:
 if fil_dict['mask_unless_wb']:
     for gtxo in df0_dict.keys():
         a = df0_dict[gtxo].copy()
-        mask = (a.lat>=47.8) & (a.lat<48.5) & (a.lon>=-122.9) & (a.lon<-122.1) #48.5, -122.9 - 47.8, 122.1
+        mask = (a.lat>=47.8) & (a.lat<48.5) & (a.lon>=-122.6) & (a.lon<-122.1) #48.5, -122.9 - 47.8, 122.1
         a = a.loc[mask,:]
         df0_dict[gtxo] = a
         
@@ -183,8 +183,8 @@ else:
 jj_list = [1,2,3,5,6,7,9,10,11,12] # indices for the data plots
 
 lim_dict = {'SA':(14,36),'CT':(0,20),'DO (uM)':(0,500),'DO (mg L-1)':(0,15),
-    'NO3 (uM)':(0,50),'NH4 (uM)':(0,10),'DIN (uM)':(0,50),
-    'DIC (uM)':(1500,2600),'TA (uM)':(1500,2600),'Chl (mg m-3)':(0,20)} #,'Omega':(0,3) ,
+    'NO3 (uM)':(0,50),'NH4 (uM)':(0,10)} #,'DIN (uM)':(0,50),
+    #'DIC (uM)':(1500,2600),'TA (uM)':(1500,2600),'Chl (mg m-3)':(0,20)} #,'Omega':(0,3) ,
     #'pCO2 (uatm)':(0,6000)}
 
 # create DO (mg L-1) and pCO2 (uatm)
