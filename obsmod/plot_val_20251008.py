@@ -30,7 +30,7 @@ gtx = 'cas7_t0_x4b'
 #gtx = 'cas7_hsimt_x10ab'
 
 # data choices
-otype = 'bottle'
+otype = 'ctd'
 # source = 'nceiSalish'
 source = 'all'
 H = 10 # dividing depth for deep and shallow
