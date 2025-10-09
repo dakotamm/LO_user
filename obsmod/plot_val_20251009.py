@@ -325,7 +325,7 @@ for depth_range in depth_list:
         ax.grid(True)
         
 # station map
-ax = fig.add_subplot(2,3,6)
+ax = fig.add_subplot(2,3,5)
 df_dict['obs'].plot(x='lon',y='lat',style='.g',legend=False, ax=ax)
 pfun.add_coast(ax)
 ax.axis([-122.9,-122.1,47.8,48.5])
