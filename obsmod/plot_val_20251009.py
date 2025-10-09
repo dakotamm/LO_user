@@ -180,7 +180,7 @@ else:
     vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)'] #,'pCO2 (uatm)',
         #'DIC (uM)', 'TA (uM)', 'Omega']
 
-jj_list = [1,2,3,5,6,7,9,10,11,12] # indices for the data plots
+jj_list = [1,2,3,4,5,6,7,9,10,11,12] # indices for the data plots
 
 lim_dict = {'SA':(14,36),'CT':(0,20),'DO (uM)':(0,500),'DO (mg L-1)':(0,15),
     'NO3 (uM)':(0,50),'NH4 (uM)':(0,10)} #,'DIN (uM)':(0,50),
