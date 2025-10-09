@@ -302,9 +302,9 @@ for depth_range in depth_list:
                 fontsize=fs*.7,style='italic')
                             
 
-        if jj in [9,10,11]:
+        if jj in [4,5]:
             ax.set_xlabel('Observed')
-        if jj in [1,5,9]:
+        if jj in [1,4]:
             ax.set_ylabel('Modeled')
 
         # add labels to identify the model runs with the colors
@@ -325,7 +325,7 @@ for depth_range in depth_list:
         ax.grid(True)
         
 # station map
-ax = fig.add_subplot(2,3,-1)
+ax = fig.add_subplot(2,3,6)
 df_dict['obs'].plot(x='lon',y='lat',style='.g',legend=False, ax=ax)
 pfun.add_coast(ax)
 ax.axis([-122.9,-122.1,47.8,48.5])
