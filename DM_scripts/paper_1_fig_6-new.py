@@ -113,7 +113,7 @@ odf_ixiy_unique = odf.groupby(['ix_iy']).first().reset_index()
 
 poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
 
-odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_his', 'kc_whidbeyBasin', 'nceiSalish', 'kc_pointJefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
 basin_list = list(odf_dict.keys())
@@ -199,6 +199,12 @@ odf_use = (odf_use
 
 # %%
 
+all_stats_filt = dfun.buildStatsDF(odf_use, site_list, odf_calc_use=odf_calc_use, odf_depth_mean_deep_DO_percentiles=odf_depth_mean_deep_DO_percentiles)
+
+
+
+# %%
+
 
 mosaic = [['CT', 'CT'], ['SA', 'SA'], [ 'DO_mg_L', 'DO_mg_L']] #, ['map_source', '.', '.'],]
 
@@ -206,71 +212,6 @@ fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,6), layout='constrained', grids
 
 
 
-# ax = axd['map_source']
- 
-# ax.set_xlim(X[i1],-121.4)#X[i2]) # Salish Sea
-# ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
-        
-# ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
-
-# sns.scatterplot(data=odf_ixiy_unique, x='lon', y='lat', ax = ax, color = 'gray', alpha=0.3, label= 'Cast Location')
-
-
-# pfun.add_coast(ax)
-
-# pfun.dar(ax)
-
-# for site in long_site_list:
-    
-#     path = path_dict[site]
-        
-#     if site in ['near_seattle_offshore']:
-        
-#         patch = patches.PathPatch(path, facecolor='#e04256', edgecolor='white', zorder=1, label='Main Basin')
-    
-#     elif site in ['point_jefferson']:
-            
-
-#         patch = patches.PathPatch(path, facecolor='#e04256', edgecolor='white', zorder=1)
-                
-#     elif site in ['saratoga_passage_mid']:
-        
-#         patch = patches.PathPatch(path, facecolor='#4565e8', edgecolor='white', zorder=1, label = 'Sub-Basins')
-        
-#     else:
-        
-#         patch = patches.PathPatch(path, facecolor='#4565e8', edgecolor='white', zorder=1)
-         
-#     ax.add_patch(patch)
-    
-# ax.text(0.75,0.5, 'PJ', transform=ax.transAxes, fontsize=14, color = '#e04256')
-
-# ax.text(0.54,0.32, 'NS', transform=ax.transAxes, fontsize=12, color = '#e04256')
-
-    
-# ax.text(0.62,0.67, 'SP', transform=ax.transAxes, fontsize=14, color = '#4565e8')
-
-# ax.text(0.22,0.29, 'LC', transform=ax.transAxes, fontsize=14, color = '#4565e8')
- 
-# ax.text(0.49,0.2, 'CI', transform=ax.transAxes, fontsize=14, color = '#4565e8')
-
-
-# ax.text(0.05,0.025, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
-
-
-
-# ax.legend(loc = 'upper left')
-
-# ax.set_xlim(-123.2, -122.1) 
-
-# ax.set_ylim(47,48.5)
-
-
-# ax.set_xlabel('')
-
-# ax.set_ylabel('')
-
-# ax.tick_params(axis='x', labelrotation=45)
 
 palette = {'point_jefferson':'#e04256', 'lynch_cove_mid':'#4565e8'}
 
@@ -331,6 +272,35 @@ for var in var_list:
         
             sns.scatterplot(data=plot_df_q50, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
             
+            stat_df = all_stats_filt[(all_stats_filt['site'] == site) & (all_stats_filt['var'] == 'deep_DO_mg_L') & (all_stats_filt['deep_DO_q'] == 'deep_DO_q50') & (all_stats_filt['season'] == 'loDO')]
+
+            x = plot_df_q50['date_ordinal']
+
+            y = plot_df_q50['val']
+
+            x_plot = plot_df_q50['datetime']
+             
+            B0 = stat_df['B0'].iloc[0]
+            
+            B1 = stat_df['B1'].iloc[0]
+            
+            ax.plot([x_plot.min(), x_plot.max()], [B0 + B1*x.min(), B0 + B1*x.max()], alpha =0.7, color = palette[site], linewidth = 2)      
+            
+            ax.axhline(np.mean([B0 + B1*x.min(), B0 + B1*x.max()]), color = 'gray', linestyle = '--', alpha = 0.5)
+
+            def norm0_1(x):
+                return (x - x.min())/ (x.max()-x.min())
+            
+            x_norm = 2*norm0_1(x)-1
+
+            res = stats.theilslopes(y, x_norm, alpha=0.05)
+            
+            x_vals = np.array([x_plot.min(), x_plot.max()])
+            y_upper = res[1] + res[2] * np.array([x_norm.min(), x_norm.max()])
+            y_lower = res[1] + res[3] * np.array([x_norm.min(), x_norm.max()])
+            
+            ax.fill_between(x_vals, y_lower, y_upper, color='gray', alpha=0.2)
+
         elif var == 'CT':
             
             plot_df = odf_use[(odf_use['site'] == site) & (odf_use['var'] == var) & (odf_use['surf_deep'] == 'deep') & (odf_use['season'] == 'loDO')]
@@ -338,13 +308,71 @@ for var in var_list:
             sns.scatterplot(data=plot_df, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
             
             ax.scatter(x=0, y =0, color = palette[site], marker='o', label = site_label)
+            
+            stat_df = all_stats_filt[(all_stats_filt['site'] == site) & (all_stats_filt['var'] == 'deep_CT') & (all_stats_filt['deep_DO_q'] == 'deep_DO_q50') & (all_stats_filt['season'] == 'loDO')]
+
+            x = plot_df['date_ordinal']
+
+            y = plot_df['val']
+
+            x_plot = plot_df['datetime']
+             
+            B0 = stat_df['B0'].iloc[0]
+            
+            B1 = stat_df['B1'].iloc[0]
+            
+            ax.plot([x_plot.min(), x_plot.max()], [B0 + B1*x.min(), B0 + B1*x.max()], alpha =0.7, color = palette[site], linewidth = 2)   
+            
+            ax.axhline(np.mean([B0 + B1*x.min(), B0 + B1*x.max()]), color = 'gray', linestyle = '--', alpha = 0.5)
+
+            def norm0_1(x):
+                return (x - x.min())/ (x.max()-x.min())
+            
+            x_norm = 2*norm0_1(x)-1
+
+            res = stats.theilslopes(y, x_norm, alpha=0.05)
+            
+            x_vals = np.array([x_plot.min(), x_plot.max()])
+            y_upper = res[1] + res[2] * np.array([x_norm.min(), x_norm.max()])
+            y_lower = res[1] + res[3] * np.array([x_norm.min(), x_norm.max()])
+            
+            ax.fill_between(x_vals, y_lower, y_upper, color='gray', alpha=0.2)
 
             
-        else:
+        elif var == 'SA':
             
             plot_df = odf_use[(odf_use['site'] == site) & (odf_use['var'] == var) & (odf_use['surf_deep'] == 'deep') & (odf_use['season'] == 'loDO')]
             
             sns.scatterplot(data=plot_df, x='datetime', y = 'val',  ax=ax, color = palette[site], marker=marker)
+            
+            stat_df = all_stats_filt[(all_stats_filt['site'] == site) & (all_stats_filt['var'] == 'deep_SA') & (all_stats_filt['deep_DO_q'] == 'deep_DO_q50') & (all_stats_filt['season'] == 'loDO')]
+
+            x = plot_df['date_ordinal']
+
+            y = plot_df['val']
+
+            x_plot = plot_df['datetime']
+             
+            B0 = stat_df['B0'].iloc[0]
+            
+            B1 = stat_df['B1'].iloc[0]
+            
+            ax.plot([x_plot.min(), x_plot.max()], [B0 + B1*x.min(), B0 + B1*x.max()], alpha =0.7, color = palette[site], linewidth = 2)  
+            
+            ax.axhline(np.mean([B0 + B1*x.min(), B0 + B1*x.max()]), color = 'gray', linestyle = '--', alpha = 0.5)
+
+            def norm0_1(x):
+                return (x - x.min())/ (x.max()-x.min())
+            
+            x_norm = 2*norm0_1(x)-1
+
+            res = stats.theilslopes(y, x_norm, alpha=0.05)
+            
+            x_vals = np.array([x_plot.min(), x_plot.max()])
+            y_upper = res[1] + res[2] * np.array([x_norm.min(), x_norm.max()])
+            y_lower = res[1] + res[3] * np.array([x_norm.min(), x_norm.max()])
+            
+            ax.fill_between(x_vals, y_lower, y_upper, color='gray', alpha=0.2)
             
     
     if var == 'DO_mg_L':  
@@ -370,12 +398,12 @@ for var in var_list:
             
     ax.set_ylim(ymin, ymax) 
             
-    ax.set_ylabel('Filtered ' + label_var + ' ' + unit)
+    ax.set_ylabel(label_var + ' ' + unit)
     
     ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
     
     ax.set_xlabel('')
         
         
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pj_lc_timeseries_EPOC.png', bbox_inches='tight', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_6-NEW.png', bbox_inches='tight', dpi=500, transparent=True)
     
