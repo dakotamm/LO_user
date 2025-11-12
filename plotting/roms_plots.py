@@ -194,11 +194,11 @@ def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
         cs = ax.pcolormesh(px, py, v_scaled, vmin=vlims[0], vmax=vlims[1], cmap=cmap)
         
         fig.colorbar(cs)
+        pfun.add_coast(ax)
+        ax.axis(pfun.get_aa(ds))
+        pfun.dar(ax)
         ax.set_xlim(48.210, 48.255)
         ax.set_ylim(-122.740, -122.510)
-        pfun.add_coast(ax)
-        #ax.axis(pfun.get_aa(ds))
-        pfun.dar(ax)
         ax.set_title('Bottom %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
         #if ii in [4,5,6]:
         ax.set_xlabel('Longitude')
@@ -241,11 +241,11 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
         cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict,
                 cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn])
         fig.colorbar(cs)
+        pfun.add_coast(ax)
+        ax.axis(pfun.get_aa(ds))
+        pfun.dar(ax)
         ax.set_xlim(48.210, 48.255)
         ax.set_ylim(-122.740, -122.510)
-        pfun.add_coast(ax)
-        #ax.axis(pfun.get_aa(ds))
-        pfun.dar(ax)
         ax.set_title('Surface %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
         ax.set_xlabel('Longitude')
         if ii == 1:
