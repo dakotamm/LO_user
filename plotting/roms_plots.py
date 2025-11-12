@@ -51,8 +51,57 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         if in_dict['auto_vlims']:
             pinfo.vlims_dict[vn] = ()
         ax = fig.add_subplot(1, len(vn_list), ii)
-        cs = pfun.add_map_field(ax, ds, vn, (0,10), slev=slev,
-                cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn])
+        # cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict, slev=slev,
+        #         cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn]) #DM replaced for more manual control, below
+        cmap=pinfo.cmap_dict[vn]
+        fac=pinfo.fac_dict[vn]
+        cmap = plt.get_cmap(name=cmap)
+        if 'lon_rho' in ds[vn].coords:
+            tag = 'rho'
+        if 'lon_u' in ds[vn].coords:
+            tag = 'u'
+        if 'lon_v' in ds[vn].coords:
+            tag = 'v'
+            
+        x = ds['lon_'+tag].values
+        y = ds['lat_'+tag].values
+        px, py = pfun.get_plon_plat(x,y)
+        m = ds['mask_'+tag].values
+        if vn in ['zeta', 'ubar', 'vbar']:
+            v = ds[vn][0,:,:].values
+        else:
+            v = ds[vn][0, slev,:,:].values
+        v_scaled = fac*v
+        
+        # account for WET_DRY
+        if (tag=='rho') and ('wetdry_mask_rho' in ds.data_vars):
+            mwd = ds.wetdry_mask_rho[0,:,:].values.squeeze()
+            v_scaled[mwd==0] = np.nan
+        
+        # SETTING COLOR LIMITS
+        # First see if they are already set. If so then we are done.
+        vlims = pinfo.vlims_dict[vn]
+        # if len(vlims) == 0:
+        #     # If they are not set then set them.
+        #     if len(aa) == 4:
+        #         # make a mask to isolate field for chosing color limits
+        #         x0 = aa[0]; x1 = aa[1]
+        #         y0 = aa[2]; y1 = aa[3]
+        #         m[x<x0] = 0; m[x>x1] = 0
+        #         m[y<y0] = 0; m[y>y1] = 0
+        #         # set section color limits
+        #         fldm = v_scaled[m[1:,1:]==1]
+        #         vlims = auto_lims(fldm, vlims_fac=vlims_fac)
+        #     else:
+        #         vlims = auto_lims(v_scaled, vlims_fac=vlims_fac)
+        #    vlims_dict[vn] = vlims
+            # dicts have essentially global scope, so setting it here sets it everywhere
+                    
+        # if do_mask_edges:
+        #     v_scaled = mask_edges(v_scaled, x, y)
+        
+        cs = ax.pcolormesh(px, py, v_scaled, vmin=vlims[0], vmax=vlims[1], cmap=cmap)
+        
         fig.colorbar(cs)
         pfun.add_coast(ax)
         ax.axis(pfun.get_aa(ds))
