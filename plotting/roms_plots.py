@@ -51,7 +51,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         if in_dict['auto_vlims']:
             pinfo.vlims_dict[vn] = ()
         ax = fig.add_subplot(1, len(vn_list), ii)
-        cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict, slev=slev,
+        cs = pfun.add_map_field(ax, ds, vn, (0,10), slev=slev,
                 cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn])
         fig.colorbar(cs)
         pfun.add_coast(ax)
@@ -73,7 +73,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
     ds.close()
     pfun.end_plot()
     if len(str(in_dict['fn_out'])) > 0:
-        plt.savefig(in_dict['fn_out'])
+        plt.savefig(in_dict['fn_out'], bbox_inches='tight', transparent=True)
         plt.close()
     else:
         plt.show()
