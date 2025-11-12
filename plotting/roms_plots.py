@@ -81,11 +81,10 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         # SETTING COLOR LIMITS
         # First see if they are already set. If so then we are done.
         vlims = pinfo.vlims_dict[vn]
-        print(str(vlims))
         # if len(vlims) == 0:
         #     # If they are not set then set them.
         #     if len(aa) == 4:
-        #         # make a mask to isolate field for chosing color limits
+        #         # make a mask to isolate field for chosing color limits 
         #         x0 = aa[0]; x1 = aa[1]
         #         y0 = aa[2]; y1 = aa[3]
         #         m[x<x0] = 0; m[x>x1] = 0
@@ -105,7 +104,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         
         fig.colorbar(cs)
         pfun.add_coast(ax)
-        ax.axis(pfun.get_aa(ds))
+        #ax.axis(pfun.get_aa(ds))
         pfun.dar(ax)
         ax.set_title('Bottom %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
         #if ii in [4,5,6]:
