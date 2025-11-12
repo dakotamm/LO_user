@@ -262,7 +262,7 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
     ds.close()
     pfun.end_plot()
     if len(str(in_dict['fn_out'])) > 0:
-        plt.savefig(in_dict['fn_out'])
+        plt.savefig(in_dict['fn_out'], bbox_inches='tight', transparent=True)
         plt.close()
     else:
         plt.show()
