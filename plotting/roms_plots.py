@@ -229,7 +229,7 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
     AR = (aa[3] - aa[2]) / (np.sin(np.pi*aa[2]/180)*(aa[1] - aa[0]))
     fs = 14
     hgt = 8.5
-    pfun.start_plot(fs=fs, figsize=(hgt*2.7/AR,hgt))
+    pfun.start_plot(fs=fs) #, figsize=(hgt*2.7/AR,hgt))
     fig = plt.figure()
     # PLOT CODE
     vn_list = ['salt', 'temp']
