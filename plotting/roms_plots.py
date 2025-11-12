@@ -197,8 +197,6 @@ def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
         pfun.add_coast(ax)
         ax.axis(pfun.get_aa(ds))
         pfun.dar(ax)
-        ax.set_xlim(48.210, 48.255)
-        ax.set_ylim(-122.740, -122.510)
         ax.set_title('Bottom %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
         #if ii in [4,5,6]:
         ax.set_xlabel('Longitude')
@@ -210,6 +208,8 @@ def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
         # elif ii in [2,3,5,6]:
         #     ax.set_yticklabels([])
         ii += 1
+        ax.set_xlim(48.210, 48.255)
+        ax.set_ylim(-122.740, -122.510)
     fig.tight_layout()
     # FINISH
     ds.close()
@@ -244,8 +244,6 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
         pfun.add_coast(ax)
         ax.axis(pfun.get_aa(ds))
         pfun.dar(ax)
-        ax.set_xlim(48.210, 48.255)
-        ax.set_ylim(-122.740, -122.510)
         ax.set_title('Surface %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
         ax.set_xlabel('Longitude')
         if ii == 1:
@@ -257,6 +255,8 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
             ax.set_yticklabels([])
             pfun.add_velocity_vectors(ax, ds, in_dict['fn'])
         ii += 1
+        ax.set_xlim(48.210, 48.255)
+        ax.set_ylim(-122.740, -122.510)
     fig.tight_layout()
     # FINISH
     ds.close()
