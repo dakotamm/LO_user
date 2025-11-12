@@ -91,7 +91,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         #         m[y<y0] = 0; m[y>y1] = 0
         #         # set section color limits
         #         fldm = v_scaled[m[1:,1:]==1]
-        #         vlims = auto_lims(fldm, vlims_fac=vlims_fac)
+        #         vlims = auto_lims(fldm, vlims_fac=vlims_fac).
         #     else:
         #         vlims = auto_lims(v_scaled, vlims_fac=vlims_fac)
         #    vlims_dict[vn] = vlims
@@ -103,6 +103,99 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         cs = ax.pcolormesh(px, py, v_scaled, vmin=vlims[0], vmax=vlims[1], cmap=cmap)
         
         fig.colorbar(cs)
+        pfun.add_coast(ax)
+        ax.axis(pfun.get_aa(ds))
+        pfun.dar(ax)
+        ax.set_title('Bottom %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
+        #if ii in [4,5,6]:
+        ax.set_xlabel('Longitude')
+        #if ii in [1,4]:
+        ax.set_ylabel('Latitude')
+        #if ii == 1:
+        pfun.add_info(ax, in_dict['fn'])
+        pfun.add_bathy_contours(ax, ds, txt=True)
+        # elif ii in [2,3,5,6]:
+        #     ax.set_yticklabels([])
+        ii += 1
+    fig.tight_layout()
+    # FINISH
+    ds.close()
+    pfun.end_plot()
+    if len(str(in_dict['fn_out'])) > 0:
+        plt.savefig(in_dict['fn_out'], bbox_inches='tight', transparent=True)
+        plt.close()
+    else:
+        plt.show()
+        
+def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
+    # Biogeochemical fields at the bottom
+    # START
+    ds = xr.open_dataset(in_dict['fn'])
+    fs = 14
+    pfun.start_plot(fs=fs) #, figsize=(17,13))
+    fig = plt.figure()
+    # PLOT CODE
+    vn_list = ['oxygen']
+    slev = 0
+    ii = 1
+    for vn in vn_list:
+        # if in_dict['auto_vlims']:
+        #     pinfo.vlims_dict[vn] = ()
+        ax = fig.add_subplot(1, len(vn_list), ii)
+        # cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict, slev=slev,
+        #         cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn]) #DM replaced for more manual control, below
+        cmap=pinfo.cmap_dict[vn]
+        fac=pinfo.fac_dict[vn]
+        cmap = plt.get_cmap(name=cmap)
+        if 'lon_rho' in ds[vn].coords:
+            tag = 'rho'
+        if 'lon_u' in ds[vn].coords:
+            tag = 'u'
+        if 'lon_v' in ds[vn].coords:
+            tag = 'v'
+            
+        x = ds['lon_'+tag].values
+        y = ds['lat_'+tag].values
+        px, py = pfun.get_plon_plat(x,y)
+        m = ds['mask_'+tag].values
+        if vn in ['zeta', 'ubar', 'vbar']:
+            v = ds[vn][0,:,:].values
+        else:
+            v = ds[vn][0, slev,:,:].values
+        v_scaled = fac*v
+        
+        # account for WET_DRY
+        if (tag=='rho') and ('wetdry_mask_rho' in ds.data_vars):
+            mwd = ds.wetdry_mask_rho[0,:,:].values.squeeze()
+            v_scaled[mwd==0] = np.nan
+        
+        # SETTING COLOR LIMITS
+        # First see if they are already set. If so then we are done.
+        vlims = pinfo.vlims_dict[vn]
+        # if len(vlims) == 0:
+        #     # If they are not set then set them.
+        #     if len(aa) == 4:
+        #         # make a mask to isolate field for chosing color limits 
+        #         x0 = aa[0]; x1 = aa[1]
+        #         y0 = aa[2]; y1 = aa[3]
+        #         m[x<x0] = 0; m[x>x1] = 0
+        #         m[y<y0] = 0; m[y>y1] = 0
+        #         # set section color limits
+        #         fldm = v_scaled[m[1:,1:]==1]
+        #         vlims = auto_lims(fldm, vlims_fac=vlims_fac).
+        #     else:
+        #         vlims = auto_lims(v_scaled, vlims_fac=vlims_fac)
+        #    vlims_dict[vn] = vlims
+            # dicts have essentially global scope, so setting it here sets it everywhere
+                    
+        # if do_mask_edges:
+        #     v_scaled = mask_edges(v_scaled, x, y)
+        
+        cs = ax.pcolormesh(px, py, v_scaled, vmin=vlims[0], vmax=vlims[1], cmap=cmap)
+        
+        fig.colorbar(cs)
+        ax.set_xlim(48.210, 48.255)
+        ax.set_ylim(-122.740, -122.510)
         pfun.add_coast(ax)
         #ax.axis(pfun.get_aa(ds))
         pfun.dar(ax)
@@ -123,6 +216,53 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
     pfun.end_plot()
     if len(str(in_dict['fn_out'])) > 0:
         plt.savefig(in_dict['fn_out'], bbox_inches='tight', transparent=True)
+        plt.close()
+    else:
+        plt.show()
+        
+def D_basic_PC(in_dict): # DM created 2025/11/12
+    # START
+    ds = xr.open_dataset(in_dict['fn'])
+    # find aspect ratio of the map
+    aa = pfun.get_aa(ds)
+    # AR is the aspect ratio of the map: Vertical/Horizontal
+    AR = (aa[3] - aa[2]) / (np.sin(np.pi*aa[2]/180)*(aa[1] - aa[0]))
+    fs = 14
+    hgt = 8.5
+    pfun.start_plot(fs=fs, figsize=(hgt*2.7/AR,hgt))
+    fig = plt.figure()
+    # PLOT CODE
+    vn_list = ['salt', 'temp']
+    ii = 1
+    for vn in vn_list:
+        if in_dict['auto_vlims']:
+            pinfo.vlims_dict[vn] = ()
+        ax = fig.add_subplot(1, len(vn_list), ii)
+        cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict,
+                cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn])
+        fig.colorbar(cs)
+        ax.set_xlim(48.210, 48.255)
+        ax.set_ylim(-122.740, -122.510)
+        pfun.add_coast(ax)
+        #ax.axis(pfun.get_aa(ds))
+        pfun.dar(ax)
+        ax.set_title('Surface %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
+        ax.set_xlabel('Longitude')
+        if ii == 1:
+            ax.set_ylabel('Latitude')
+            pfun.add_info(ax, in_dict['fn'])
+            #pfun.add_windstress_flower(ax, ds)
+            pfun.add_bathy_contours(ax, ds, txt=True)
+        elif ii == 2:
+            ax.set_yticklabels([])
+            pfun.add_velocity_vectors(ax, ds, in_dict['fn'])
+        ii += 1
+    fig.tight_layout()
+    # FINISH
+    ds.close()
+    pfun.end_plot()
+    if len(str(in_dict['fn_out'])) > 0:
+        plt.savefig(in_dict['fn_out'])
         plt.close()
     else:
         plt.show()
