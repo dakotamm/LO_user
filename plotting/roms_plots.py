@@ -247,6 +247,9 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
         pfun.dar(ax)
         ax.set_title('Surface %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
         ax.set_xlabel('Longitude')
+        ax.set_ylim(48.210, 48.255)
+        ax.set_xlim(-122.740, -122.510)
+        fig.colorbar(cs, ax=ax, shrink=0.25)
         if ii == 1:
             ax.set_ylabel('Latitude')
             pfun.add_info(ax, in_dict['fn'])
@@ -254,11 +257,8 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
             pfun.add_bathy_contours(ax, ds, txt=True)
         elif ii == 2:
             ax.set_yticklabels([])
-            pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=1, v_leglen=0.1)
+            pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=5, v_leglen=0.1)
         ii += 1
-        ax.set_ylim(48.210, 48.255)
-        ax.set_xlim(-122.740, -122.510)
-        fig.colorbar(cs, ax=ax, shrink=0.25)
     fig.tight_layout()
     # FINISH
     ds.close()
