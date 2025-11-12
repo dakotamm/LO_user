@@ -48,8 +48,8 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
     slev = 0
     ii = 1
     for vn in vn_list:
-        if in_dict['auto_vlims']:
-            pinfo.vlims_dict[vn] = ()
+        # if in_dict['auto_vlims']:
+        #     pinfo.vlims_dict[vn] = ()
         ax = fig.add_subplot(1, len(vn_list), ii)
         # cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict, slev=slev,
         #         cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn]) #DM replaced for more manual control, below
@@ -81,6 +81,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         # SETTING COLOR LIMITS
         # First see if they are already set. If so then we are done.
         vlims = pinfo.vlims_dict[vn]
+        print(str(vlims))
         # if len(vlims) == 0:
         #     # If they are not set then set them.
         #     if len(aa) == 4:
