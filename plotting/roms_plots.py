@@ -254,7 +254,7 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
             pfun.add_bathy_contours(ax, ds, txt=True)
         elif ii == 2:
             ax.set_yticklabels([])
-            pfun.add_velocity_vectors(ax, ds, v_scl=100, v_leglen=0.1, in_dict['fn'])
+            pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=100, v_leglen=0.1)
         ii += 1
         ax.set_ylim(48.210, 48.255)
         ax.set_xlim(-122.740, -122.510)
