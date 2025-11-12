@@ -127,6 +127,83 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
     else:
         plt.show()
         
+def D_basic_wbotDO_PC(in_dict):
+    ds = xr.open_dataset(in_dict['fn']) 
+    pfun.start_plot()
+    fig = plt.figure()
+    vn_list =['temp', 'salt', 'oxygen']
+    ii = 0
+    for vn in vn_list:
+        ax = fig.add_subplot(1, len(vn_list), ii)
+        if vn == 'oxygen':
+            slev = 0
+            cmap=pinfo.cmap_dict[vn]
+            fac=pinfo.fac_dict[vn]
+            cmap = plt.get_cmap(name=cmap)
+            if 'lon_rho' in ds[vn].coords:
+                tag = 'rho'
+            if 'lon_u' in ds[vn].coords:
+                tag = 'u'
+            if 'lon_v' in ds[vn].coords:
+                tag = 'v'
+                
+            x = ds['lon_'+tag].values
+            y = ds['lat_'+tag].values
+            px, py = pfun.get_plon_plat(x,y)
+            if vn in ['zeta', 'ubar', 'vbar']:
+                v = ds[vn][0,:,:].values
+            else:
+                v = ds[vn][0, slev,:,:].values
+            v_scaled = fac*v
+            if (tag=='rho') and ('wetdry_mask_rho' in ds.data_vars):
+                mwd = ds.wetdry_mask_rho[0,:,:].values.squeeze()
+                v_scaled[mwd==0] = np.nan
+            vlims = pinfo.vlims_dict[vn]
+            cs = ax.pcolormesh(px, py, v_scaled, vmin=vlims[0], vmax=vlims[1], cmap=cmap)
+            pfun.add_coast(ax)
+            ax.axis(pfun.get_aa(ds))
+            pfun.dar(ax)
+            ax.set_title('Bottom %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]))# , fontsize=1.2*fs)
+            ax.set_xlabel('Longitude')
+            #ax.set_ylabel('Latitude')
+            pfun.add_info(ax, in_dict['fn'])
+            pfun.add_bathy_contours(ax, ds, depth_levs = [20], txt=True)
+            ax.set_ylim(48.210, 48.255)
+            ax.set_xlim(-122.740, -122.510)
+            fig.colorbar(cs, ax=ax, shrink=0.25)
+        else:
+            if in_dict['auto_vlims']:
+                pinfo.vlims_dict[vn] = ()
+            ax = fig.add_subplot(1, len(vn_list), ii)
+            cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict,
+                    cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn])
+            pfun.add_coast(ax)
+            ax.axis(pfun.get_aa(ds))
+            pfun.dar(ax)
+            ax.set_title('Surface %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn])) #, fontsize=1.2*fs)
+            ax.set_xlabel('Longitude')
+            ax.set_ylim(48.210, 48.255)
+            ax.set_xlim(-122.740, -122.510)
+            fig.colorbar(cs, ax=ax, shrink=0.25)
+        if ii == 1:
+            ax.set_ylabel('Latitude')
+            pfun.add_info(ax, in_dict['fn'])
+        if vn == 'salt':
+            pfun.add_bathy_contours(ax, ds, depth_levs = [20], txt=True)
+        if vn == 'temp':
+            ax.set_yticklabels([])
+            pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=5, v_leglen=0.1, nngrid=10)
+        ii+=1
+    fig.tight_layout()
+    # FINISH
+    ds.close()
+    pfun.end_plot()
+    if len(str(in_dict['fn_out'])) > 0:
+        plt.savefig(in_dict['fn_out'], bbox_inches='tight')
+        plt.close()
+    else:
+        plt.show()
+        
 def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
     # Biogeochemical fields at the bottom
     # START
