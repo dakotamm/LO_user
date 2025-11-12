@@ -193,7 +193,7 @@ def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
         
         cs = ax.pcolormesh(px, py, v_scaled, vmin=vlims[0], vmax=vlims[1], cmap=cmap)
         
-        fig.colorbar(cs)
+        #fig.colorbar(cs)
         pfun.add_coast(ax)
         ax.axis(pfun.get_aa(ds))
         pfun.dar(ax)
@@ -210,6 +210,7 @@ def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
         ii += 1
         ax.set_ylim(48.210, 48.255)
         ax.set_xlim(-122.740, -122.510)
+        fig.colorbar(cs)
     fig.tight_layout()
     # FINISH
     ds.close()
@@ -240,7 +241,7 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
         ax = fig.add_subplot(1, len(vn_list), ii)
         cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict,
                 cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn])
-        fig.colorbar(cs)
+        #fig.colorbar(cs)
         pfun.add_coast(ax)
         ax.axis(pfun.get_aa(ds))
         pfun.dar(ax)
@@ -257,6 +258,7 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
         ii += 1
         ax.set_ylim(48.210, 48.255)
         ax.set_xlim(-122.740, -122.510)
+        fig.colorbar(cs)
     fig.tight_layout()
     # FINISH
     ds.close()
