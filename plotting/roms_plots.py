@@ -132,7 +132,7 @@ def D_basic_wbotDO_PC(in_dict):
     pfun.start_plot()
     fig = plt.figure()
     vn_list =['temp', 'salt', 'oxygen']
-    ii = 0
+    ii = 1
     for vn in vn_list:
         ax = fig.add_subplot(1, len(vn_list), ii)
         if vn == 'oxygen':
