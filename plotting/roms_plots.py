@@ -254,7 +254,7 @@ def D_basic_PC(in_dict): # DM created 2025/11/12
             ax.set_ylabel('Latitude')
             pfun.add_info(ax, in_dict['fn'])
             #pfun.add_windstress_flower(ax, ds)
-            pfun.add_bathy_contours(ax, ds, txt=True)
+            pfun.add_bathy_contours(ax, ds, depth_levs = [20], txt=True)
         elif ii == 2:
             ax.set_yticklabels([])
             pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=5, v_leglen=0.1, nngrid=10)
