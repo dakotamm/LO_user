@@ -4,6 +4,8 @@
 Created on Mon Mar 31 14:35:24 2025
 
 @author: dakotamascarenas
+
+updated for Estuaries & Coasts submission on 20251111
 """
 
 from lo_tools import Lfun, zfun, zrfun
@@ -88,7 +90,7 @@ i2 = 652
 
 poly_list = ['ps']
 
-odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_his', 'kc_whidbeyBasin', 'nceiSalish', 'kc_pointJefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
 basin_list = list(odf_dict.keys())
@@ -100,12 +102,36 @@ odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_l
 
 # %%
 
+odf.loc[odf['source'].isin(['kc_his', 'kc_whidbeyBasin', 'kc_pointJefferson', 'kc']), 'data_source'] = 'King County (KC)'
+
+odf.loc[odf['source'].isin(['ecology_nc', 'ecology_his']), 'data_source'] = 'WA Dept. of Ecology (Eco.)'
+
+odf.loc[odf['source'].isin(['collias']), 'data_source'] = 'Collias (Col.)'
+
+odf.loc[odf['source'].isin(['nceiSalish']), 'data_source'] = 'NCEI Salish Sea (NCEI)'
+
+
+odf['site'] = odf['segment']
+
+
+odf.loc[odf['otype'] == 'ctd', 'sampling_type'] = 'CTD+DO'
+
+odf.loc[odf['otype'] == 'bottle', 'sampling_type'] = 'Bottle'
+
+odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'kc_his'), 'sampling_type'] = 'Sonde (unknown type)'
+
+odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'kc_pointJefferson') & (odf['year'] <= 1998), 'sampling_type'] = 'Sonde (unknown type)'
+
+odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'ecology_his') & (odf['year'] <= 1988), 'sampling_type'] = 'Sonde (unknown type)'
+
+# %%
+
 ps_casts_DF = odf
 
 ps_casts_DF = ps_casts_DF[['cid', 'lon', 'lat', 'time', 'datetime', 'date_ordinal', 'decade', 'year', 'season', 'month', 'yearday', 'z', 'var',
-       'val', 'ix', 'iy', 'h']]
+       'val', 'ix', 'iy', 'h', 'data_source', 'sampling_type']]
 
-ps_casts_DF.to_pickle('/Users/dakotamascarenas/Desktop/paper_1/ps_casts_DF.p')
+ps_casts_DF.to_pickle('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/ps_casts_DF.p')
 
 # %%
 
@@ -113,7 +139,7 @@ ps_casts_DF.to_pickle('/Users/dakotamascarenas/Desktop/paper_1/ps_casts_DF.p')
 
 poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
 
-odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_his', 'kc_whidbeyBasin', 'nceiSalish', 'kc_pointJefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
 basin_list = list(odf_dict.keys())
@@ -122,6 +148,31 @@ var_list = ['DO_mg_L','SA', 'CT'] #, 'NO3_uM', 'Chl_mg_m3'] #, 'NO2 (uM), 'NH4_u
 
 
 odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_list, path_dict, basin_list)
+
+# %%
+
+odf.loc[odf['source'].isin(['kc_his', 'kc_whidbeyBasin', 'kc_pointJefferson', 'kc']), 'data_source'] = 'King County (KC)'
+
+odf.loc[odf['source'].isin(['ecology_nc', 'ecology_his']), 'data_source'] = 'WA Dept. of Ecology (Eco.)'
+
+odf.loc[odf['source'].isin(['collias']), 'data_source'] = 'Collias (Col.)'
+
+odf.loc[odf['source'].isin(['nceiSalish']), 'data_source'] = 'NCEI Salish Sea (NCEI)'
+
+
+#odf['site'] = odf['segment']
+
+
+odf.loc[odf['otype'] == 'ctd', 'sampling_type'] = 'CTD+DO'
+
+odf.loc[odf['otype'] == 'bottle', 'sampling_type'] = 'Bottle'
+
+odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'kc_his'), 'sampling_type'] = 'Sonde (unknown type)'
+
+odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'kc_pointJefferson') & (odf['year'] <= 1998), 'sampling_type'] = 'Sonde (unknown type)'
+
+odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'ecology_his') & (odf['year'] <= 1988), 'sampling_type'] = 'Sonde (unknown type)'
+
 
 # %%
 
@@ -143,31 +194,31 @@ odf_use = (odf_use
 
 # %%
 
-with open('/Users/dakotamascarenas/Desktop/paper_1/site_polygon_dict.p', 'wb') as fp:
+with open('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/site_polygon_dict.p', 'wb') as fp:
     pickle.dump(path_dict, fp)
     
 # %%
 
 site_depth_avg_var_DF = odf_use[['site', 'datetime', 'date_ordinal', 'year', 'season', 'month', 'cid', 'lon', 'lat', 'surf_deep', 'z', 'var', 'val', 'ix', 'iy', 'h','min_segment_h']]
 
-site_depth_avg_var_DF.to_pickle('/Users/dakotamascarenas/Desktop/paper_1/site_depth_avg_var_DF.p')
+site_depth_avg_var_DF.to_pickle('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/site_depth_avg_var_DF.p')
 
 
 
 
 # %%
 
-with open('/Users/dakotamascarenas/Desktop/paper_1/grid_attributes/X.p', 'wb') as fp:
+with open('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/X.p', 'wb') as fp:
     pickle.dump(X, fp)
     
-with open('/Users/dakotamascarenas/Desktop/paper_1/grid_attributes/Y.p', 'wb') as fp:
+with open('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/Y.p', 'wb') as fp:
     pickle.dump(Y, fp)
     
-with open('/Users/dakotamascarenas/Desktop/paper_1/grid_attributes/zm_inverse.p', 'wb') as fp:
+with open('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/zm_inverse.p', 'wb') as fp:
     pickle.dump(zm_inverse, fp)
     
-with open('/Users/dakotamascarenas/Desktop/paper_1/grid_attributes/plon.p', 'wb') as fp:
+with open('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/plon.p', 'wb') as fp:
     pickle.dump(plon, fp)
     
-with open('/Users/dakotamascarenas/Desktop/paper_1/grid_attributes/plat.p', 'wb') as fp:
+with open('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/plat.p', 'wb') as fp:
     pickle.dump(plat, fp)

@@ -138,6 +138,11 @@ def get_sta_dict(job_name):
             'M3': (-122.652904, 48.234749),
             'M4': (-122.649333, 48.229201),
             'M5': (-122.582462, 48.245981)}
+        
+    elif job_name == 'pc1':
+        # DM defined 11/12/2025 to mirror Penn Cove experimental plan
+        sta_dict = {
+            'M1': (-122.693533, 48.229264)}
 
     else:
         print('Unsupported job name!')

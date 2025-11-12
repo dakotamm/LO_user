@@ -86,9 +86,10 @@ i2 = 652
 
 # %%
 
-poly_list = ['ps']
+poly_list = ['ps', 'carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
 
-odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_his', 'kc_whidbeyBasin', 'nceiSalish', 'kc_pointJefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
 basin_list = list(odf_dict.keys())
@@ -201,6 +202,10 @@ odf_ixiy_unique = odf.groupby(['ix_iy']).first().reset_index()
 
 # %%
 
+red =     "#EF5E3C"   # warm orange-red ##ff4040 #e04256
+
+blue =     "#3A59B3"  # deep blue #4565e8
+
 
 #mosaic = [['map_source', 'map_source','CT', 'CT', 'CT'], ['map_source', 'map_source','SA','SA', 'SA'], ['map_source', 'map_source','DO_mg_L','DO_mg_L', 'DO_mg_L']] #, ['map_source', '.', '.'],]
 
@@ -215,7 +220,7 @@ ax.set_ylim(Y[j1],Y[j2]) # Salish Sea
         
 ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
 
-sns.scatterplot(data=odf_ixiy_unique, x='lon', y='lat', ax = ax, color = 'gray', alpha=0.3, label= 'Cast Location')
+#sns.scatterplot(data=odf_ixiy_unique, x='lon', y='lat', ax = ax, color = 'gray', alpha=0.3, label= 'Cast Location')
 
 
 pfun.add_coast(ax)
@@ -228,33 +233,36 @@ for site in ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'point
         
     if site in ['near_seattle_offshore']:
         
-        patch = patches.PathPatch(path, facecolor='#e04256', edgecolor='white', zorder=1, label='Main Basin')
+        patch = patches.PathPatch(path, facecolor=red, edgecolor='white', zorder=1, label='Main Basin')
     
     elif site in ['point_jefferson']:
             
 
-        patch = patches.PathPatch(path, facecolor='#e04256', edgecolor='white', zorder=1)
+        patch = patches.PathPatch(path, facecolor=red, edgecolor='white', zorder=1)
                 
     elif site in ['saratoga_passage_mid']:
         
-        patch = patches.PathPatch(path, facecolor='#4565e8', edgecolor='white', zorder=1, label = 'Sub-Basins')
+        patch = patches.PathPatch(path, facecolor=blue, edgecolor='white', zorder=1, label = 'Sub-Basins')
         
     else:
         
-        patch = patches.PathPatch(path, facecolor='#4565e8', edgecolor='white', zorder=1)
+        patch = patches.PathPatch(path, facecolor=blue, edgecolor='white', zorder=1)
          
     ax.add_patch(patch)
     
-ax.text(0.57,0.5, 'PJ', transform=ax.transAxes, fontsize=18, color = '#e04256', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
-
-ax.text(0.54,0.32, 'NS', transform=ax.transAxes, fontsize=18, color = '#e04256', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
+sns.scatterplot(data=odf_ixiy_unique, x='lon', y='lat', ax = ax, color = 'gray', alpha=0.3, label= 'Cast Location')
 
     
-ax.text(0.62,0.67, 'SP', transform=ax.transAxes, fontsize=18, color = '#4565e8', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
+ax.text(0.57,0.5, 'PJ', transform=ax.transAxes, fontsize=18, color = red, path_effects=[pe.withStroke(linewidth=4, foreground="white")])
 
-ax.text(0.22,0.29, 'LC', transform=ax.transAxes, fontsize=18, color = '#4565e8', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
+ax.text(0.54,0.32, 'NS', transform=ax.transAxes, fontsize=18, color = red, path_effects=[pe.withStroke(linewidth=4, foreground="white")])
+
+    
+ax.text(0.62,0.67, 'SP', transform=ax.transAxes, fontsize=18, color = blue, path_effects=[pe.withStroke(linewidth=4, foreground="white")])
+
+ax.text(0.22,0.29, 'LC', transform=ax.transAxes, fontsize=18, color = blue, path_effects=[pe.withStroke(linewidth=4, foreground="white")])
  
-ax.text(0.48,0.2, 'CI', transform=ax.transAxes, fontsize=18, color = '#4565e8', path_effects=[pe.withStroke(linewidth=4, foreground="white")])
+ax.text(0.48,0.2, 'CI', transform=ax.transAxes, fontsize=18, color = blue, path_effects=[pe.withStroke(linewidth=4, foreground="white")])
 
 ax.text(0.15,0.81, 'Strait of\nJuan de Fuca', transform=ax.transAxes, fontsize = 8, color = 'black', ha='center', va='center', rotation = -30)
 
@@ -271,7 +279,7 @@ ax.text(0.57,0.1, 'South Sound', transform=ax.transAxes, fontsize = 10, color = 
 
 ax.text(0.77,0.5, 'Main Basin', transform=ax.transAxes, fontsize = 10, color = 'gray', rotation = 50)
 
-ax.text(0.82,0.73, 'Whidbey Basin', transform=ax.transAxes, fontsize = 10, color = 'gray', rotation = -70)
+ax.text(0.83,0.73, 'Whidbey Basin', transform=ax.transAxes, fontsize = 10, color = 'gray', rotation = -70)
  
 ax.text(0.86,0.95, 'Skagit\nRiver', transform=ax.transAxes, fontsize = 6, color = 'black', ha='center', va='center')
 

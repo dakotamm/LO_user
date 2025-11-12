@@ -92,7 +92,7 @@ i2 = 652
 
 poly_list = ['point_jefferson']
 
-odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_his', 'kc_whidbeyBasin', 'nceiSalish', 'kc_pointJefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
 basin_list = list(odf_dict.keys())
@@ -120,6 +120,10 @@ odf_use_AugNov_q50 = odf_use_AugNov[odf_use_AugNov['val'] <= odf_use_AugNov['dee
     
 # %%
 
+red =     "#EF5E3C"   # warm orange-red ##ff4040 #e04256
+
+blue =     "#3A59B3"  # deep blue #4565e8
+
 for site in ['point_jefferson']:
 
 
@@ -130,7 +134,7 @@ for site in ['point_jefferson']:
     ax['map_source'].text(0.05,0.025, 'a', transform=ax['map_source'].transAxes, fontsize=14, fontweight='bold', color = 'k')
             
         
-    ax['map_source'].pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-100, vmax=0, cmap = 'gray', zorder=-5)
+    ax['map_source'].pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
 
     
     for site_ in long_site_list:
@@ -141,7 +145,7 @@ for site in ['point_jefferson']:
     if site in ['point_jefferson']:
     
     
-        patch = patches.PathPatch(path, facecolor='#ff4040', edgecolor='white', zorder=1)#, label='>60-year history')
+        patch = patches.PathPatch(path, facecolor=red, edgecolor='white', zorder=1)#, label='>60-year history')
         
     else:
         
@@ -174,12 +178,12 @@ for site in ['point_jefferson']:
 
 
         
-    sns.scatterplot(data=odf_use, x='year', y = 'val',  ax=ax['cast_deep_DO'], color = 'gray', label='all cast values')
+    sns.scatterplot(data=odf_use, x='year', y = 'val',  ax=ax['cast_deep_DO'], color = 'gray', label='All Casts')
     
-    sns.scatterplot(data=odf_use_AugNov, x='year', y = 'val',  ax=ax['cast_deep_DO'], color = 'black', label='Aug-Nov cast values')
+    sns.scatterplot(data=odf_use_AugNov, x='year', y = 'val',  ax=ax['cast_deep_DO'], color = 'black', label='Low-DO Casts')
     
     
-    sns.scatterplot(data=odf_use_AugNov_q50, x='year', y = 'val',  ax=ax['cast_deep_DO'], color = '#ff4040', label='Aug-Nov cast values <= 50th percentile')
+    sns.scatterplot(data=odf_use_AugNov_q50, x='year', y = 'val',  ax=ax['cast_deep_DO'], color = red, label='Low-DO Casts ≤ 50th Percentile')
 
     
     
@@ -188,7 +192,7 @@ for site in ['point_jefferson']:
     sns.scatterplot(data=odf_use_AugNov, x='year', y = 'yearday',  ax=ax['cast_yearday'], color = 'black')
     
     
-    sns.scatterplot(data=odf_use_AugNov_q50, x='year', y = 'yearday',  ax=ax['cast_yearday'], color = '#ff4040')
+    sns.scatterplot(data=odf_use_AugNov_q50, x='year', y = 'yearday',  ax=ax['cast_yearday'], color = red)
     
 
     
@@ -199,17 +203,17 @@ for site in ['point_jefferson']:
     ax['cast_deep_DO'].text(0.025,0.05, 'c', transform=ax['cast_deep_DO'].transAxes, fontsize=14, fontweight='bold', color = 'k')
 
     
-    ax['cast_deep_DO'].set_ylim(0, 12)
+    ax['cast_deep_DO'].set_ylim(0, 10)
     
-    ax['cast_deep_DO'].axhspan(0,2, color = 'lightgray', alpha = 0.2)
+    ax['cast_deep_DO'].axhspan(0,2, color = 'lightgray', alpha = 0.5)
     
-    ax['cast_deep_DO'].set_ylabel('Cast Deep DO [mg/L]')
+    ax['cast_deep_DO'].set_ylabel('Cast Bottom DO [mg/L]')
     
     ax['cast_yearday'].set_ylim(0,366)
     
     ax['cast_yearday'].set_ylabel('Cast Yearday')
     
-    ax['cast_yearday'].axhspan(213, 335, color = 'lightgray', alpha = 0.4, zorder=-5, label='Aug-Nov')
+    ax['cast_yearday'].axhspan(213, 335, color = 'lightgray', alpha = 0.5, zorder=-5, label='Aug-Nov')
 
     
 

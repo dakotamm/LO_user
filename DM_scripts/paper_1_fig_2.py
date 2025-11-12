@@ -89,7 +89,7 @@ i2 = 652
 
 poly_list = ['ps', 'carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
 
-odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_his', 'kc_whidbeyBasin', 'nceiSalish', 'kc_pointJefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
 basin_list = list(odf_dict.keys())
@@ -101,7 +101,7 @@ odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_l
 
 # %%
 
-odf.loc[odf['source'].isin(['kc_taylor', 'kc_whidbey', 'kc_point_jefferson', 'kc']), 'Data Source'] = 'King County'
+odf.loc[odf['source'].isin(['kc_his', 'kc_whidbeyBasin', 'kc_pointJefferson', 'kc']), 'Data Source'] = 'King County'
 
 odf.loc[odf['source'].isin(['ecology_nc', 'ecology_his']), 'Data Source'] = 'WA Dept. of Ecology'
 
@@ -115,6 +115,9 @@ odf['site'] = odf['segment']
 
 # %%
 
+color =     "#EF5E3C"   # warm orange-red ##ff4040
+
+
 
 
 for site in ['point_jefferson']:
@@ -125,11 +128,17 @@ for site in ['point_jefferson']:
     
     plot_df = odf[odf['site'].isin(['ps', site])].groupby(['site','cid']).first().reset_index()
     
-    ax['map_source'].pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-100, vmax=0, cmap = 'gray')
+    ax['map_source'].pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray')
     
-    sns.scatterplot(data=plot_df[plot_df['site'] == 'ps'], x='lon', y='lat', ax = ax['map_source'], color = 'gray', alpha=0.1, legend=False)
+    #sns.scatterplot(data=plot_df[plot_df['site'] == 'ps'], x='lon', y='lat', ax = ax['map_source'], color = 'gray', alpha=0.01, legend=False)
+            
+    # path = path_dict[site]
+        
+    # patch = patches.PathPatch(path, facecolor=color, edgecolor='white', zorder=1, alpha=0.5)
+         
+    # ax['map_source'].add_patch(patch)
     
-    sns.scatterplot(data=plot_df[plot_df['site'] == site], x='lon', y='lat', ax = ax['map_source'], color = '#ff4040', alpha=0.3, legend=False)
+    sns.scatterplot(data=plot_df[plot_df['site'] == site], x='lon', y='lat', ax = ax['map_source'], color = color, alpha=0.3, legend=False)
     
     pfun.add_coast(ax['map_source'])
     
@@ -162,7 +171,7 @@ for site in ['point_jefferson']:
     
    # sns.scatterplot(data=plot_df[plot_df['site'] == 'ps'], x='year', y='cid', ax=ax['count_time_series'], color = 'gray', alpha=0.9, legend=False)
     
-    sns.scatterplot(data=plot_df[plot_df['site'] == site], x='year', y='cid_count', ax=ax['count_time_series'], color = '#ff4040', alpha=0.9, legend = False)
+    sns.scatterplot(data=plot_df[plot_df['site'] == site], x='year', y='cid_count', ax=ax['count_time_series'], color = color, alpha=0.9, legend = False)
 
     ax['count_time_series'].set_xlabel('')
     
@@ -190,7 +199,7 @@ for site in ['point_jefferson']:
     
    # sns.scatterplot(data=plot_df[plot_df['site'] == site], x='year', y='z', ax=ax['depth_time_series'],  color='#ff4040', legend=False)
     
-    sns.scatterplot(data=plot_df_[plot_df_['site'] == site], x='year', y='z', ax=ax['depth_time_series'],  color='#ff4040', legend=False, alpha = 0.1) #, label='Point Jefferson (Per Cast)')
+    sns.scatterplot(data=plot_df_[plot_df_['site'] == site], x='year', y='z', ax=ax['depth_time_series'],  color=color, legend=False, alpha = 0.1) #, label='Point Jefferson (Per Cast)')
 
 
     

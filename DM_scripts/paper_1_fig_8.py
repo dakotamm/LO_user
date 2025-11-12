@@ -187,15 +187,22 @@ all_stats_filt.loc[all_stats_filt['var'] == 'SA', 'var_label'] = '[g/kg]'
 
 all_stats_filt.loc[all_stats_filt['var'] == 'DO_mg_L', 'var_label'] = '[mg/L]'
 
-all_stats_filt.loc[all_stats_filt['season'] == 'grow', 'season_label'] = 'Apr-Jul (spring)'
+all_stats_filt.loc[all_stats_filt['season'] == 'grow', 'season_label'] = 'Spring (Apr-Jul)'
 
-all_stats_filt.loc[all_stats_filt['season'] == 'loDO', 'season_label'] = 'Aug-Nov (low-DO)'
+all_stats_filt.loc[all_stats_filt['season'] == 'loDO', 'season_label'] = 'Low-DO (Aug-Nov)'
 
-all_stats_filt.loc[all_stats_filt['season'] == 'winter', 'season_label'] = 'Dec-Mar (winter)'
+all_stats_filt.loc[all_stats_filt['season'] == 'winter', 'season_label'] = 'Winter (Dec-Mar)'
 
 
 
 # %%
+
+#plt.rcParams['text.usetex'] = False
+
+red =     "#EF5E3C"   # warm orange-red ##ff4040 #e04256
+
+blue =     "#3A59B3"  # deep blue #4565e8
+
 
 #markers = {'surf': '^', 'deep': 'v'}
 
@@ -208,7 +215,7 @@ palette = {'Surface': 'white', 'Bottom': 'gray'}
 
 #palette = {'point_jefferson': 'red', 'near_seattle_offshore': 'orange', 'carr_inlet_mid':'blue', 'saratoga_passage_mid':'purple', 'lynch_cove_mid': 'orchid'}
 
-linecolors = {'Main Basin':'#e04256', 'Sub-Basins':'#4565e8'}
+linecolors = {'Main Basin':red, 'Sub-Basins':blue}
 
 #linecolors = {'point_jefferson': '#e04256', 'near_seattle_offshore': '#e04256', 'carr_inlet_mid':'#4565e8', 'saratoga_passage_mid':'#4565e8', 'lynch_cove_mid': '#4565e8'}
 
@@ -219,13 +226,13 @@ jitter = {'Surface': -0.1, 'Bottom': 0.1}
 markers = {'DO_mg_L': 'o', 'SA': 's', 'CT': '^'}
  
 
-mosaic = [['CT Dec-Mar (winter)', 'CT Apr-Jul (spring)', 'CT Aug-Nov (low-DO)'],
-          ['SA Dec-Mar (winter)', 'SA Apr-Jul (spring)', 'SA Aug-Nov (low-DO)'],
-          ['DO_mg_L Dec-Mar (winter)', 'DO_mg_L Apr-Jul (spring)', 'DO_mg_L Aug-Nov (low-DO)']]
+mosaic = [['CT Winter (Dec-Mar)', 'CT Spring (Apr-Jul)', 'CT Low-DO (Aug-Nov)'],
+          ['SA Winter (Dec-Mar)', 'SA Spring (Apr-Jul)', 'SA Low-DO (Aug-Nov)'],
+          ['DO_mg_L Winter (Dec-Mar)', 'DO_mg_L Spring (Apr-Jul)', 'DO_mg_L Low-DO (Aug-Nov)']]
 
-ymins = {'DO_mg_L': -4, 'CT': -3, 'SA': -7}
+ymins = {'DO_mg_L': -2, 'CT': -1, 'SA': -4}
 
-ymaxs = {'DO_mg_L': 8, 'CT': 8, 'SA': 4}
+ymaxs = {'DO_mg_L': 3, 'CT': 5, 'SA': 2}
 
 plot_labels = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p']
 
@@ -238,7 +245,7 @@ c=0
 
 for var in ['CT', 'SA', 'DO_mg_L']:
         
-    for season in ['Dec-Mar (winter)', 'Apr-Jul (spring)', 'Aug-Nov (low-DO)']:
+    for season in ['Winter (Dec-Mar)', 'Spring (Apr-Jul)', 'Low-DO (Aug-Nov)']:
         
         ax_name = var + ' ' + season
     
@@ -262,49 +269,81 @@ for var in ['CT', 'SA', 'DO_mg_L']:
                 
                 ax.plot([plot_df['site_num'] + jitter[depth], plot_df['site_num'] + jitter[depth]],[plot_df['slope_datetime_cent_95lo'], plot_df['slope_datetime_cent_95hi']], color=linecolors[plot_df['site_type'].iloc[0]], alpha =1, zorder = -5, linewidth=1, label=plot_df['site_type'].iloc[0])
         
-        if var == 'CT':
+        # if var == 'CT':
         
-            ax.text(0.05,0.95, season + ' ↓', transform=ax.transAxes, verticalalignment='top', fontweight = 'bold', color='k')
+        #     ax.text(0.05,0.95, season + ' ↓', transform=ax.transAxes, verticalalignment='top', fontweight = 'bold', color='k')
          
         ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3, zorder = -6)
     
         ax.axhline(0, color='gray', linestyle = '--', zorder = -5) 
+        
+        if season == 'Winter (Dec-Mar)':
+            
+            if var == 'CT':
     
-        ax.set_ylabel(all_stats_filt[all_stats_filt['var'] == var]['var_label'].iloc[0] + '/cent.')
+                ax.set_ylabel(r'$\mathbf{Temperature}$' + '\n' + all_stats_filt[all_stats_filt['var'] == var]['var_label'].iloc[0] + '/cent.')
+                
+            elif var == 'SA':
+                
+                ax.set_ylabel(r'$\mathbf{Salinity}$' + '\n' + all_stats_filt[all_stats_filt['var'] == var]['var_label'].iloc[0] + '/cent.')
+                
+            elif var == 'DO_mg_L':
+                
+                ax.set_ylabel(r'$\mathbf{[DO]}$' + '\n' + all_stats_filt[all_stats_filt['var'] == var]['var_label'].iloc[0] + '/cent.')
+                
+        if var == 'DO_mg_L':
+            
+            ax.set_xlabel(season, fontweight='bold')
+        
+        else:
+            
+            ax.set_xlabel('')
         
         ax.set_ylim(ymins[var], ymaxs[var])
         
         ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'CI', 'SP', 'LC'])
         
-        if season == 'Dec-Mar (winter)':
+        ax.text(0.05,0.05, plot_labels[c], transform=ax.transAxes, verticalalignment='bottom', fontsize=14, fontweight = 'bold', color='k')
+        
+        if ax_name == 'DO_mg_L Winter (Dec-Mar)':
             
-            if var == 'CT':
+            handles, labels = ax.get_legend_handles_labels()
+                        
+            selected_handles = [handles[0], handles[2], handles[-1], handles[1]]
+            selected_labels = [labels[0], labels[2], labels[-1], labels[1]]
             
-                ax.text(0.05,0.05, plot_labels[c] + ' Temperature →', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+            ax.legend(selected_handles, selected_labels, loc='upper left')
+        
+        # if season == 'Dec-Mar (winter)':
+            
+            
+        #     if var == 'CT':
+            
+        #         ax.text(0.05,0.05, plot_labels[c] + ' Temperature →', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
                 
-            elif var == 'SA':
+        #     elif var == 'SA':
                 
-                ax.text(0.05,0.05, plot_labels[c] + ' Salinity →', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+        #         ax.text(0.05,0.05, plot_labels[c] + ' Salinity →', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
 
-            else:
+        #     else:
                 
-                #ax.legend()
+        #         #ax.legend()
                 
-                handles, labels = ax.get_legend_handles_labels()
+        #         handles, labels = ax.get_legend_handles_labels()
                     
-                selected_handles = [handles[0], handles[2], handles[-1], handles[1]]
-                selected_labels = [labels[0], labels[2], labels[-1], labels[1]]
+        #         selected_handles = [handles[0], handles[2], handles[-1], handles[1]]
+        #         selected_labels = [labels[0], labels[2], labels[-1], labels[1]]
                 
-                ax.legend(selected_handles, selected_labels, loc='upper left')
+        #         ax.legend(selected_handles, selected_labels, loc='upper left')
                 
-                ax.text(0.05,0.05, plot_labels[c] + ' [DO] →', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
-        else:
+        #         ax.text(0.05,0.05, plot_labels[c] + ' [DO] →', transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+        # else:
             
-            ax.text(0.05,0.05, plot_labels[c], transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
+        #     ax.text(0.05,0.05, plot_labels[c], transform=ax.transAxes, verticalalignment='bottom', fontweight = 'bold', color='k')
             
-            ax.set_ylabel('')
+        #    ax.set_ylabel('')
             
-            ax.set_yticklabels([''])
+        #     ax.set_yticklabels([''])
 
         
         
@@ -326,8 +365,19 @@ for var in ['CT', 'SA', 'DO_mg_L']:
     
         c+=1
         
+leg = fig.legend(
+    selected_handles, selected_labels,
+    loc='upper center',
+    bbox_to_anchor=(0.5, -0.01),  # left side
+    ncol=4
+    )
+
+
+axd['DO_mg_L Winter (Dec-Mar)'].get_legend().remove()
+
+        
     
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_8.png', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_8.png', bbox_inches='tight', dpi=500, transparent=True)
 
 
 

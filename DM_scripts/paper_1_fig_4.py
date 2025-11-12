@@ -89,7 +89,7 @@ poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'sarat
 
 #poly_list = ['ps']
 
-odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_his', 'kc_whidbeyBasin', 'nceiSalish', 'kc_pointJefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
 basin_list = list(odf_dict.keys())
@@ -193,6 +193,20 @@ odf_Aug_Nov = odf_use_DO_min_deep[odf_use_DO_min_deep['month'].isin([8,9,10,11])
 
 # %%
 
+odf_val_at_min_z['val_at_min_z'] = odf_val_at_min_z['val']
+
+odf_cast_mins['val_cast_mins'] = odf_cast_mins['val']
+
+
+
+odf_double_mins = pd.merge(odf_val_at_min_z, odf_cast_mins[['cid', 'val_cast_mins']], how='left', on = ['cid'])
+
+# %%
+
+red =     "#EF5E3C"   # warm orange-red ##ff4040 #e04256
+
+blue =     "#3A59B3"  # deep blue #4565e8
+
 mosaic = [['depth', 'yearday', 'yearday']]
 
 fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,3), layout='constrained', gridspec_kw=dict(wspace=0.1))
@@ -206,9 +220,11 @@ plot_df = odf_use_DO_min_deep.copy()
 
 
 
-ax.scatter(plot_df['year'], plot_df['yearday'],  color = 'gray', alpha=0.9)
+sns.scatterplot(data = plot_df, x='year', y = 'yearday',  color = 'gray', ax=ax)
 
-ax.scatter(plot_df[plot_df['val'] <2]['year'], plot_df[plot_df['val'] <2]['yearday'], color = '#ff4040', label='value <2 [mg/L] (hypoxic)', alpha=0.9)
+sns.scatterplot(data = plot_df[plot_df['val'] <2], x='year', y = 'yearday',  color = red, label='value <2 [mg/L] (hypoxic)', ax=ax)
+
+
 
 
 ax.set_ylim(0,366)
@@ -218,7 +234,7 @@ ax.set_ylabel('Yearday Occurence of Min. DO')
 ax.set_xlabel('Year')
 
 
-ax.axhspan(213,335, color = 'lightgray', alpha = 0.5, label = 'August-November', zorder=-4) #july31/august1-september30/oct1
+ax.axhspan(213,335, color = 'lightgray', alpha = 0.5, label = 'Low-DO (Aug-Nov)', zorder=-4) #july31/august1-september30/oct1
 
 ax.legend()
 
@@ -233,13 +249,15 @@ ax.text(0.025,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold',
 
 ax = axd['depth']
 
-ax.scatter(odf_val_at_min_z['val'], odf_cast_mins['val'], alpha=0.1, color = 'gray')
+sns.scatterplot(data = odf_double_mins, x='val_at_min_z', y = 'val_cast_mins', alpha=0.1, color='gray', ax=ax)
+
+#ax.scatter(odf_val_at_min_z['val'], odf_cast_mins['val'], alpha=0.1, color = 'gray')
 
 #ax.hist2d(odf_val_at_min_z['val'], odf_cast_mins['val'], bins=100, cmap='inferno', cmin=1)
  
 #ax.colorbar(label='Cast Count')
 
-ax.set_xlabel('DO at Min. Cast Depth [mg/L]')
+ax.set_xlabel('DO at Max. Cast Depth [mg/L]')
 
 ax.set_ylabel('Min. Cast DO [mg/L]')
 

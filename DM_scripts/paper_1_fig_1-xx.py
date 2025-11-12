@@ -122,33 +122,119 @@ odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'kc_his'), 'Sampling Type'] 
 
 odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'kc_pointJefferson') & (odf['year'] <= 1998), 'Sampling Type'] = 'Sonde (unknown type)'
 
-odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'ecology_his') & (odf['year'] <= 1988), 'Sampling Type'] = 'Sonde (unknown type)'
+odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'kc_pointJefferson') & (odf['year'] <= 1998), 'Sampling Type'] = 'Sonde (unknown type)'
+
+#odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'ecology_his') & (odf['year'] <= 1988), 'Sampling Type'] = 'Sonde (unknown type)'
 
 
 # %%
 
 # Sort to ensure sequential years per group
-df =odf.copy().sort_values(['Data Source', 'Sampling Type', 'year'])
+df =odf.copy().sort_values(['Data Source', 'Sampling Type', 'var', 'year'])
 
 # Detect breaks (year gap > 1)
 df['block'] = (
-    df.groupby(['Data Source', 'Sampling Type'])['year']
+    df.groupby(['Data Source', 'Sampling Type', 'var'])['year']
       .diff().gt(1)
       .cumsum()
 )
 
 # Summarize each block into start and end year
 coverage_blocks = (
-    df.groupby(['Data Source', 'Sampling Type', 'block'])['year']
+    df.groupby(['Data Source', 'Sampling Type', 'var', 'block'])['year']
       .agg(['min', 'max'])
       .reset_index()
 )
 coverage_blocks['duration'] = coverage_blocks['max'] - coverage_blocks['min'] + 1
 
-new_block = pd.DataFrame({'Data Source':['WA Dept. of Ecology (Eco.)'], 'Sampling Type':['Sonde (unknown type)'],
-                          'block':[5], 'min':[1973], 'max':[1989], 'duration':[17]})
+new_block = pd.DataFrame({'Data Source':['WA Dept. of Ecology (Eco.)'], 'Sampling Type':['Sonde (unknown type)'], 'var':['CT'],
+                          'block':[15], 'min':[1973], 'max':[1989], 'duration':[17]})
 
 coverage_blocks = pd.concat([coverage_blocks, new_block], ignore_index=True)
+
+
+new_block = pd.DataFrame({'Data Source':['WA Dept. of Ecology (Eco.)'], 'Sampling Type':['Sonde (unknown type)'], 'var':['SA'],
+                          'block':[15], 'min':[1973], 'max':[1989], 'duration':[17]})
+
+coverage_blocks = pd.concat([coverage_blocks, new_block], ignore_index=True)
+
+new_block = pd.DataFrame({'Data Source':['WA Dept. of Ecology (Eco.)'], 'Sampling Type':['Sonde (unknown type)'], 'var':['DO_mg_L'],
+                          'block':[15], 'min':[1973], 'max':[1983], 'duration':[11]})
+
+coverage_blocks = pd.concat([coverage_blocks, new_block], ignore_index=True)
+
+
+new_block = pd.DataFrame({'Data Source':['WA Dept. of Ecology (Eco.)'], 'Sampling Type':['Sonde (unknown type)'], 'var':['DO_mg_L'],
+                          'block':[16], 'min':[1988], 'max':[1989], 'duration':[1]})
+
+coverage_blocks = pd.concat([coverage_blocks, new_block], ignore_index=True)
+
+# %%
+
+fig, ax = plt.subplots()
+
+# Offsets for grouping layout
+offset = 0.3   # distance between otypes within source
+group_gap = 0.8  # distance between source groups
+y_positions = {}
+
+palette = [
+    "#3A59B3",  # deep blue
+    "#C7C445",  # yellow-green
+    "#B0448E",  # magenta-violet
+    "#EF5E3C"   # warm orange-red
+]
+
+sources = sorted(coverage_blocks['Data Source'].unique())
+otypes = sorted(coverage_blocks['Sampling Type'].unique())
+
+color_map = dict(zip(sources, palette))
+hatch_map = dict(zip(otypes, ['', '...', '|||']))
+#y_map = dict(zip(sources, [0, 0.1, 0.2, 0.3]))
+
+
+current_y = 0
+for src in sources:
+    # order otypes consistently for each source
+    for i, var in enumerate(var_list):
+        mask = (coverage_blocks['Data Source'] == src) & (coverage_blocks['var'] == var)
+        if mask.any():
+            y_positions[(src, var)] = current_y + i * offset
+    current_y += group_gap  # add gap before next source
+    
+    
+for _, row in coverage_blocks.iterrows():
+    if row['Sampling Type'] == 'Bottle':
+        fill = True
+    else:
+        fill = False
+    ax.barh(
+        y=y_positions[(row['Data Source'], row['var'])],
+        width=row['duration'],
+        left=row['min'],
+        height=0.25,
+        color=color_map[row['Data Source']],
+        hatch=hatch_map[row['Sampling Type']], 
+        edgecolor='black',
+        fill = fill
+    )
+
+
+# Y-ticks at midpoints per source
+yticks = []
+yticklabels = []
+for src in sources:
+    yvals = [v for (s, _), v in y_positions.items() if s == src]
+    if yvals:
+        yticks.append(sum(yvals)/len(yvals))
+        yticklabels.append(src)
+ax.set_yticks(yticks)
+ax.set_yticklabels(yticklabels)
+
+plt.show()
+
+
+# %%
 
 
 mosaic = [['map_source', 'map_source','type_series', 'type_series', 'type_series'],
