@@ -131,7 +131,7 @@ def D_basic_wbotDO_PC(in_dict):
     ds = xr.open_dataset(in_dict['fn']) 
     pfun.start_plot()
     fig = plt.figure()
-    vn_list =['temp', 'salt', 'oxygen']
+    vn_list =['salt', 'temp', 'oxygen']
     ii = 1
     for vn in vn_list:
         ax = fig.add_subplot(1, len(vn_list), ii)
@@ -174,7 +174,7 @@ def D_basic_wbotDO_PC(in_dict):
         else:
             if in_dict['auto_vlims']:
                 pinfo.vlims_dict[vn] = ()
-            ax = fig.add_subplot(1, len(vn_list), ii)
+            #ax = fig.add_subplot(1, len(vn_list), ii)
             cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict,
                     cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], vlims_fac=pinfo.range_dict[vn])
             pfun.add_coast(ax)
