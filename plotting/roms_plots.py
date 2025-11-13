@@ -129,7 +129,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         
 def D_basic_wbotDO_PC(in_dict):
     ds = xr.open_dataset(in_dict['fn']) 
-    pfun.start_plot()
+    pfun.start_plot(figsize=(30,20))
     fig = plt.figure()
     vn_list =['salt', 'temp', 'oxygen']
     ii = 1
