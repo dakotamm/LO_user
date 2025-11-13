@@ -166,11 +166,11 @@ def D_basic_wbotDO_PC(in_dict):
             ax.set_title('Bottom %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]))# , fontsize=1.2*fs)
             ax.set_xlabel('Longitude')
             #ax.set_ylabel('Latitude')
-            pfun.add_info(ax, in_dict['fn'])
+            #pfun.add_info(ax, in_dict['fn'])
             pfun.add_bathy_contours(ax, ds, depth_levs = [20], txt=True)
             ax.set_ylim(48.210, 48.255)
             ax.set_xlim(-122.740, -122.510)
-            fig.colorbar(cs, ax=ax, shrink=0.25)
+            fig.colorbar(cs, ax=ax, shrink=0.1)
         else:
             if in_dict['auto_vlims']:
                 pinfo.vlims_dict[vn] = ()
@@ -184,7 +184,7 @@ def D_basic_wbotDO_PC(in_dict):
             ax.set_xlabel('Longitude')
             ax.set_ylim(48.210, 48.255)
             ax.set_xlim(-122.740, -122.510)
-            fig.colorbar(cs, ax=ax, shrink=0.25)
+            fig.colorbar(cs, ax=ax, shrink=0.1)
         if ii == 1:
             ax.set_ylabel('Latitude')
             pfun.add_info(ax, in_dict['fn'])
