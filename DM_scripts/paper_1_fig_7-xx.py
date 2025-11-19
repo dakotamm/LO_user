@@ -216,83 +216,73 @@ red =     "#EF5E3C"   # warm orange-red ##ff4040 #e04256
 
 blue =     "#3A59B3"  # deep blue #4565e8
 
-
-#markers = {'surf': '^', 'deep': 'v'}
-
-#palette = {'surf': '#bddf26', 'deep': '#482173'}
-
-#palette = {'Surface': '#bddf26', 'Bottom': '#482173'}
-
-palette = {'Surface': 'white', 'Bottom': 'gray'}
+yellow =     "#C7C445"  # yellow-green '#dd9404'
 
 
-#palette = {'point_jefferson': 'red', 'near_seattle_offshore': 'orange', 'carr_inlet_mid':'blue', 'saratoga_passage_mid':'purple', 'lynch_cove_mid': 'orchid'}
+edgecolors = {'Surface': None, 'Bottom': 'k'}
 
-linecolors = {'Main Basin':red, 'Sub-Basins':blue}
+palette = {'Spring (Apr-Jul)': yellow, 'Low-DO (Aug-Nov)': red, 'Winter (Dec-Mar)': blue}
 
-#linecolors = {'point_jefferson': '#e04256', 'near_seattle_offshore': '#e04256', 'carr_inlet_mid':'#4565e8', 'saratoga_passage_mid':'#4565e8', 'lynch_cove_mid': '#4565e8'}
+markers  = {'DO_mg_L': 'o', 'CT':'D', 'SA':'s'}
 
-#edgecolors = {'point_jefferson': 'k', 'near_seattle_offshore': 'k', 'carr_inlet_mid':'gray', 'saratoga_passage_mid':'gray', 'lynch_cove_mid': 'gray'}
+#palette = {'point_jefferson': '#e04256', 'near_seattle_offshore': '#e04256', 'carr_inlet_mid':'#4565e8', 'saratoga_passage_mid':'#4565e8', 'lynch_cove_mid': '#4565e8'}
 
-jitter = {'Surface': -0.1, 'Bottom': 0.1}
+#palette = {'point_jefferson': '#e04256', 'near_seattle_offshore': '#e04256', 'carr_inlet_mid':'#4565e8', 'saratoga_passage_mid':'#4565e8', 'lynch_cove_mid': '#4565e8'}
 
-markers = {'DO_mg_L': 'o', 'SA': 's', 'CT': '^'}
- 
+ymins = {'DO_mg_L': 0, 'CT': 7, 'SA': 20}
 
-mosaic = [['CT Winter (Dec-Mar)', 'CT Spring (Apr-Jul)', 'CT Low-DO (Aug-Nov)'],
-          ['SA Winter (Dec-Mar)', 'SA Spring (Apr-Jul)', 'SA Low-DO (Aug-Nov)'],
-          ['DO_mg_L Winter (Dec-Mar)', 'DO_mg_L Spring (Apr-Jul)', 'DO_mg_L Low-DO (Aug-Nov)']]
+# ymaxs = {'DO_mg_L': 0, 'CT': 7, 'SA': 20}
 
-ymins = {'DO_mg_L': 0, 'CT': 7, 'SA': 22}
 
-ymaxs = {'DO_mg_L': 13, 'CT': 17, 'SA': 32}
 
-plot_labels = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p']
+jitter = {'Winter (Dec-Mar)': -0.1, 'Spring (Apr-Jul)':0, 'Low-DO (Aug-Nov)': 0.1}
 
- 
-#fig, axd = plt.subplot_mosaic(mosaic, sharex=True, sharey=True, figsize=(9,3), layout='constrained', gridspec_kw=dict(wspace=0.1, hspace=0.1))
+mosaic = [['CT', 'SA', 'DO_mg_L']]
 
-fig, axd = plt.subplot_mosaic(mosaic, sharex=True, sharey=False, figsize=(9,7.5), layout='constrained', gridspec_kw=dict(wspace=0.1, hspace=0.1))
 
-c=0
+#mosaic = [['surf_DO_mg_L', 'surf_CT', 'surf_SA'], ['deep_DO_mg_L', 'deep_CT', 'deep_SA']]
 
-for var in ['CT', 'SA', 'DO_mg_L']:
-        
-    for season in ['Winter (Dec-Mar)', 'Spring (Apr-Jul)', 'Low-DO (Aug-Nov)']:
-        
-        ax_name = var + ' ' + season
+fig, axd = plt.subplot_mosaic(mosaic, sharex=True, figsize=(9,2.5), layout='constrained', gridspec_kw=dict(wspace=0.1, hspace=0.1))
+
+for var in var_list:
     
-        ax = axd[ax_name]
+    ax_name = var
+    
+    ax = axd[ax_name]
+    
+    for depth in [ 'Surface', 'Bottom']: 
         
         for site in long_site_list:
             
-            for depth in ['Surface', 'Bottom']:
+            for season in ['Winter (Dec-Mar)', 'Spring (Apr-Jul)', 'Low-DO (Aug-Nov)']:
+                
+                plot_df = odf_use_seasonal_CTSA[(odf_use_seasonal_CTSA['var'] == var) & (odf_use_seasonal_CTSA['season_label'] == season) & (odf_use_seasonal_CTSA['site'] == site) & (odf_use_seasonal_CTSA['depth_label'] == depth)]
+
 
                 if var == 'SA':
                     
                     plot_df = odf_use_seasonal_CTSA[(odf_use_seasonal_CTSA['var'] == var) & (odf_use_seasonal_CTSA['season_label'] == season) & (odf_use_seasonal_CTSA['site'] == site) & (odf_use_seasonal_CTSA['depth_label'] == depth)]
 
                     
-                    ax.scatter(plot_df['site_num'] + jitter[depth], plot_df['val_mean'], color=palette[depth], edgecolors='k', marker=markers[var], s=50, label=depth)
+                    ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color='gray', s=50, marker= markers[var], edgecolors=edgecolors[depth], label=depth)
                     
-                    #ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=50, marker= markers[var], edgecolors=edgecolors[depth])
+                    ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=50, marker= markers[var], edgecolors=edgecolors[depth])
                     
                 elif var == 'CT':
                     
                     plot_df = odf_use_seasonal_CTSA[(odf_use_seasonal_CTSA['var'] == var) & (odf_use_seasonal_CTSA['season_label'] == season) & (odf_use_seasonal_CTSA['site'] == site) & (odf_use_seasonal_CTSA['depth_label'] == depth)]
 
                     
-                    ax.scatter(plot_df['site_num'] + jitter[depth], plot_df['val_mean'], color=palette[depth], edgecolors='k', marker=markers[var], s=50, label=depth)
+                    ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=50, marker= markers[var], edgecolors=edgecolors[depth], label=season)
                     
                 elif var == 'DO_mg_L':
-                    
                     plot_df = odf_use_seasonal_DO[(odf_use_seasonal_DO['var'] == var) & (odf_use_seasonal_DO['season_label'] == season) & (odf_use_seasonal_DO['site'] == site) & (odf_use_seasonal_DO['depth_label'] == depth)]
 
                     
-                    ax.scatter(plot_df['site_num'] + jitter[depth], plot_df['val_mean'], color=palette[depth], edgecolors='k', marker=markers[var], s=50, label=depth)
+                    ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=50, marker= markers[var], edgecolors=edgecolors[depth])
 
                  
-                ax.plot([plot_df['site_num'] + jitter[depth], plot_df['site_num'] + jitter[depth]],[plot_df['val_ci95lo'], plot_df['val_ci95hi']], color=linecolors[plot_df['site_type'].iloc[0]], alpha =1, zorder = -5, linewidth=1, label=plot_df['site_type'].iloc[0])
+                ax.plot([plot_df['site_num'] + jitter[season], plot_df['site_num'] + jitter[season]],[plot_df['val_ci95lo'], plot_df['val_ci95hi']], color=palette[season], alpha =0.5, zorder = -5, linewidth=1)
               
             # plot_df_ = odf_use_annual_CTSA[(odf_use_annual_CTSA['var'] == var) & (odf_use_annual_CTSA['site'] == site) & (odf_use_annual_CTSA['surf_deep'] == depth)]
             
@@ -300,131 +290,82 @@ for var in ['CT', 'SA', 'DO_mg_L']:
              
             # ax.plot([plot_df_['site_num'], plot_df_['site_num']],[plot_df_['val_ci95lo'], plot_df_['val_ci95hi']], color='gray', alpha =0.5, zorder = -5, linewidth=1)
             
-        ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3, zorder = -6)
+                
+    if var == 'DO_mg_L':  
     
-        ax.axhline(0, color='gray', linestyle = '--', zorder = -5) 
+        ax.axhspan(0,2, color = 'lightgray', alpha = 0.5, zorder=-6, label='Hypoxia') 
         
-        if season == 'Winter (Dec-Mar)':
-            
-            if var == 'CT':
-    
-                ax.set_ylabel(r'$\mathbf{Mean}$' + ' ' + '$\mathbf{Temperature}$' + '\n' + '[°C]')
-                
-            elif var == 'SA':
-                
-                ax.set_ylabel(r'$\mathbf{Mean}$' + ' ' + '$\mathbf{Salinity}$' + '\n' + '[g/kg]')
-                
-            elif var == 'DO_mg_L':
-                
-                ax.set_ylabel(r'$\mathbf{Mean}$' + ' ' + '$\mathbf{[DO]}$' + '\n' + '[mg/L')
-                
-        if var == 'CT':
-            
-            ax.set_title(season, fontweight='bold', fontsize=10)
-        
-        else:
-            
-            ax.set_xlabel('')
-            
-            
-        if var == 'DO_mg_L':
-            
-            ax.axhspan(0,2, color = 'lightgray', alpha = 0.5, zorder=-6, label='Hypoxia') 
-        
-        ax.set_ylim(ymins[var], ymaxs[var])
-        
-        ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'CI', 'SP', 'LC'])
-        
-        ax.text(0.05,0.05, plot_labels[c], transform=ax.transAxes, verticalalignment='bottom', fontsize=14, fontweight = 'bold', color='k')
-        
-                
-    # if var == 'DO_mg_L':  
-    
-    #     ax.axhspan(0,2, color = 'lightgray', alpha = 0.5, zorder=-6, label='Hypoxia') 
-        
-    #     ax.text(0.05,0.05, 'c', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+        ax.text(0.05,0.05, 'c', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
 
         
-    #     ax.set_ylabel('Mean [DO] [mg/L]')
+        ax.set_ylabel('Mean [DO] [mg/L]')
         
-    #     ax.legend()
+        ax.legend()
         
-    #     handles_DO_mg_L, labels_DO_mg_L = ax.get_legend_handles_labels()
+        handles_DO_mg_L, labels_DO_mg_L = ax.get_legend_handles_labels()
     
-    # elif var == 'SA':
+    elif var == 'SA':
         
-    #     ax.set_ylabel('Mean Salinity [g/kg]')
+        ax.set_ylabel('Mean Salinity [g/kg]')
         
-    #     ax.text(0.05,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+        ax.text(0.05,0.05, 'b', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
 
         
-    #     handles, labels = ax.get_legend_handles_labels()
+        handles, labels = ax.get_legend_handles_labels()
         
-    #     handles_SA = [handles[0], handles[-3]]
-    #     labels_SA = [labels[0], labels[-3]]
+        handles_SA = [handles[0], handles[-3]]
+        labels_SA = [labels[0], labels[-3]]
         
-    #     ax.legend(handles_SA, labels_SA, loc = 'lower center')        
+        ax.legend(handles_SA, labels_SA, loc = 'lower center')        
         
-    # else:
+    else:
         
-    #     ax.set_ylabel('Mean Temperature [°C]')
+        ax.set_ylabel('Mean Temperature [°C]')
 
         
-    #     ax.text(0.05,0.05, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
+        ax.text(0.05,0.05, 'a', transform=ax.transAxes, fontsize=14, fontweight='bold', color = 'k')
 
         
-    #     handles, labels = ax.get_legend_handles_labels()
+        handles, labels = ax.get_legend_handles_labels()
             
-    #     handles_CT = [handles[0], handles[1], handles[2]]
-    #     labels_CT = [labels[0], labels[1], labels[2]]
+        handles_CT = [handles[0], handles[1], handles[2]]
+        labels_CT = [labels[0], labels[1], labels[2]]
         
-    #     ax.legend(handles_CT, labels_CT, loc = 'best')
+        ax.legend(handles_CT, labels_CT, loc = 'best')
 
      
     #ax.text(0.05,0.95, var, transform=ax.transAxes, verticalalignment='top', fontweight = 'bold', color='k')
+     
+    ax.grid(color = 'lightgray', linestyle = '--', alpha=0.3, zorder = -6)
 
-        if ax_name == 'DO_mg_L Winter (Dec-Mar)':
-            
-            handles, labels = ax.get_legend_handles_labels()
-                        
-            selected_handles = [handles[0], handles[2], handles[-1]]
-            selected_labels = [labels[0], labels[2], labels[-1]]
-            
-            ax.legend(selected_handles, selected_labels, loc='upper left')
+    ax.axhline(0, color='gray', linestyle = '--', zorder = -5) 
 
-        c+=1
+    #ax.set_ylabel(var)
+     
+    ax.set_ylim(ymin=ymins[var]) 
+    
+    ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'CI', 'SP', 'LC'])
 
-# handles = handles_CT + handles_SA + handles_DO_mg_L
+handles = handles_CT + handles_SA + handles_DO_mg_L
 
-# labels = labels_CT + labels_SA + labels_DO_mg_L
+labels = labels_CT + labels_SA + labels_DO_mg_L
 
-# fig.legend(
-#     handles, labels,
-#     loc='upper center',
-#     bbox_to_anchor=(0.5, -0.01),  # left side
-#     ncol=len(handles)
-#     #title='Data Source'
-#     )
-
-# axd['CT'].get_legend().remove()
-
-# axd['SA'].get_legend().remove()
-
-
-# axd['DO_mg_L'].get_legend().remove()
-
-
-leg = fig.legend(
-    selected_handles, selected_labels,
+fig.legend(
+    handles, labels,
     loc='upper center',
     bbox_to_anchor=(0.5, -0.01),  # left side
-    ncol=len(selected_handles)
+    ncol=len(handles)
+    #title='Data Source'
     )
 
+axd['CT'].get_legend().remove()
 
-axd['DO_mg_L Winter (Dec-Mar)'].get_legend().remove()
+axd['SA'].get_legend().remove()
+
+
+axd['DO_mg_L'].get_legend().remove()
         
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_7.png', bbox_inches='tight', dpi=500, transparent=True)
+#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_7.png', bbox_inches='tight', dpi=500, transparent=True)
 
 
 # %%
@@ -454,33 +395,3 @@ loDO_deep_mean_ci = pd.concat([loDO_deep_mean_ci_CTSA, loDO_deep_mean_ci_DO])
 # %%
 
 loDO_deep_mean_ci_PJLC = loDO_deep_mean_ci[loDO_deep_mean_ci['site'].isin(['point_jefferson', 'lynch_cove_mid'])]
-
-# %%
-
-mean_ci_CTSA = odf_use_seasonal_CTSA[(odf_use_seasonal_CTSA['var'].isin(['CT','SA']))]
-
-mean_ci_CTSA['95ci_less'] =  mean_ci_CTSA['val_mean'] - mean_ci_CTSA['val_ci95lo']
-
-mean_ci_CTSA['95ci_more'] =  mean_ci_CTSA['val_ci95hi'] - mean_ci_CTSA['val_mean']
-
-mean_ci_CTSA = mean_ci_CTSA[['site', 'var', 'surf_deep', 'season', 'val_mean', '95ci_less','95ci_more', 'cid_count']]
-
-mean_ci_DO = odf_use_seasonal_DO[(odf_use_seasonal_DO['var']== 'DO_mg_L')]
-
-mean_ci_DO['95ci_less'] =  mean_ci_DO['val_mean'] - mean_ci_DO['val_ci95lo']
-
-mean_ci_DO['95ci_more'] =  mean_ci_DO['val_ci95hi'] - mean_ci_DO['val_mean']
-
-mean_ci_DO = mean_ci_DO[['site', 'var', 'surf_deep', 'season', 'val_mean', '95ci_less','95ci_more', 'cid_count']]
-
-mean_ci = pd.concat([mean_ci_CTSA, mean_ci_DO])
-
-# %%
-
-season_avg = mean_ci.groupby(['site','var','surf_deep'])['val_mean'].mean().reset_index()
-
-depth_avg = mean_ci.groupby(['site','var','season'])['val_mean'].mean().reset_index()
-
-site_depth_avg = mean_ci.groupby(['var','season'])['val_mean'].mean().reset_index()
-
-site_avg = mean_ci.groupby(['var','season', 'surf_deep'])['val_mean'].mean().reset_index()

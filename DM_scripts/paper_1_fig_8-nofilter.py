@@ -124,7 +124,7 @@ odf_use = odf_depth_mean.copy()
 
 odf_calc_use = odf_calc_long.copy()
 
-all_stats_filt = dfun.buildStatsDF(odf_use, site_list, odf_calc_use=odf_calc_use, odf_depth_mean_deep_DO_percentiles=odf_depth_mean_deep_DO_percentiles)
+all_stats_filt = dfun.buildStatsDF(odf_use, site_list, odf_calc_use=odf_calc_use, odf_depth_mean_deep_DO_percentiles=None)
 
 
 # %%
@@ -377,7 +377,7 @@ axd['DO_mg_L Winter (Dec-Mar)'].get_legend().remove()
 
         
     
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_8.png', bbox_inches='tight', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_8-nofilter.png', bbox_inches='tight', dpi=500, transparent=True)
 
 
 

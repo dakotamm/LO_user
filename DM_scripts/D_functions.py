@@ -828,7 +828,11 @@ def buildStatsDF(odf_use, site_list, odf_calc_use=None, odf_depth_mean_deep_DO_p
 
                 odf_depth_mean_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['val'] <= odf_depth_mean_deep_DO_percentiles[deep_DO_q]]
     
-                cid_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_less_than_percentile['cid']
+                cid_deep_DO_less_than_percentile = odf_depth_mean_deep_DO_less_than_percentile['cid'] #should be less than or equal to percentile in label, is in reality
+                
+            else:
+                
+                cid_deep_DO_less_than_percentile = odf_use['cid']
                 
         odf_use = (odf_use
                       .dropna()
