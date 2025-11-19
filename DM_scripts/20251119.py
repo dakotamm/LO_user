@@ -18,7 +18,7 @@ import datetime
 from warnings import filterwarnings
 filterwarnings('ignore') # skip some warning messages
 
-import seaborn as sns
+#import seaborn as sns
 
 import scipy.stats as stats
 
@@ -46,9 +46,9 @@ Ldir = Lfun.Lstart(gridname='wb1', tag='r0', ex_name='xn11b')
 
 # %%
 
-Ldir['ds0'] = '2017.10.01'
+Ldir['ds0'] = '2017.01.01'
 
-Ldir['ds1'] = '2017.10.02'
+Ldir['ds1'] = '2017.12.31'
 
 Ldir['list_type'] = 'daily'
 
