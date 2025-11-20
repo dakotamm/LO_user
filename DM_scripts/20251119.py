@@ -143,7 +143,7 @@ fig, ax = plt.subplots()
 
 ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
 
-cs = ax.pcolormesh(plon,plat,accum,vmin = 0,vmax=2, cmap=cm.batlow)
+cs = ax.pcolormesh(plon,plat,accum,vmin = 0,vmax=20, cmap=cm.batlow)
 
 
 
