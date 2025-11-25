@@ -89,7 +89,7 @@ poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'sarat
 
 #poly_list = ['ps']
 
-odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_taylor', 'kc_whidbey', 'nceiSalish', 'kc_point_jefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
+odf_dict, path_dict = dfun.getPolyData(Ldir, poly_list, source_list=['collias', 'ecology_his', 'ecology_nc', 'kc', 'kc_his', 'kc_whidbeyBasin', 'nceiSalish', 'kc_pointJefferson'], otype_list=['bottle', 'ctd'], year_list=np.arange(1930,2025))
 
 
 basin_list = list(odf_dict.keys())
@@ -281,8 +281,26 @@ sorted_indexer = sort_df.sort_values(
 # Apply new column order
 all_stats_disp_use_wide = all_stats_disp_use_wide.iloc[:, sorted_indexer]
 
+# %%
 
+#all_stats_disp_use_wide.to_excel('/Users/dakotamascarenas/Desktop/paper_1_table_3.xlsx')  
 
 # %%
 
-all_stats_disp_use_wide.to_excel('/Users/dakotamascarenas/Desktop/paper_1_table_3.xlsx')  
+trends = all_stats_disp[['site', 'season', 'var', 'Depth', 'slope_datetime_cent']]
+
+# %%
+
+var_avg = trends.groupby('var')['slope_datetime_cent'].mean().reset_index()
+
+# %%
+
+season_avg = trends.groupby(['site', 'var', 'Depth'])['slope_datetime_cent'].mean().reset_index()
+
+# %%
+
+depth_avg = trends.groupby(['Depth','var'])['slope_datetime_cent'].mean().reset_index()
+
+# %%
+
+season_depth_avg = trends.groupby(['Depth', 'season', 'var'])['slope_datetime_cent'].mean().reset_index()

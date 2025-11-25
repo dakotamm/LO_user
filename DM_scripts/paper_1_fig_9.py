@@ -371,7 +371,7 @@ yellow =     "#C7C445"  # yellow-green '#dd9404'
 
 #palette = {'point_jefferson': 'red', 'near_seattle_offshore': 'orange', 'carr_inlet_mid':'blue', 'saratoga_passage_mid':'purple', 'lynch_cove_mid': 'orchid'}
 
-linecolors = {'Main Basin':red, 'Sub-Basins':blue}
+linecolors = {'Main Basin':'k', 'Sub-Basins':'k'}
 
 #linecolors = {'point_jefferson': '#e04256', 'near_seattle_offshore': '#e04256', 'carr_inlet_mid':'#4565e8', 'saratoga_passage_mid':'#4565e8', 'lynch_cove_mid': '#4565e8'}
 
@@ -445,9 +445,9 @@ for var in ['DO_mg_L']:
         
                 # sns.scatterplot(data = plot_df_, x= 'site_num', y = 'slope_datetime_cent', color = '#dd9404', marker=marker_, ax = ax, s =150, label= 'Solubility-Based Trend')
                 
-                ax.scatter(plot_df_['site_num'] + jitter[depth], plot_df_['slope_datetime_cent'], color=color_, marker=marker_, s=100, alpha= 1, label= 'Sol.-Based Trend', zorder =-6) #, marker=markers[depth], edgecolors=edgecolors[site])
+                ax.scatter(plot_df_['site_num'] + jitter[depth], plot_df_['slope_datetime_cent'], color=color_, marker=marker_, s=100, alpha= 1, label= 'Sol.-Based Trend', zorder =6) #, marker=markers[depth], edgecolors=edgecolors[site])
 
-                ax.plot([plot_df_['site_num'] + jitter[depth], plot_df_['site_num'] + jitter[depth]],[plot_df_['slope_datetime_cent_95lo'], plot_df_['slope_datetime_cent_95hi']], color=color_, alpha =1, zorder = -6, linewidth=2)
+                ax.plot([plot_df_['site_num'] + jitter[depth], plot_df_['site_num'] + jitter[depth]],[plot_df_['slope_datetime_cent_95lo'], plot_df_['slope_datetime_cent_95hi']], color=color_, alpha =1, zorder = 6, linewidth=2)
 
                 
                 #sns.scatterplot(data = plot_df, x= 'site_num', y = 'slope_datetime_cent', hue = 'site_type_label', palette=palette_, marker=marker, ax = ax, s =50) 
@@ -464,19 +464,19 @@ for var in ['DO_mg_L']:
         
         ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'CI', 'SP', 'LC'])
         
-        ax.set_xlabel(season, fontweight='bold')
+        ax.set_title(season, fontweight='bold', fontsize=10)
         
         ax.set_ylim(-2,1)
         
         if season == 'Winter (Dec-Mar)': 
             
-            handles, labels = ax.get_legend_handles_labels()
+            # handles, labels = ax.get_legend_handles_labels()
             
-            selected_handles = [handles[1], handles[-2]] 
-            selected_labels = [labels[1], labels[-2]]
+            # selected_handles = [handles[1], handles[-2]] 
+            # selected_labels = [labels[1], labels[-2]]
             
              
-            ax.legend(selected_handles, selected_labels, loc ='upper left', fontsize=12)
+            # ax.legend(selected_handles, selected_labels, loc ='upper left', fontsize=12)
             
             ax.set_ylim(ymax=3)
             
@@ -521,9 +521,9 @@ for var in ['DO_mg_L']:
         
     #     ax.legend(bbox_to_anchor=(1.05, 1), loc = 'upper left')
     
-    handles = selected_handles + selected_handles_
+    handles = selected_handles_ #selected_handles +  ... 
 
-    labels = selected_labels + selected_labels_
+    labels = selected_labels_ # selected_labels + ...
 
     fig.legend(
         handles, labels,
@@ -533,10 +533,24 @@ for var in ['DO_mg_L']:
         #title='Data Source'
         )
 
-    axd['Winter (Dec-Mar)'].get_legend().remove()
+    #axd['Winter (Dec-Mar)'].get_legend().remove()
 
     axd['Spring (Apr-Jul)'].get_legend().remove()
         
     
     plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_9.png', bbox_inches='tight', dpi=500, transparent=True)
 
+
+# %%
+
+plot_df_ = all_stats_filt[(all_stats_filt['var'] == 'DO_sol') & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['surf_deep'] == 'deep') & (all_stats_filt['season'] != 'allyear')]
+
+plot_df_['slope_datetime_sat'] = plot_df_['slope_datetime']
+
+plot_df = all_stats_filt[(all_stats_filt['var'] == 'DO_mg_L') & (all_stats_filt['site'].isin(long_site_list)) & (all_stats_filt['surf_deep'] == 'deep') & (all_stats_filt['season'] != 'allyear')]
+
+plot_df = plot_df.sort_values(by=['site']).reset_index()
+
+plot_df = pd.merge(plot_df, plot_df_[['site', 'season', 'slope_datetime_sat']], on=['site', 'season'], how='left')
+
+plot_df['pct_expl'] = plot_df['slope_datetime_sat']/plot_df['slope_datetime']

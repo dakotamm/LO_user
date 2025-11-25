@@ -215,7 +215,7 @@ palette = {'Surface': 'white', 'Bottom': 'gray'}
 
 #palette = {'point_jefferson': 'red', 'near_seattle_offshore': 'orange', 'carr_inlet_mid':'blue', 'saratoga_passage_mid':'purple', 'lynch_cove_mid': 'orchid'}
 
-linecolors = {'Main Basin':red, 'Sub-Basins':blue}
+linecolors = {'Main Basin':'k', 'Sub-Basins':'k'}
 
 #linecolors = {'point_jefferson': '#e04256', 'near_seattle_offshore': '#e04256', 'carr_inlet_mid':'#4565e8', 'saratoga_passage_mid':'#4565e8', 'lynch_cove_mid': '#4565e8'}
 
@@ -309,8 +309,8 @@ for var in ['CT', 'SA', 'DO_mg_L']:
             
             handles, labels = ax.get_legend_handles_labels()
                         
-            selected_handles = [handles[0], handles[2], handles[-1], handles[1]]
-            selected_labels = [labels[0], labels[2], labels[-1], labels[1]]
+            selected_handles = [handles[0], handles[2]] #, handles[-1], handles[1]]
+            selected_labels = [labels[0], labels[2]] #, labels[-1], labels[1]]
             
             ax.legend(selected_handles, selected_labels, loc='upper left')
         
