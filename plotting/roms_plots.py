@@ -67,7 +67,6 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
     # # or read in a section (or list of sections)
     #else:
     tracks_path = Ldir['LOo'] / 'section_lines'
-    print(Ldir['output'])
     tracks = ['pc0.p']
     zdeep = -30
     xx = np.array([])
