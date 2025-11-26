@@ -75,8 +75,8 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
         track_fn = tracks_path / track
         # get the track to interpolate onto
         pdict = pickle.load(open(track_fn, 'rb'))
-        xx = np.concatenate((xx,pdict['lon_poly']))
-        yy = np.concatenate((yy,pdict['lat_poly']))
+        xx = np.concatenate((xx,pdict['x']))
+        yy = np.concatenate((yy,pdict['y']))
     for ii in range(len(xx)-1):
         x0 = xx[ii]
         x1 = xx[ii+1]
