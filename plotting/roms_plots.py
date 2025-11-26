@@ -82,7 +82,7 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
         x1 = xx[ii+1]
         y0 = yy[ii]
         y1 = yy[ii+1]
-        nn = 20
+        nn = 10#20
         if ii == 0:
             x_e = np.linspace(x0, x1, nn)
             y_e = np.linspace(y0,y1, nn)
@@ -132,7 +132,8 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
     
     # plot section
     svlims = pinfo.vlims_dict[vn]
-    cs = ax.pcolormesh(dist_se,zw_se,sf,
+    dist_se_clean = np.ma.filled(dist_se, fill_value=np.nan)
+    cs = ax.pcolormesh(dist_se_clean,zw_se,sf,
                        vmin=svlims[0], vmax=svlims[1], cmap=pinfo.cmap_dict[vn])
     fig.colorbar(cs, ax=ax)
     ax.set_xlabel('Distance (km)')
