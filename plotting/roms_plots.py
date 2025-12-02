@@ -50,12 +50,6 @@ def D_sect_pc(in_dict): #DM added 2025/12/01
     pfun.start_plot(fs=fs, figsize=(20,30))
     fig = plt.figure()
     ds = xr.open_dataset(in_dict['fn'])
-    # PLOT CODE
-    vn = 'u'#'phytoplankton'
-    if vn == 'salt':
-        pinfo.cmap_dict[vn] = 'jet' 
-    elif vn == 'u':
-        pinfo.cmap_dict[vn] = cm.balance
     # GET DATA
     G, S, T = zrfun.get_basic_info(in_dict['fn'])
     # # CREATE THE SECTION
@@ -75,6 +69,19 @@ def D_sect_pc(in_dict): #DM added 2025/12/01
     yy = np.array([])
     c=1
     for track in tracks:
+        if track in ['pc0.p', 'pc1.p', 'pc2.p']:
+            # PLOT CODE
+            vn = 'u'#'phytoplankton'
+            if vn == 'salt':
+                pinfo.cmap_dict[vn] = 'jet' 
+            elif vn == 'u':
+                pinfo.cmap_dict[vn] = cm.balance
+        else:
+            vn = 'v'#'phytoplankton'
+            if vn == 'salt':
+                pinfo.cmap_dict[vn] = 'jet' 
+            elif vn == 'v':
+                pinfo.cmap_dict[vn] = cm.balance
         track_fn = tracks_path / track
         # get the track to interpolate onto
         pdict = pickle.load(open(track_fn, 'rb'))
