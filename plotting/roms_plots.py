@@ -36,7 +36,143 @@ import matplotlib.pyplot as plt
 
 from cmocean import cm # have to import after matplotlib to work on remote machine
 
-def D_sect_pc(in_dict): #DM added 2025/12/01
+def D_sect_pc_salt(in_dict): #DM added 2025/12/01
+    """
+    This plots a map and a section (distance, z), and makes sure
+    that the color limits are identical.  If the color limits are
+    set automatically then the section is the preferred field for
+    setting the limits.
+    
+    Uses the new pfun.get_sect() function.
+    """
+    # START
+    fs = 14
+    pfun.start_plot(fs=fs, figsize=(20,30))
+    fig = plt.figure()
+    ds = xr.open_dataset(in_dict['fn'])
+    # GET DATA
+    G, S, T = zrfun.get_basic_info(in_dict['fn'])
+    # # CREATE THE SECTION
+    # # create track by hand
+    # if False:
+    #     lon = G['lon_rho']
+    #     lat = G['lat_rho']
+    #     zdeep = -300
+    #     x_e = np.linspace(-124, -123, 500)
+    #     y_e = 48.368 * np.ones(x_e.shape)
+    # # or read in a section (or list of sections)
+    #else:
+    tracks_path = Ldir['LOo'] / 'section_lines'
+    tracks = ['pc0.p', 'pc1.p', 'pc2.p', 'pca.p', 'pcb.p']
+    zdeep = -30
+    xx = np.array([])
+    yy = np.array([])
+    c=1
+    for track in tracks:
+        if track in ['pc0.p', 'pc1.p', 'pc2.p']:
+            # PLOT CODE
+            vn = 'salt'#'phytoplankton'
+            if vn == 'salt':
+                pinfo.cmap_dict[vn] = 'jet' 
+            elif vn == 'u':
+                pinfo.cmap_dict[vn] = cm.balance
+        else:
+            vn = 'salt'#'phytoplankton'
+            if vn == 'salt':
+                pinfo.cmap_dict[vn] = 'jet' 
+            elif vn == 'v':
+                pinfo.cmap_dict[vn] = cm.balance
+        track_fn = tracks_path / track
+        # get the track to interpolate onto
+        pdict = pickle.load(open(track_fn, 'rb'))
+        # xx = np.concatenate((xx,pdict['x']))
+        # yy = np.concatenate((yy,pdict['y']))
+        xx = pdict['x']
+        yy = pdict['y']
+        for ii in range(len(xx)-1):
+            x0 = xx[ii]
+            x1 = xx[ii+1]
+            y0 = yy[ii]
+            y1 = yy[ii+1]
+            if track in ['pc0.p', 'pc1.p', 'pc2.p']:
+                nn = 10#20
+            else:
+                nn = 20
+            if ii == 0:
+                x_e = np.linspace(x0, x1, nn)
+                y_e = np.linspace(y0,y1, nn)
+            else:
+                x_e = np.concatenate((x_e, np.linspace(x0, x1, nn)[1:]))
+                y_e = np.concatenate((y_e, np.linspace(y0, y1, nn)[1:]))
+                    
+        x, y, dist, dist_e, zbot, ztop, dist_se, zw_se, fld_s, lon, lat = \
+            pfun.get_sect(in_dict['fn'], vn, x_e, y_e)
+        
+        # COLOR
+        # scaled section data
+        sf = pinfo.fac_dict[vn] * fld_s
+        # now we use the scaled section as the preferred field for setting the
+        # color limits of both figures in the case -avl True
+        if in_dict['auto_vlims']:
+            pinfo.vlims_dict[vn] = pfun.auto_lims(sf)
+            
+    
+    
+        # PLOTTING
+        # map with section line
+        ax = fig.add_subplot(5, 3, c)
+        cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict,
+                cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], do_mask_edges=True)
+        lons = [-122.63, -122.7, -122.7, -122.67, -122.650196, -122.63, -122.65, -122.67, -122.688425] #from pc field plan as of 2025/12/01
+        lats = [48.247988, 48.226449, 48.232127, 48.23432, 48.240642, 48.228787, 48.230413, 48.228036, 48.222825]
+        ax.scatter(lons,lats,color='k', edgecolor='white')
+        # fig.colorbar(cs, ax=ax) # It is identical to that of the section
+        pfun.add_coast(ax)
+        aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+        ax.axis(aaf)
+        pfun.dar(ax)
+        pfun.add_info(ax, in_dict['fn'], loc='upper_right')
+        ax.set_title('Surface %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]))
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        # add section track
+        ax.plot(x, y, '-r', linewidth=2)
+        ax.plot(x[0], y[0], 'or', markersize=5, markerfacecolor='w',
+            markeredgecolor='r', markeredgewidth=2)
+        # ax.set_xticks([-125, -124, -123])
+        # ax.set_yticks([47, 48, 49, 50])
+    
+        # section
+        ax = fig.add_subplot(5, 3, (c+1, c+2))
+        ax.plot(dist_se[0,:], zw_se[0,:], '-k', linewidth=2)
+        ax.plot(dist_se[-1,:], zw_se[-1,:], '-k', linewidth=1)
+        ax.set_xlim(dist.min(), dist.max())
+        ax.set_ylim(zdeep, 5)
+        
+        # plot section
+        svlims = pinfo.vlims_dict[vn]
+        # dist_se = np.where(np.isfinite(dist_se), dist_se, 0)
+        # zw_se = np.where(np.isfinite(zw_se), zw_se, 0)
+        cs = ax.pcolormesh(dist_se,zw_se,sf, vmin=-0.3, vmax=0.3, cmap=pinfo.cmap_dict[vn])
+                           #vmin=svlims[0], vmax=svlims[1], cmap=pinfo.cmap_dict[vn])
+        fig.colorbar(cs, ax=ax)
+        ax.set_xlabel('Distance (km)')
+        ax.set_ylabel('Z (m)')
+        ax.set_title('Section %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]))
+        
+        c+=3
+        
+    fig.tight_layout()
+    # FINISH
+    ds.close()
+    pfun.end_plot()
+    if len(str(in_dict['fn_out'])) > 0:
+        plt.savefig(in_dict['fn_out'])
+        plt.close()
+    else:
+        plt.show()
+
+def D_sect_pc_vel(in_dict): #DM added 2025/12/01
     """
     This plots a map and a section (distance, z), and makes sure
     that the color limits are identical.  If the color limits are
