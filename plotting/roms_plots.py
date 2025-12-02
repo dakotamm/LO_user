@@ -51,9 +51,11 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
     fig = plt.figure()
     ds = xr.open_dataset(in_dict['fn'])
     # PLOT CODE
-    vn = 'salt'#'phytoplankton'
+    vn = 'u'#'phytoplankton'
     if vn == 'salt':
-        pinfo.cmap_dict[vn] = 'jet'
+        pinfo.cmap_dict[vn] = 'jet' 
+    elif vn == 'u':
+        pinfo.cmap_dict[vn] = cm.balance
     # GET DATA
     G, S, T = zrfun.get_basic_info(in_dict['fn'])
     # # CREATE THE SECTION
@@ -106,6 +108,9 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
     ax = fig.add_subplot(1, 3, 1)
     cs = pfun.add_map_field(ax, ds, vn, pinfo.vlims_dict,
             cmap=pinfo.cmap_dict[vn], fac=pinfo.fac_dict[vn], do_mask_edges=True)
+    lons = [-122.63, -122.7, -122.7, -122.67, -122.650196, -122.63, -122.65, -122.67, -122.688425] #from pc field plan as of 2025/12/01
+    lats = [48.247988, 48.226449, 48.232127, 48.23432, 48.240642, 48.228787, 48.230413, 48.228036, 48.222825]
+    ax.scatter(lons,lats,color='k', edgecolor='white')
     # fig.colorbar(cs, ax=ax) # It is identical to that of the section
     pfun.add_coast(ax)
     aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
@@ -124,7 +129,6 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
 
     # section
     ax = fig.add_subplot(1, 3, (2, 3))
-    
     ax.plot(dist_se[0,:], zw_se[0,:], '-k', linewidth=2)
     ax.plot(dist_se[-1,:], zw_se[-1,:], '-k', linewidth=1)
     ax.set_xlim(dist.min(), dist.max())
@@ -132,8 +136,9 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
     
     # plot section
     svlims = pinfo.vlims_dict[vn]
-    dist_se_clean = np.ma.filled(dist_se, fill_value=np.nan)
-    cs = ax.pcolormesh(dist_se_clean,zw_se,sf,
+    # dist_se = np.where(np.isfinite(dist_se), dist_se, 0)
+    # zw_se = np.where(np.isfinite(zw_se), zw_se, 0)
+    cs = ax.pcolormesh(dist_se,zw_se,sf,
                        vmin=svlims[0], vmax=svlims[1], cmap=pinfo.cmap_dict[vn])
     fig.colorbar(cs, ax=ax)
     ax.set_xlabel('Distance (km)')
