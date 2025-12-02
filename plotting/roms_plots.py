@@ -153,8 +153,8 @@ def D_sect_pc_salt(in_dict): #DM added 2025/12/01
         svlims = pinfo.vlims_dict[vn]
         # dist_se = np.where(np.isfinite(dist_se), dist_se, 0)
         # zw_se = np.where(np.isfinite(zw_se), zw_se, 0)
-        cs = ax.pcolormesh(dist_se,zw_se,sf, vmin=-0.3, vmax=0.3, cmap=pinfo.cmap_dict[vn])
-                           #vmin=svlims[0], vmax=svlims[1], cmap=pinfo.cmap_dict[vn])
+        cs = ax.pcolormesh(dist_se,zw_se,sf, #vmin=-0.3, vmax=0.3, cmap=pinfo.cmap_dict[vn])
+                           vmin=svlims[0], vmax=svlims[1], cmap=pinfo.cmap_dict[vn])
         fig.colorbar(cs, ax=ax)
         ax.set_xlabel('Distance (km)')
         ax.set_ylabel('Z (m)')
