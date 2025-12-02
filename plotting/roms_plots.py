@@ -87,7 +87,10 @@ def D_sect_pc(in_dict): #DM added 2025/12/01
             x1 = xx[ii+1]
             y0 = yy[ii]
             y1 = yy[ii+1]
-            nn = 10#20
+            if track in ['pc0.p', 'pc1.p', 'pc2.p']:
+                nn = 10#20
+            else:
+                nn = 20
             if ii == 0:
                 x_e = np.linspace(x0, x1, nn)
                 y_e = np.linspace(y0,y1, nn)
