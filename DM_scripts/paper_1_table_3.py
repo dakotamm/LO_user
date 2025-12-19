@@ -193,11 +193,11 @@ all_stats_disp['95CI_lo_cent'] = all_stats_disp['95CI_lo']*100
 
 
 
-all_stats_disp['95CI_hi_cent_str'] = all_stats_disp['95CI_hi_cent'].round(2).astype(str)
+all_stats_disp['95CI_hi_cent_str'] = all_stats_disp['95CI_hi_cent'].round(1).astype(str)
 
-all_stats_disp['95CI_lo_cent_str'] = all_stats_disp['95CI_lo_cent'].round(2).astype(str)
+all_stats_disp['95CI_lo_cent_str'] = all_stats_disp['95CI_lo_cent'].round(1).astype(str)
 
-all_stats_disp['slope_datetime_cent_str'] = all_stats_disp['slope_datetime_cent'].round(2).astype(str)
+all_stats_disp['slope_datetime_cent_str'] = all_stats_disp['slope_datetime_cent'].round(1).astype(str)
 
 
 all_stats_disp['trend_95_ci'] = all_stats_disp['slope_datetime_cent_str'] + ' +' + all_stats_disp['95CI_hi_cent_str'] + '/-' + all_stats_disp['95CI_lo_cent_str']
@@ -283,7 +283,7 @@ all_stats_disp_use_wide = all_stats_disp_use_wide.iloc[:, sorted_indexer]
 
 # %%
 
-#all_stats_disp_use_wide.to_excel('/Users/dakotamascarenas/Desktop/paper_1_table_3.xlsx')  
+all_stats_disp_use_wide.to_excel('/Users/dakotamascarenas/Desktop/paper_1_table_3.xlsx')  
 
 # %%
 
@@ -304,3 +304,11 @@ depth_avg = trends.groupby(['Depth','var'])['slope_datetime_cent'].mean().reset_
 # %%
 
 season_depth_avg = trends.groupby(['Depth', 'season', 'var'])['slope_datetime_cent'].mean().reset_index()
+
+# %%
+
+main_basin_season_avg = trends[trends['site'].isin(['point_jefferson','near_seattle_offshore'])].groupby(['Depth','var'])['slope_datetime_cent'].mean().reset_index()
+
+# %%
+
+pj_ns_ci_avg = trends[trends['site'].isin(['point_jefferson','near_seattle_offshore', 'carr_inlet_mid'])].groupby(['Depth','season','var'])['slope_datetime_cent'].mean().reset_index()

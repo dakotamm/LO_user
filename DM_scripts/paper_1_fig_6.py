@@ -244,7 +244,7 @@ for var in var_list:
         
         ymax = 14
         
-        marker = 'D'
+        marker = 'o' #'D'
         
         unit = r'[$^{\circ}$C]'
     
@@ -256,7 +256,7 @@ for var in var_list:
         
         ymax = 32
         
-        marker = 's'
+        marker = 'o'#'s'
         
         unit = r'[g/kg]'
 
@@ -432,5 +432,5 @@ axd['DO_mg_L'].get_legend().remove()
 
         
         
-#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_6.png', bbox_inches='tight', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_6.png', bbox_inches='tight', dpi=500, transparent=True)
     

@@ -126,7 +126,7 @@ odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'ecology_his') & (odf['year'
 
 # %%
 
-ps_casts_DF = odf
+ps_casts_DF = odf.copy()
 
 ps_casts_DF = ps_casts_DF[['cid', 'lon', 'lat', 'time', 'datetime', 'date_ordinal', 'decade', 'year', 'season', 'month', 'yearday', 'z', 'var',
        'val', 'ix', 'iy', 'h', 'data_source', 'sampling_type']]
@@ -135,7 +135,21 @@ ps_casts_DF.to_pickle('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/ps_c
 
 # %%
 
+# %%
 
+# %%
+
+
+
+
+
+
+
+
+
+
+
+# %%
 
 poly_list = ['carr_inlet_mid', 'lynch_cove_mid', 'near_seattle_offshore', 'saratoga_passage_mid', 'point_jefferson']
 
@@ -148,6 +162,16 @@ var_list = ['DO_mg_L','SA', 'CT'] #, 'NO3_uM', 'Chl_mg_m3'] #, 'NO2 (uM), 'NH4_u
 
 
 odf = dfun.dictToDF(odf_dict, var_list, lon_1D, lat_1D, depths, lon, lat, poly_list, path_dict, basin_list)
+
+
+
+# %%
+
+# %%
+
+odf, odf_depth_mean, odf_calc_long, odf_depth_mean_deep_DO_percentiles, long_site_list, short_site_list, big_basin_list, site_list = dfun.longShortClean(odf)
+
+# %%
 
 # %%
 
@@ -173,13 +197,20 @@ odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'kc_pointJefferson') & (odf[
 
 odf.loc[(odf['otype'] == 'ctd') & (odf['source'] == 'ecology_his') & (odf['year'] <= 1988), 'sampling_type'] = 'Sonde (unknown type)'
 
+# %%
+
+#site_casts_DF = odf[odf['site'] == 'point_jefferson']
+
+site_casts_DF = odf[['site', 'cid', 'lon', 'lat', 'time', 'datetime', 'date_ordinal', 'surf_deep', 'decade', 'year', 'season', 'month', 'yearday', 'z', 'var',
+       'val', 'ix', 'iy', 'h', 'min_segment_h', 'data_source', 'sampling_type']]
+
+site_casts_DF.to_pickle('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/site_casts_DF.p')
 
 # %%
 
-odf, odf_depth_mean, odf_calc_long, odf_depth_mean_deep_DO_percentiles, long_site_list, short_site_list, big_basin_list, site_list = dfun.longShortClean(odf)
-
-
+# %%
 odf_use = odf_depth_mean.copy()
+
 
 
 # %%
@@ -199,12 +230,14 @@ with open('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/site_polygon_dic
     
 # %%
 
-site_depth_avg_var_DF = odf_use[['site', 'datetime', 'date_ordinal', 'year', 'season', 'month', 'cid', 'lon', 'lat', 'surf_deep', 'z', 'var', 'val', 'ix', 'iy', 'h','min_segment_h']]
+site_depth_avg_var_DF = odf_use[['site', 'datetime', 'date_ordinal', 'year', 'season', 'month', 'yearday', 'cid', 'lon', 'lat', 'surf_deep', 'z', 'var', 'val', 'ix', 'iy', 'h','min_segment_h']]
 
 site_depth_avg_var_DF.to_pickle('/Users/dakotamascarenas/Desktop/Mascarenas_etal_2025/site_depth_avg_var_DF.p')
 
 
+# %%
 
+# %%
 
 # %%
 

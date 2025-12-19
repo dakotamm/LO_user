@@ -223,7 +223,7 @@ linecolors = {'Main Basin':'k', 'Sub-Basins':'k'}
 
 jitter = {'Surface': -0.1, 'Bottom': 0.1}
 
-markers = {'DO_mg_L': 'o', 'SA': 's', 'CT': '^'}
+markers = {'DO_mg_L': 'o', 'SA': 'o', 'CT': 'o'}# 'SA': 's', 'CT': '^'}
  
 
 mosaic = [['CT Winter (Dec-Mar)', 'CT Spring (Apr-Jul)', 'CT Low-DO (Aug-Nov)'],

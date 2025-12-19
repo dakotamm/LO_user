@@ -258,9 +258,9 @@ mean_ci = pd.concat([mean_ci_CTSA, mean_ci_DO])
 
 mean_ci_disp = mean_ci.copy()
 
-mean_ci_disp['95ci_str'] = mean_ci_disp['95ci_less'].round(2).astype(str)
+mean_ci_disp['95ci_str'] = mean_ci_disp['95ci_less'].round(1).astype(str)
 
-mean_ci_disp['val_mean_str'] = mean_ci_disp['val_mean'].round(2).astype(str)
+mean_ci_disp['val_mean_str'] = mean_ci_disp['val_mean'].round(1).astype(str)
 
 mean_ci_disp['val_95_ci'] = mean_ci_disp['val_mean_str'] + ' +/-' + mean_ci_disp['95ci_str']
 

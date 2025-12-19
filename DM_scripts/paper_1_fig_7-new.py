@@ -206,7 +206,55 @@ odf_use_seasonal_DO.loc[odf_use_seasonal_DO['surf_deep'] == 'surf', 'depth_label
 
 odf_use_seasonal_DO.loc[odf_use_seasonal_DO['surf_deep'] == 'deep', 'depth_label'] = 'Bottom'
 
+# %%
 
+odf_use_seasonal_DO_1990on, odf_use_seasonal_CTSA_1990on, odf_use_annual_DO_1990on, odf_use_annual_CTSA_1990on = dfun.calcSeriesAvgs(odf_depth_mean[odf_depth_mean['year'] >= 1999], odf_depth_mean_deep_DO_percentiles[odf_depth_mean_deep_DO_percentiles['year'] >= 1999], deep_DO_q = 'deep_DO_q50', filter_out=True)
+
+# %%
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'point_jefferson', 'site_label'] = 'PJ'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'near_seattle_offshore', 'site_label'] = 'NS'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'saratoga_passage_mid', 'site_label'] = 'SP'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'carr_inlet_mid', 'site_label'] = 'CI'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'lynch_cove_mid', 'site_label'] = 'LC'
+
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'point_jefferson', 'site_type'] = 'Main Basin'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'near_seattle_offshore', 'site_type'] = 'Main Basin'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'saratoga_passage_mid', 'site_type'] = 'Sub-Basins'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'carr_inlet_mid', 'site_type'] = 'Sub-Basins'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'lynch_cove_mid', 'site_type'] = 'Sub-Basins'
+
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'point_jefferson', 'site_num'] = 1
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'near_seattle_offshore', 'site_num'] = 2
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'saratoga_passage_mid', 'site_num'] = 4
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'carr_inlet_mid', 'site_num'] = 3
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['site'] == 'lynch_cove_mid', 'site_num'] = 5
+
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['season'] == 'grow', 'season_label'] = 'Spring (Apr-Jul)'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['season'] == 'loDO', 'season_label'] = 'Low-DO (Aug-Nov)'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['season'] == 'winter', 'season_label'] = 'Winter (Dec-Mar)'
+
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['surf_deep'] == 'surf', 'depth_label'] = 'Surface'
+
+odf_use_seasonal_DO_1990on.loc[odf_use_seasonal_DO_1990on['surf_deep'] == 'deep', 'depth_label'] = 'Bottom'
 
 
 
@@ -236,7 +284,7 @@ linecolors = {'Main Basin':'k', 'Sub-Basins':'k'}
 
 jitter = {'Surface': -0.1, 'Bottom': 0.1}
 
-markers = {'DO_mg_L': 'o', 'SA': 'o', 'CT': 'o'}# 'SA': 's', 'CT': '^'}
+markers = {'DO_mg_L': 'o', 'SA': 'o', 'CT': 'o'}#'SA': 's', 'CT': '^'}
  
 
 mosaic = [['CT Winter (Dec-Mar)', 'CT Spring (Apr-Jul)', 'CT Low-DO (Aug-Nov)'],
@@ -275,6 +323,9 @@ for var in ['CT', 'SA', 'DO_mg_L']:
                     
                     ax.scatter(plot_df['site_num'] + jitter[depth], plot_df['val_mean'], color=palette[depth], edgecolors='k', marker=markers[var], s=50, label=depth)
                     
+                    ax.plot([plot_df['site_num'] + jitter[depth], plot_df['site_num'] + jitter[depth]],[plot_df['val_ci95lo'], plot_df['val_ci95hi']], color=linecolors[plot_df['site_type'].iloc[0]], alpha =1, zorder = -5, linewidth=1, label=plot_df['site_type'].iloc[0])
+
+                    
                     #ax.scatter(plot_df['site_num'] + jitter[season], plot_df['val_mean'], color=palette[season], s=50, marker= markers[var], edgecolors=edgecolors[depth])
                     
                 elif var == 'CT':
@@ -284,16 +335,30 @@ for var in ['CT', 'SA', 'DO_mg_L']:
                     
                     ax.scatter(plot_df['site_num'] + jitter[depth], plot_df['val_mean'], color=palette[depth], edgecolors='k', marker=markers[var], s=50, label=depth)
                     
+                    ax.plot([plot_df['site_num'] + jitter[depth], plot_df['site_num'] + jitter[depth]],[plot_df['val_ci95lo'], plot_df['val_ci95hi']], color=linecolors[plot_df['site_type'].iloc[0]], alpha =1, zorder = -5, linewidth=1, label=plot_df['site_type'].iloc[0])
+
+                    
                 elif var == 'DO_mg_L':
                     
                     plot_df = odf_use_seasonal_DO[(odf_use_seasonal_DO['var'] == var) & (odf_use_seasonal_DO['season_label'] == season) & (odf_use_seasonal_DO['site'] == site) & (odf_use_seasonal_DO['depth_label'] == depth)]
 
                     
                     ax.scatter(plot_df['site_num'] + jitter[depth], plot_df['val_mean'], color=palette[depth], edgecolors='k', marker=markers[var], s=50, label=depth)
+                    
+                    ax.plot([plot_df['site_num'] + jitter[depth], plot_df['site_num'] + jitter[depth]],[plot_df['val_ci95lo'], plot_df['val_ci95hi']], color=linecolors[plot_df['site_type'].iloc[0]], alpha =1, zorder = -5, linewidth=1, label=plot_df['site_type'].iloc[0])
 
-                 
-                ax.plot([plot_df['site_num'] + jitter[depth], plot_df['site_num'] + jitter[depth]],[plot_df['val_ci95lo'], plot_df['val_ci95hi']], color=linecolors[plot_df['site_type'].iloc[0]], alpha =1, zorder = -5, linewidth=1, label=plot_df['site_type'].iloc[0])
-              
+                    
+                    if site == 'lynch_cove_mid':
+                        
+                        if depth == 'Bottom':
+                        
+                            plot_df = odf_use_seasonal_DO_1990on[(odf_use_seasonal_DO_1990on['var'] == var) & (odf_use_seasonal_DO_1990on['season_label'] == season) & (odf_use_seasonal_DO_1990on['site'] == site) & (odf_use_seasonal_DO_1990on['depth_label'] == depth)]
+    
+                            ax.scatter(plot_df['site_num'], plot_df['val_mean'], color=palette[depth], edgecolors='k', marker='*', s=50, label=depth)
+
+                            ax.plot([plot_df['site_num'], plot_df['site_num'] ],[plot_df['val_ci95lo'], plot_df['val_ci95hi']], color=linecolors[plot_df['site_type'].iloc[0]], alpha =1, zorder = -5, linewidth=1, label=plot_df['site_type'].iloc[0])
+
+                
             # plot_df_ = odf_use_annual_CTSA[(odf_use_annual_CTSA['var'] == var) & (odf_use_annual_CTSA['site'] == site) & (odf_use_annual_CTSA['surf_deep'] == depth)]
             
             # ax.scatter(plot_df_['site_num'], plot_df_['val_mean'], color='gray', s=20, marker= markers[var], edgecolors=edgecolors[depth])
@@ -330,7 +395,7 @@ for var in ['CT', 'SA', 'DO_mg_L']:
         if var == 'DO_mg_L':
             
             ax.axhspan(0,2, color = 'lightgray', alpha = 0.5, zorder=-6, label='Hypoxia') 
-        
+            
         ax.set_ylim(ymins[var], ymaxs[var])
         
         ax.set_xticks([1,2,3,4,5],['PJ', 'NS', 'CI', 'SP', 'LC'])
@@ -424,7 +489,7 @@ leg = fig.legend(
 
 axd['DO_mg_L Winter (Dec-Mar)'].get_legend().remove()
         
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_7.png', bbox_inches='tight', dpi=500, transparent=True)
+#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_7-newww.png', bbox_inches='tight', dpi=500, transparent=True)
 
 
 # %%

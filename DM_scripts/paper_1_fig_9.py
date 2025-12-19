@@ -538,7 +538,7 @@ for var in ['DO_mg_L']:
     axd['Spring (Apr-Jul)'].get_legend().remove()
         
     
-    plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_9.png', bbox_inches='tight', dpi=500, transparent=True)
+    # plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_9.png', bbox_inches='tight', dpi=500, transparent=True)
 
 
 # %%
@@ -554,3 +554,39 @@ plot_df = plot_df.sort_values(by=['site']).reset_index()
 plot_df = pd.merge(plot_df, plot_df_[['site', 'season', 'slope_datetime_sat']], on=['site', 'season'], how='left')
 
 plot_df['pct_expl'] = plot_df['slope_datetime_sat']/plot_df['slope_datetime']
+
+# %%
+
+avg_pct_expl = plot_df['pct_expl'].mean() #all values
+
+# %%
+
+avg_pct_expl_per_season = plot_df[['season','pct_expl']].groupby(['season']).mean().reset_index()
+
+# %%
+
+avg_pct_expl_per_site = plot_df[['site','pct_expl']].groupby(['site']).mean().reset_index()
+
+# %%
+
+avg_pct_expl_neg_trends = plot_df[plot_df['slope_datetime'] < 0]['pct_expl'].mean()
+
+# %%
+
+avg_pct_expl_neg_sig_trends = plot_df[(plot_df['slope_datetime'] < 0) & (plot_df['slope_datetime_s_hi'] < 0)]['pct_expl'].mean()
+
+# %%
+
+avg_pct_expl_main_basin = plot_df[plot_df['site'].isin(['point_jefferson', 'near_seattle_offshore'])]['pct_expl'].mean()
+
+# %%
+
+avg_pct_expl_main_basin_loDO = plot_df[(plot_df['site'].isin(['point_jefferson', 'near_seattle_offshore'])) & (plot_df['season'] == 'loDO')]['pct_expl'].mean()
+
+# %%
+
+avg_pct_expl_main_basin_grow = plot_df[(plot_df['site'].isin(['point_jefferson', 'near_seattle_offshore'])) & (plot_df['season'] == 'grow')]['pct_expl'].mean()
+
+# %%
+
+avg_pct_expl_main_basin_winter = plot_df[(plot_df['site'].isin(['point_jefferson', 'near_seattle_offshore'])) & (plot_df['season'] == 'winter')]['pct_expl'].mean()

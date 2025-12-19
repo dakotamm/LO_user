@@ -165,7 +165,7 @@ odf_use_DO_min_deep = odf_use_DO_deep[odf_use_DO_deep.index.isin(DO_min_deep_idx
 
 # %%
 
-odf_DO_deep = odf[(odf['var'] == 'DO_mg_L') & (odf['cid'].isin(cid_deep))].dropna()
+odf_DO_deep = odf[(odf['var'] == 'DO_mg_L') & (odf['cid'].isin(cid_deep))]
 
 odf_cast_mins = odf_DO_deep.groupby('cid').min(numeric_only=True).reset_index()
 
@@ -173,7 +173,7 @@ odf_cast_mins['min_z'] = odf_cast_mins['z']
 
 # %%
 
-odf_z_at_min_val = odf_DO_deep.loc[odf_DO_deep.groupby('cid')['val'].idxmin()].dropna()
+odf_z_at_min_val = odf_DO_deep.loc[odf_DO_deep.groupby('cid')['val'].idxmin()]
 
 odf_test = pd.merge(odf_z_at_min_val, odf_cast_mins[['cid','min_z']], on = 'cid', how='left')
 
@@ -184,7 +184,7 @@ odf_test_test = odf_test[odf_test['z'] <= odf_test['min_z']*0.95]
 # %%
 
 
-odf_val_at_min_z = odf_DO_deep.loc[odf_DO_deep.groupby('cid')['z'].idxmin()].dropna()
+odf_val_at_min_z = odf_DO_deep.loc[odf_DO_deep.groupby('cid')['z'].idxmin()]
 
 
 # %%

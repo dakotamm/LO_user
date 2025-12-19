@@ -552,7 +552,7 @@ ax.text(0.05,0.05, 'b', transform=ax.transAxes, verticalalignment='bottom', font
 
 
  
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_10.png', dpi=500,transparent=True, bbox_inches='tight')   
+#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_10.png', dpi=500,transparent=True, bbox_inches='tight')   
 
 
 
