@@ -283,7 +283,7 @@ all_stats_disp_use_wide = all_stats_disp_use_wide.iloc[:, sorted_indexer]
 
 # %%
 
-all_stats_disp_use_wide.to_excel('/Users/dakotamascarenas/Desktop/paper_1_table_3.xlsx')  
+#all_stats_disp_use_wide.to_excel('/Users/dakotamascarenas/Desktop/paper_1_table_3.xlsx')  
 
 # %%
 
@@ -308,6 +308,11 @@ season_depth_avg = trends.groupby(['Depth', 'season', 'var'])['slope_datetime_ce
 # %%
 
 main_basin_season_avg = trends[trends['site'].isin(['point_jefferson','near_seattle_offshore'])].groupby(['Depth','var'])['slope_datetime_cent'].mean().reset_index()
+
+# %%
+
+main_basin_avg = trends[trends['site'].isin(['point_jefferson','near_seattle_offshore'])].groupby(['Depth','season', 'var'])['slope_datetime_cent'].mean().reset_index()
+
 
 # %%
 

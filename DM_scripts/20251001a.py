@@ -451,4 +451,4 @@ ax.text(0.05,0.95, 'bottom', transform=ax.transAxes, verticalalignment='top', fo
 
 
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pct_expl.png', dpi=500,transparent=True, bbox_inches='tight')
+#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pct_expl.png', dpi=500,transparent=True, bbox_inches='tight')

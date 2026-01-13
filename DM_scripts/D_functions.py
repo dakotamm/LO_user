@@ -436,13 +436,13 @@ def longShortClean(odf):
     
     
     
-    odf_calc['surf_CT_const'] = odf_calc['surf_CT'].mean()
+    odf_calc['surf_CT_const'] = 8# odf_calc['surf_CT'].mean()
     
-    odf_calc['deep_CT_const'] = odf_calc['deep_CT'].mean()
+    odf_calc['deep_CT_const'] = 8# odf_calc['deep_CT'].mean()
     
-    odf_calc['surf_SA_const'] = odf_calc['surf_SA'].mean()
+    odf_calc['surf_SA_const'] = 29#odf_calc['surf_SA'].mean()
     
-    odf_calc['deep_SA_const'] = odf_calc['deep_SA'].mean()
+    odf_calc['deep_SA_const'] = 29#odf_calc['deep_SA'].mean()
 
 
 

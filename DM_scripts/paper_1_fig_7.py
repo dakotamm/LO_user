@@ -424,7 +424,7 @@ leg = fig.legend(
 
 axd['DO_mg_L Winter (Dec-Mar)'].get_legend().remove()
         
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_7.png', bbox_inches='tight', dpi=500, transparent=True)
+#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/paper_1_fig_7.png', bbox_inches='tight', dpi=500, transparent=True)
 
 
 # %%
