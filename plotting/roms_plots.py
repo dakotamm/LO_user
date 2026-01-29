@@ -36,6 +36,73 @@ import matplotlib.pyplot as plt
 
 from cmocean import cm # have to import after matplotlib to work on remote machine
 
+def D_monthly_mean_ubar(in_dict):
+    # plots monthly mean and its difference from climatology
+    # START
+    ds = xr.open_dataset(in_dict['fn'])
+    # also get the associated monthly climatology
+    this_name = in_dict['fn'].name
+    # assume name is like "monthly_mean_2024_11.nc"
+    mo_str = this_name[-5:-3] # 11
+    ym_str = this_name[-10:-3] # 2024_11
+    fig, ax = plt.subplots()
+    
+    vn = 'ubar' #depth-averaged barotropic velocity
+
+    # color lims for field and difference from climatology
+    #c_dict = {'temp': (4,20), 'oxygen':(0,12)}
+    #d_dict = {'temp': (-3,3), 'oxygen':(-3,3)}
+
+    # # PLOT CODE
+    # if False:
+    #     vn = 'temp'
+    #     slev = -1
+    # else:
+    #     vn = 'oxygen'
+    #     slev = 0
+    # else
+    # if slev == -1:
+    #     stext = 'Surface'
+    # elif slev == 0:
+    #     stext = 'Bottom'
+    
+    f = pinfo.fac_dict[vn] * ds[vn][0,:,:].values
+
+    plon_u, plat_v = pfun.get_plon_plat(ds['lon_u'].values, ds['lat_v'].values)
+
+    #vmin, vmax = c_dict[vn]
+    cs1 = ax.pcolormesh(plon_u,plat_v, f, cmap='rainbow')#, vmin=vmin, vmax = vmax)
+    fig.colorbar(cs1, ax=ax)
+    pfun.add_coast(ax)
+    aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+    pfun.dar(ax)
+    ax.axis(aaf)
+
+
+    ax.set_title('ubar')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.text(.05,.1,'Monthly Average ' + ym_str, transform=ax.transAxes,
+        fontweight='bold',bbox=pfun.bbox)
+    ax.axis(aaf)
+    
+    # vmin, vmax = d_dict[vn]
+    # cs2 = ax2.pcolormesh(plon,plat,f1-f2,cmap='RdYlBu_r', vmin=vmin, vmax = vmax)
+    # fig.colorbar(cs2, ax=ax2)
+    # pfun.dar(ax2)
+    # pfun.add_coast(ax2)
+    # ax2.axis(aa)
+
+    # ax2.set_title('Difference from Climatology')
+    # ax2.set_xlabel('Longitude')
+    # ax2.set_yticklabels([])
+
+    fig.tight_layout()
+    # FINISH
+    
+    
+    plt.savefig(in_dict['fn_out'])
+
 
 def D_sect_pc_salt(in_dict): #DM added 2025/12/01
     """
