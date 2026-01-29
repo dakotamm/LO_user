@@ -80,8 +80,8 @@ def D_PC_monthly_mean_ubar(in_dict):
 
 
     #vmin, vmax = c_dict[vn]
-    cs1 = ax.pcolormesh(plon_u,plat_u, f, cmap='rainbow')#, vmin=vmin, vmax = vmax)
-    fig.colorbar(cs1, ax=ax)
+    cs = ax.pcolormesh(plon_u,plat_u, f, cmap='rainbow')#, vmin=vmin, vmax = vmax)
+    fig.colorbar(cs, ax=ax)
     pfun.add_coast(ax)
     aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
     pfun.dar(ax)
@@ -109,7 +109,7 @@ def D_PC_monthly_mean_ubar(in_dict):
     fig.tight_layout()
     # FINISH
     
-    print(in_dict['fn_out'])
+    print(str(in_dict['fn_out']))
     plt.savefig(in_dict['fn_out'])
 
 
