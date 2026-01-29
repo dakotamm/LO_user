@@ -179,7 +179,7 @@ if do_arag:
         lat = df0_dict[og]['lat'].to_numpy()
         SA = df0_dict[og]['SA'].to_numpy()
         CT = df0_dict[og]['CT'].to_numpy()
-        #DIC0 = df0_dict[og]['DIC (uM)'].to_numpy()
+        DIC0 = df0_dict[og]['DIC (uM)'].to_numpy()
         TA0 = df0_dict[og]['TA (uM)'].to_numpy()
         # Calculate derived quantities
         p = gsw.p_from_z(z, lat)
