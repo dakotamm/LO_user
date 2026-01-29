@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 
 from cmocean import cm # have to import after matplotlib to work on remote machine
 
-def D_monthly_mean_ubar(in_dict):
+def D_PC_monthly_mean_ubar(in_dict):
     # plots monthly mean and its difference from climatology
     # START
     ds = xr.open_dataset(in_dict['fn'])
