@@ -100,7 +100,7 @@ def D_PC_monthly_mean_ubar(in_dict):
     fig.tight_layout()
     # FINISH
     
-    
+    print(in_dict['fn_out'])
     plt.savefig(in_dict['fn_out'])
 
 
