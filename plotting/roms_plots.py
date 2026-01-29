@@ -68,10 +68,10 @@ def D_PC_monthly_mean_ubar(in_dict):
     
     f = pinfo.fac_dict[vn] * ds[vn][0,:,:].values
 
-    plon_u, plat_v = pfun.get_plon_plat(ds['lon_u'].values, ds['lat_v'].values)
+    plon_u, plat_u = pfun.get_plon_plat(ds['lon_u'].values, ds['lat_u'].values)
 
     #vmin, vmax = c_dict[vn]
-    cs1 = ax.pcolormesh(plon_u,plat_v, f, cmap='rainbow')#, vmin=vmin, vmax = vmax)
+    cs1 = ax.pcolormesh(plon_u,plat_u, f, cmap='rainbow')#, vmin=vmin, vmax = vmax)
     fig.colorbar(cs1, ax=ax)
     pfun.add_coast(ax)
     aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
