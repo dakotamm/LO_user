@@ -67,8 +67,17 @@ def D_PC_monthly_mean_ubar(in_dict):
     #     stext = 'Bottom'
     
     f = pinfo.fac_dict[vn] * ds[vn][0,:,:].values
+    
+    print(str(np.shape(f)))
+    
 
     plon_u, plat_u = pfun.get_plon_plat(ds['lon_u'].values, ds['lat_u'].values)
+    
+    print(str(np.shape(plon_u)))
+    
+    print(str(np.shape(plat_u)))
+
+
 
     #vmin, vmax = c_dict[vn]
     cs1 = ax.pcolormesh(plon_u,plat_u, f, cmap='rainbow')#, vmin=vmin, vmax = vmax)
