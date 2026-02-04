@@ -97,7 +97,7 @@ for year in year_list:
     print('\n' + (' ' + str(year) + ' Combining obs+mod ').center(40,'*') + '\n')
 
     tt0 = time()
-    cmd_list = ['python', str(Ldir['LO'] / 'obsmod' / 'combine_obs_mod.py'),
+    cmd_list = ['python', str(Ldir['LOu'] / 'obsmod' / 'combine_obs_mod.py'), #changed to LOu for now DM 20260204
         '-gtx', Ldir['gtagex'],
         '-sources', Ldir['sources'],
         '-otype', Ldir['otype'],
@@ -124,7 +124,7 @@ for year in year_list:
     print('\n' + (' ' + str(year) + ' Making Val Plot ').center(40,'*') + '\n')
 
     tt0 = time()
-    cmd_list = ['python', str(Ldir['LO'] / 'obsmod' / 'plot_val.py'),
+    cmd_list = ['python', str(Ldir['LOu'] / 'obsmod' / 'plot_val.py'), #changed to LOu for now DM 20260204
         '-gtx', Ldir['gtagex'],
         '-otype', Ldir['otype'],
         '-year', str(year)]
