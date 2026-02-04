@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 
 from cmocean import cm # have to import after matplotlib to work on remote machine
 
-def D_PC_monthly_mean_ubar(in_dict):
+def D_PC_monthly_mean_bottom_DO(in_dict):
     # plots monthly mean and its difference from climatology
     # START
     ds = xr.open_dataset(in_dict['fn'])
@@ -47,7 +47,7 @@ def D_PC_monthly_mean_ubar(in_dict):
     ym_str = this_name[-10:-3] # 2024_11
     fig, ax = plt.subplots()
     
-    vn = 'ubar' #depth-averaged barotropic velocity
+    #vn = 'u' #depth-averaged barotropic velocity
 
     # color lims for field and difference from climatology
     #c_dict = {'temp': (4,20), 'oxygen':(0,12)}
@@ -66,21 +66,15 @@ def D_PC_monthly_mean_ubar(in_dict):
     # elif slev == 0:
     #     stext = 'Bottom'
     
-    f = pinfo.fac_dict[vn] * ds[vn][0,:,:].values
+    f = pinfo.fac_dict['oxygen'] * ds['oxygen'][0,0,:,:].values
     
-    print(str(np.shape(f)))
+    plon, plat = pfun.get_plon_plat(ds['lon_rho'].values, ds['lat_rho'].values)
     
-
-    plon_u, plat_u = pfun.get_plon_plat(ds['lon_u'].values, ds['lat_u'].values)
-    
-    print(str(np.shape(plon_u)))
-    
-    print(str(np.shape(plat_u)))
-
+    cmap=pinfo.cmap_dict['oxygen']
 
 
     #vmin, vmax = c_dict[vn]
-    cs = ax.pcolormesh(plon_u,plat_u, f, cmap='rainbow')#, vmin=vmin, vmax = vmax)
+    cs = ax.pcolormesh(plon,plat, f, cmap=cmap, vmin=0, vmax=10)#, vmin=vmin, vmax = vmax)
     fig.colorbar(cs, ax=ax)
     pfun.add_coast(ax)
     aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
@@ -88,13 +82,11 @@ def D_PC_monthly_mean_ubar(in_dict):
     ax.axis(aaf)
 
 
-    ax.set_title('ubar')
+    ax.set_title('bottom DO')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     ax.text(.05,.1,'Monthly Average ' + ym_str, transform=ax.transAxes,
-        fontweight='bold',bbox=pfun.bbox)
-    ax.axis(aaf)
-    
+        fontweight='bold',bbox=pfun.bbox)    
     # vmin, vmax = d_dict[vn]
     # cs2 = ax2.pcolormesh(plon,plat,f1-f2,cmap='RdYlBu_r', vmin=vmin, vmax = vmax)
     # fig.colorbar(cs2, ax=ax2)
@@ -108,9 +100,369 @@ def D_PC_monthly_mean_ubar(in_dict):
 
     fig.tight_layout()
     # FINISH
+        
+    plt.savefig(in_dict['fn_out'])
+
+def D_PC_monthly_mean_surface_salt(in_dict):
+    # plots monthly mean and its difference from climatology
+    # START
+    ds = xr.open_dataset(in_dict['fn'])
+    # also get the associated monthly climatology
+    this_name = in_dict['fn'].name
+    # assume name is like "monthly_mean_2024_11.nc"
+    mo_str = this_name[-5:-3] # 11
+    ym_str = this_name[-10:-3] # 2024_11
+    fig, ax = plt.subplots()
     
+    #vn = 'u' #depth-averaged barotropic velocity
+
+    # color lims for field and difference from climatology
+    #c_dict = {'temp': (4,20), 'oxygen':(0,12)}
+    #d_dict = {'temp': (-3,3), 'oxygen':(-3,3)}
+
+    # # PLOT CODE
+    # if False:
+    #     vn = 'temp'
+    #     slev = -1
+    # else:
+    #     vn = 'oxygen'
+    #     slev = 0
+    # else
+    # if slev == -1:
+    #     stext = 'Surface'
+    # elif slev == 0:
+    #     stext = 'Bottom'
+    
+    f = pinfo.fac_dict['salt'] * ds['salt'][0,-1,:,:].values
+    
+    plon, plat = pfun.get_plon_plat(ds['lon_rho'].values, ds['lat_rho'].values)
+
+    #vmin, vmax = c_dict[vn]
+    cs = ax.pcolormesh(plon,plat, f, cmap='viridis', vmin=24, vmax=28)#, vmin=vmin, vmax = vmax)
+    fig.colorbar(cs, ax=ax)
+    pfun.add_coast(ax)
+    aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+    pfun.dar(ax)
+    ax.axis(aaf)
+
+
+    ax.set_title('surface salt')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.text(.05,.1,'Monthly Average ' + ym_str, transform=ax.transAxes,
+        fontweight='bold',bbox=pfun.bbox)    
+    # vmin, vmax = d_dict[vn]
+    # cs2 = ax2.pcolormesh(plon,plat,f1-f2,cmap='RdYlBu_r', vmin=vmin, vmax = vmax)
+    # fig.colorbar(cs2, ax=ax2)
+    # pfun.dar(ax2)
+    # pfun.add_coast(ax2)
+    # ax2.axis(aa)
+
+    # ax2.set_title('Difference from Climatology')
+    # ax2.set_xlabel('Longitude')
+    # ax2.set_yticklabels([])
+
+    fig.tight_layout()
+    # FINISH
+        
+    plt.savefig(in_dict['fn_out'])
+
+def D_PC_monthly_mean_depthavg_salt(in_dict):
+    # plots monthly mean and its difference from climatology
+    # START
+    ds = xr.open_dataset(in_dict['fn'])
+    # also get the associated monthly climatology
+    this_name = in_dict['fn'].name
+    # assume name is like "monthly_mean_2024_11.nc"
+    mo_str = this_name[-5:-3] # 11
+    ym_str = this_name[-10:-3] # 2024_11
+    fig, ax = plt.subplots()
+    
+    #vn = 'u' #depth-averaged barotropic velocity
+
+    # color lims for field and difference from climatology
+    #c_dict = {'temp': (4,20), 'oxygen':(0,12)}
+    #d_dict = {'temp': (-3,3), 'oxygen':(-3,3)}
+
+    # # PLOT CODE
+    # if False:
+    #     vn = 'temp'
+    #     slev = -1
+    # else:
+    #     vn = 'oxygen'
+    #     slev = 0
+    # else
+    # if slev == -1:
+    #     stext = 'Surface'
+    # elif slev == 0:
+    #     stext = 'Bottom'
+    
+    f = pinfo.fac_dict['salt'] * ds['salt'][0,:,:,:].values
+    
+    f_depth_avg = np.mean(f, axis=0)
+
+    plon, plat = pfun.get_plon_plat(ds['lon_rho'].values, ds['lat_rho'].values)
+
+    #vmin, vmax = c_dict[vn]
+    cs = ax.pcolormesh(plon,plat, f_depth_avg, cmap='viridis', vmin=26, vmax=30)#, vmin=vmin, vmax = vmax)
+    fig.colorbar(cs, ax=ax)
+    pfun.add_coast(ax)
+    aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+    pfun.dar(ax)
+    ax.axis(aaf)
+
+
+    ax.set_title('depth-averaged salt')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.text(.05,.1,'Monthly Average ' + ym_str, transform=ax.transAxes,
+        fontweight='bold',bbox=pfun.bbox)    
+    # vmin, vmax = d_dict[vn]
+    # cs2 = ax2.pcolormesh(plon,plat,f1-f2,cmap='RdYlBu_r', vmin=vmin, vmax = vmax)
+    # fig.colorbar(cs2, ax=ax2)
+    # pfun.dar(ax2)
+    # pfun.add_coast(ax2)
+    # ax2.axis(aa)
+
+    # ax2.set_title('Difference from Climatology')
+    # ax2.set_xlabel('Longitude')
+    # ax2.set_yticklabels([])
+
+    fig.tight_layout()
+    # FINISH
+        
+    plt.savefig(in_dict['fn_out'])
+
+def D_PC_monthly_mean_bottom_u(in_dict):
+    # plots monthly mean and its difference from climatology
+    # START
+    ds = xr.open_dataset(in_dict['fn'])
+    # also get the associated monthly climatology
+    this_name = in_dict['fn'].name
+    # assume name is like "monthly_mean_2024_11.nc"
+    mo_str = this_name[-5:-3] # 11
+    ym_str = this_name[-10:-3] # 2024_11
+    fig, ax = plt.subplots()
+    
+    vn = 'u' 
+    slev = 0
+
+    # color lims for field and difference from climatology
+    #c_dict = {'temp': (4,20), 'oxygen':(0,12)}
+    #d_dict = {'temp': (-3,3), 'oxygen':(-3,3)}
+
+    # # PLOT CODE
+    # if False:
+    #     vn = 'temp'
+    #     slev = -1
+    # else:
+    #     vn = 'oxygen'
+    #     slev = 0
+    # else
+    # if slev == -1:
+    #     stext = 'Surface'
+    # elif slev == 0:
+    #     stext = 'Bottom'
+    
+    f = pinfo.fac_dict[vn] * ds[vn][0,slev,:,:].values
+    
+    print(str(np.shape(f)))
+    
+
+    plon_u, plat_u = pfun.get_plon_plat(ds['lon_u'].values, ds['lat_u'].values)
+    
+    print(str(np.shape(plon_u)))
+    
+    print(str(np.shape(plat_u)))
+
+
+
+    #vmin, vmax = c_dict[vn]
+    cs = ax.pcolormesh(plon_u,plat_u, f, cmap='rainbow', vmin=-0.1, vmax=0.1)#, vmin=vmin, vmax = vmax)
+    fig.colorbar(cs, ax=ax)
+    pfun.add_coast(ax)
+    aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+    pfun.dar(ax)
+    ax.axis(aaf)
+
+
+    ax.set_title('bottom u')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.text(.05,.1,'Monthly Average ' + ym_str, transform=ax.transAxes,
+        fontweight='bold',bbox=pfun.bbox)    
+    # vmin, vmax = d_dict[vn]
+    # cs2 = ax2.pcolormesh(plon,plat,f1-f2,cmap='RdYlBu_r', vmin=vmin, vmax = vmax)
+    # fig.colorbar(cs2, ax=ax2)
+    # pfun.dar(ax2)
+    # pfun.add_coast(ax2)
+    # ax2.axis(aa)
+
+    # ax2.set_title('Difference from Climatology')
+    # ax2.set_xlabel('Longitude')
+    # ax2.set_yticklabels([])
+
+    fig.tight_layout()
+    # FINISH
+        
     print(str(in_dict['fn_out']))
     plt.savefig(in_dict['fn_out'])
+    plt.show()
+    
+def D_PC_monthly_mean_depthavg_speed(in_dict):
+    # plots monthly mean and its difference from climatology
+    # START
+    ds = xr.open_dataset(in_dict['fn'])
+    # also get the associated monthly climatology
+    this_name = in_dict['fn'].name
+    # assume name is like "monthly_mean_2024_11.nc"
+    mo_str = this_name[-5:-3] # 11
+    ym_str = this_name[-10:-3] # 2024_11
+    fig, ax = plt.subplots()
+    
+    #vn = 'u' #depth-averaged barotropic velocity
+
+    # color lims for field and difference from climatology
+    #c_dict = {'temp': (4,20), 'oxygen':(0,12)}
+    #d_dict = {'temp': (-3,3), 'oxygen':(-3,3)}
+
+    # # PLOT CODE
+    # if False:
+    #     vn = 'temp'
+    #     slev = -1
+    # else:
+    #     vn = 'oxygen'
+    #     slev = 0
+    # else
+    # if slev == -1:
+    #     stext = 'Surface'
+    # elif slev == 0:
+    #     stext = 'Bottom'
+    
+    u = pinfo.fac_dict['u'] * ds['u'][0,:,:,:].values
+    
+    v = pinfo.fac_dict['v'] * ds['v'][0,:,:,:].values
+    
+    u_rho = np.full((30, 368, 272), np.nan, dtype=float)
+    u_rho[:, :, 1:-1] = 0.5 * (u[:, :, :-1] + u[:, :, 1:])  # (30,368,270)
+    u_rho[:, :, 0]    = u[:, :, 0]      # left edge
+    u_rho[:, :, -1]   = u[:, :, -1]     # right edge
+    
+    # v: (Nz, eta_rho-1, xi_rho) = (30,367,272)
+    v_rho = np.full((30, 368, 272), np.nan, dtype=float)
+    v_rho[:, 1:-1, :] = 0.5 * (v[:, :-1, :] + v[:, 1:, :])  # (30,366,272)
+    v_rho[:, 0, :]    = v[:, 0, :]      # bottom edge
+    v_rho[:, -1, :]   = v[:, -1, :]     # top edge
+    
+    speed_rho = np.hypot(u_rho, v_rho)  # (30,368,272)
+    
+    
+    f_depth_avg = np.mean(speed_rho, axis=0)
+
+    plon, plat = pfun.get_plon_plat(ds['lon_rho'].values, ds['lat_rho'].values)
+
+    #vmin, vmax = c_dict[vn]
+    cs = ax.pcolormesh(plon,plat, f_depth_avg, cmap='Reds', vmin=0, vmax=0.1)#, vmin=vmin, vmax = vmax)
+    fig.colorbar(cs, ax=ax)
+    pfun.add_coast(ax)
+    aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+    pfun.dar(ax)
+    ax.axis(aaf)
+
+
+    ax.set_title('depth-averaged speed')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.text(.05,.1,'Monthly Average ' + ym_str, transform=ax.transAxes,
+        fontweight='bold',bbox=pfun.bbox)    
+    # vmin, vmax = d_dict[vn]
+    # cs2 = ax2.pcolormesh(plon,plat,f1-f2,cmap='RdYlBu_r', vmin=vmin, vmax = vmax)
+    # fig.colorbar(cs2, ax=ax2)
+    # pfun.dar(ax2)
+    # pfun.add_coast(ax2)
+    # ax2.axis(aa)
+
+    # ax2.set_title('Difference from Climatology')
+    # ax2.set_xlabel('Longitude')
+    # ax2.set_yticklabels([])
+
+    fig.tight_layout()
+    # FINISH
+        
+    plt.savefig(in_dict['fn_out'])
+    
+def D_PC_monthly_mean_depthavg_u(in_dict):
+    # plots monthly mean and its difference from climatology
+    # START
+    ds = xr.open_dataset(in_dict['fn'])
+    # also get the associated monthly climatology
+    this_name = in_dict['fn'].name
+    # assume name is like "monthly_mean_2024_11.nc"
+    mo_str = this_name[-5:-3] # 11
+    ym_str = this_name[-10:-3] # 2024_11
+    fig, ax = plt.subplots()
+    
+    vn = 'u'
+
+    # color lims for field and difference from climatology
+    #c_dict = {'temp': (4,20), 'oxygen':(0,12)}
+    #d_dict = {'temp': (-3,3), 'oxygen':(-3,3)}
+
+    # # PLOT CODE
+    # if False:
+    #     vn = 'temp'
+    #     slev = -1
+    # else:
+    #     vn = 'oxygen'
+    #     slev = 0
+    # else
+    # if slev == -1:
+    #     stext = 'Surface'
+    # elif slev == 0:
+    #     stext = 'Bottom'
+    
+    f = pinfo.fac_dict[vn] * ds[vn][0,:,:,:].values
+    
+    f_depth_avg = np.mean(f, axis=0)
+    
+    
+
+    plon_u, plat_u = pfun.get_plon_plat(ds['lon_u'].values, ds['lat_u'].values)
+    
+    
+
+
+
+    #vmin, vmax = c_dict[vn]
+    cs = ax.pcolormesh(plon_u,plat_u, f_depth_avg, cmap='RdBu', vmin=-0.1, vmax=0.1)#, vmin=vmin, vmax = vmax)
+    fig.colorbar(cs, ax=ax)
+    pfun.add_coast(ax)
+    aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+    pfun.dar(ax)
+    ax.axis(aaf)
+
+
+    ax.set_title('depth-averaged u')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.text(.05,.1,'Monthly Average ' + ym_str, transform=ax.transAxes,
+        fontweight='bold',bbox=pfun.bbox)    
+    # vmin, vmax = d_dict[vn]
+    # cs2 = ax2.pcolormesh(plon,plat,f1-f2,cmap='RdYlBu_r', vmin=vmin, vmax = vmax)
+    # fig.colorbar(cs2, ax=ax2)
+    # pfun.dar(ax2)
+    # pfun.add_coast(ax2)
+    # ax2.axis(aa)
+
+    # ax2.set_title('Difference from Climatology')
+    # ax2.set_xlabel('Longitude')
+    # ax2.set_yticklabels([])
+
+    fig.tight_layout()
+    # FINISH
+        
+    plt.savefig(in_dict['fn_out'])
+
 
 
 def D_sect_pc_salt(in_dict): #DM added 2025/12/01
