@@ -57,6 +57,7 @@ otype = args.otype
 # specify input
 in_fn = in_dir / ('combined_' + otype + '_' + year + '_' + gtx + '.p')
 df0_dict = pickle.load(open(in_fn, 'rb'))
+print(df0_dict.keys())
 
 # add DIN field
 for gtxo in df0_dict.keys():
