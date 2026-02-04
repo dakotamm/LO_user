@@ -156,8 +156,8 @@ if not do_arag:
     vn_list = ['SA','CT','DO (uM)','NO3 (uM)','NH4 (uM)','DIN (uM)',
         'DIC (uM)', 'TA (uM)', 'Chl (mg m-3)']
 else:
-    vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)','pCO2 (uatm)',
-        'DIC (uM)', 'TA (uM)', 'Omega']
+    vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)']#,'pCO2 (uatm)',
+        #'DIC (uM)', 'TA (uM)', 'Omega'] #DM mod 20260204
 
 jj_list = [1,2,3,5,6,7,9,10,11,12] # indices for the data plots
 
