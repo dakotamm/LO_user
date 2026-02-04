@@ -180,27 +180,27 @@ if do_arag:
         lat = df0_dict[og]['lat'].to_numpy()
         SA = df0_dict[og]['SA'].to_numpy()
         CT = df0_dict[og]['CT'].to_numpy()
-        DIC0 = df0_dict[og]['DIC (uM)'].to_numpy()
-        TA0 = df0_dict[og]['TA (uM)'].to_numpy()
+        # DIC0 = df0_dict[og]['DIC (uM)'].to_numpy() #DM 20260204 - for wb1_r0_xn11b only because no data here!
+        # TA0 = df0_dict[og]['TA (uM)'].to_numpy()
         # Calculate derived quantities
         p = gsw.p_from_z(z, lat)
         SP = gsw.SP_from_SA(SA, p, lon, lat)
         rho = gsw.rho(SA, CT, p) # in situ density
         temp = gsw.t_from_CT(SA, CT, p) # in situ temperature
-        # convert from umol/L to umol/kg using in situ dentity
-        TA = 1000 * TA0 / rho
-        TA[TA < 100] = np.nan
-        TIC = 1000 * DIC0 / rho
-        TIC[TIC < 100] = np.nan
+        # # convert from umol/L to umol/kg using in situ dentity
+        # TA = 1000 * TA0 / rho # same as above DM note
+        # TA[TA < 100] = np.nan
+        # TIC = 1000 * DIC0 / rho
+        # TIC[TIC < 100] = np.nan
         # See LPM/co2sys_test/test0.py for info.
-        import PyCO2SYS as pyco2
-        CO2dict = pyco2.sys(par1=TA, par2=TIC, par1_type=1, par2_type=2,
-            salinity=SP, temperature=temp, pressure=p,
-            total_silicate=50, total_phosphate=2,
-            opt_pH_scale=1, opt_k_carbonic=10, opt_k_bisulfate=1)
-        df0_dict[og]['Omega'] = CO2dict['saturation_aragonite']
+        # import PyCO2SYS as pyco2
+        # CO2dict = pyco2.sys(par1=TA, par2=TIC, par1_type=1, par2_type=2, #same as above DM note
+        #     salinity=SP, temperature=temp, pressure=p,
+        #     total_silicate=50, total_phosphate=2,
+        #     opt_pH_scale=1, opt_k_carbonic=10, opt_k_bisulfate=1)
+        # df0_dict[og]['Omega'] = CO2dict['saturation_aragonite']
         # also get pCO2
-        df0_dict[og]['pCO2 (uatm)'] = CO2dict['pCO2']
+        # df0_dict[og]['pCO2 (uatm)'] = CO2dict['pCO2'] #same as above DM note
 
 if small:
     fs = 10
