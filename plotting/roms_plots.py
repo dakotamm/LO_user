@@ -1328,7 +1328,7 @@ def D_sect_pc0(in_dict): #DM added 2025/11/26
     else:
         plt.show()
 
-def D_bottom_DO(in_dict): # DM created 2025/11/12
+def D_bottom_DO(in_dict): # DM created 2025/11/12 # zoom into just PC and add quiver 20260210
     # Biogeochemical fields at the bottom
     # START
     ds = xr.open_dataset(in_dict['fn'])
@@ -1407,6 +1407,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         #if ii == 1:
         pfun.add_info(ax, in_dict['fn'])
         pfun.add_bathy_contours(ax, ds, txt=True)
+        pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=5, v_leglen=0.1, nngrid=200)
         # elif ii in [2,3,5,6]:
         #     ax.set_yticklabels([])
         ii += 1
