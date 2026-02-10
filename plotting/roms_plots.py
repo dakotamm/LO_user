@@ -1560,7 +1560,7 @@ def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
         # if do_mask_edges:
         #     v_scaled = mask_edges(v_scaled, x, y)
         
-        cs = ax.pcolormesh(px, py, v_scaled, vmin=vlims[0], vmax=vlims[1], cmap=cmap)
+        cs = ax.pcolormesh(px, py, v_scaled, vmin=0, vmax=10, cmap=cm.oxy)
         
         #fig.colorbar(cs)
         pfun.add_coast(ax)
@@ -1574,6 +1574,7 @@ def D_bottom_DO_PC(in_dict): # DM created 2025/11/12
         #if ii == 1:
         pfun.add_info(ax, in_dict['fn'])
         pfun.add_bathy_contours(ax, ds, txt=True)
+        pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=1, v_leglen=0.1, nngrid=100)
         # elif ii in [2,3,5,6]:
         #     ax.set_yticklabels([])
         ii += 1
