@@ -1396,7 +1396,8 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12
         
         fig.colorbar(cs)
         pfun.add_coast(ax)
-        ax.axis(pfun.get_aa(ds))
+        aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+        ax.axis(aaf)
         pfun.dar(ax)
         ax.set_title('Bottom %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
         #if ii in [4,5,6]:
