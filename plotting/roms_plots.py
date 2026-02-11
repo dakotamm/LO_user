@@ -1392,11 +1392,11 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12 # zoom into just PC and add qu
         # if do_mask_edges:
         #     v_scaled = mask_edges(v_scaled, x, y)
         
-        cs = ax.pcolormesh(px, py, v_scaled, vmin=vlims[0], vmax=vlims[1], cmap=cmap)
+        cs = ax.pcolormesh(px, py, v_scaled, 0, 10, cmap=cm.oxy)
         
         fig.colorbar(cs)
         pfun.add_coast(ax)
-        aaf = [-122.740, -122.510, 48.2, 48.3] # focus domain
+        aaf = [-122.740, -122.64, 48.21, 48.25] # focus domain
         ax.axis(aaf)
         pfun.dar(ax)
         ax.set_title('Bottom %s %s' % (pinfo.tstr_dict[vn],pinfo.units_dict[vn]), fontsize=1.2*fs)
@@ -1407,7 +1407,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12 # zoom into just PC and add qu
         #if ii == 1:
         pfun.add_info(ax, in_dict['fn'])
         pfun.add_bathy_contours(ax, ds, txt=True)
-        pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=5, v_leglen=0.1, nngrid=10)
+        pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=5, v_leglen=0.1, nngrid=50)
 
         # elif ii in [2,3,5,6]:
         #     ax.set_yticklabels([])
