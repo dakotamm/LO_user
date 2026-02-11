@@ -1392,7 +1392,7 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12 # zoom into just PC and add qu
         # if do_mask_edges:
         #     v_scaled = mask_edges(v_scaled, x, y)
         
-        cs = ax.pcolormesh(px, py, v_scaled, vmin=0, vmin=10, cmap=cm.oxy)
+        cs = ax.pcolormesh(px, py, v_scaled, vmin=0, vmax=10, cmap=cm.oxy)
         
         fig.colorbar(cs)
         pfun.add_coast(ax)
