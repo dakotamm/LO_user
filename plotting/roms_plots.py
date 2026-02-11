@@ -1407,7 +1407,8 @@ def D_bottom_DO(in_dict): # DM created 2025/11/12 # zoom into just PC and add qu
         #if ii == 1:
         pfun.add_info(ax, in_dict['fn'])
         pfun.add_bathy_contours(ax, ds, txt=True)
-        pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=5, v_leglen=0.1, nngrid=200)
+        pfun.add_velocity_vectors(ax, ds, in_dict['fn'], v_scl=5, v_leglen=0.1, nngrid=10)
+
         # elif ii in [2,3,5,6]:
         #     ax.set_yticklabels([])
         ii += 1
