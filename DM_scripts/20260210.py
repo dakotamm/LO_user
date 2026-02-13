@@ -215,7 +215,7 @@ for tide in ['neap', 'spring']:
         
     ax.set_title(tide + ' u [m/s] ' + 'Depth-Averaged\n' +Ldir['ds0']+ '-' + Ldir['ds1'])
     
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pc_depth_avg_u_springneap_2017.09.05-2017.09.18_wquiver.png', dpi=500, transparent=False, bbox_inches='tight')
+#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pc_depth_avg_u_springneap_2017.09.05-2017.09.18_wquiver.png', dpi=500, transparent=False, bbox_inches='tight')
     
 
 # %%
@@ -341,6 +341,132 @@ for tide in ['neap', 'spring']:
     ax.set_title(tide + ' DO [mg/L] ' + 'Bottom\n' +Ldir['ds0']+ '-' + Ldir['ds1'])
     
 plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pc_bottom_DO_springneap_2017.09.05-2017.09.18_wquiver.png', dpi=500, transparent=False, bbox_inches='tight')
+    
+# %%
+
+fig, axd = plt.subplot_mosaic([['neap','spring']], figsize=(9,4), layout='constrained', gridspec_kw=dict(wspace=0.1))
+
+for tide in ['neap', 'spring']:
+    
+    if tide == 'neap':
+
+        Ldir['ds0'] = '2017.09.05'
+        
+        Ldir['ds1'] = '2017.09.11'
+    
+    else:
+        
+        Ldir['ds0'] = '2017.09.12'
+        
+        Ldir['ds1'] = '2017.09.18'
+        
+
+    fn_list = Lfun.get_fn_list(Ldir['list_type'], Ldir, Ldir['ds0'], Ldir['ds1'])
+    
+    sum_salt = None
+    sum_u = None
+    sum_v = None
+    count=0
+    
+    for fn in fn_list:
+        ds = xr.open_dataset(fn)
+        
+        salt = ds.salt[0,:,:,:].values
+        
+        u = ds.u[0,:,:,:].values
+        
+        v = ds.v[0,:,:,:].values
+        
+        # mask3 = np.broadcast_to(mask_u[None, :, :], u.shape)
+    
+        # u_poly = np.where(mask3, u, np.nan)
+        
+        u_poly = u.copy()
+        
+        v_poly = v.copy()
+        
+        salt_poly = salt.copy()
+                
+        
+       # u_poly_depth_avg = np.mean(u_poly, axis=0)
+        
+        if sum_salt is None:
+            sum_salt = salt_poly.copy()
+        else:
+            sum_salt += salt_poly
+            
+        if sum_u is None:
+            sum_u = u_poly.copy()
+        else:
+            sum_u += u_poly
+            
+        if sum_v is None:
+            sum_v = v_poly.copy()
+        else:
+            sum_v += v_poly
+        
+        count +=1
+        
+    mean_u_3d = sum_u / count
+    
+    mean_v_3d = sum_v / count
+    
+    mean_salt_3d = sum_salt / count
+
+    mean_u_depth_avg_2d = np.mean(mean_u_3d, axis=0)
+    
+    mean_v_depth_avg_2d = np.mean(mean_v_3d, axis=0)
+        
+    mean_salt_depth_avg_2d = np.mean(mean_salt_3d, axis=0)
+        
+    ax = axd[tide]
+    
+    ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
+    
+    cs = ax.pcolormesh(plon, plat, mean_salt_depth_avg_2d, cmap=cmo.haline, vmin = 28, vmax = 30)
+    
+    # ADD VELOCITY VECTORS # FROM PFUN ADAPTED 20260210
+    nngrid = 200
+    v_scl = 1
+    v_leglen=0.5
+    center=(.8,.05)
+    # set masked values to 0
+    mean_u_depth_avg_2d[np.isnan(mean_u_depth_avg_2d)] = 0
+    mean_v_depth_avg_2d[np.isnan(mean_v_depth_avg_2d)] = 0
+    # create regular grid
+    aaa = ax.axis()
+    daax = aaa[1] - aaa[0]
+    daay = aaa[3] - aaa[2]
+    axrat = np.cos(np.deg2rad(aaa[2])) * daax / daay
+    x = np.linspace(aaa[0], aaa[1], int(round(nngrid * axrat)))
+    y = np.linspace(aaa[2], aaa[3], int(nngrid))
+    xx, yy = np.meshgrid(x, y)
+    # interpolate to regular grid
+    uu = zfun.interp2(xx, yy, lon_u, lat_u, mean_u_depth_avg_2d)
+    vv = zfun.interp2(xx, yy, lon_v, lat_v, mean_v_depth_avg_2d)
+
+    mask = uu != 0
+    # plot velocity vectors
+    Q = ax.quiver(xx[mask], yy[mask], uu[mask], vv[mask],
+        scale=v_scl, scale_units='width', color='m', units='width')
+    plt.quiverkey(Q, .9, .1, v_leglen, str(v_leglen)+' $ms^{-1}$', angle=20)
+
+    
+    pfun.add_coast(ax)
+    
+    pfun.dar(ax)
+    
+    pfun.add_bathy_contours(ax, ds, depth_levs = [20], txt=True)
+    ax.set_ylim(48.21, 48.25)
+    ax.set_xlim(-122.740, -122.64)
+    
+    if tide == 'spring':
+    
+        fig.colorbar(cs, ax=ax, shrink=0.5)
+    
+    ax.set_title(tide + ' SA [g/kg] ' + 'Depth-Averaged\n' +Ldir['ds0']+ '-' + Ldir['ds1'])
+    
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pc_depth_avg_SA_springneap_2017.09.05-2017.09.18_wquiver.png', dpi=500, transparent=False, bbox_inches='tight')
     
     
     
