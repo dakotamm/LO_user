@@ -58,7 +58,7 @@ def get_sntup_list(gctag, vol_name):
         # if vol_name == 'Penn Cove':
         sntup_list = [('pc00',-1)] # the sign is for inflow direction
         sect_base_list = ['pc']
-        outer_sns_list = ['pc_p'] # exclude segments that have these
+        outer_sns_list = ['pc0_p'] # exclude segments that have these
 
             
     return sntup_list, sect_base_list, outer_sns_list
