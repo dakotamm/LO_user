@@ -42,8 +42,6 @@ if Ldir['testing']:
 
 tt00 = time()
 
-print_info = True
-
 # setting Ldir['testing'] = True runs a deep debugging step, in which you only process
 # the first day, and look at the details of the multi-layer bulk calculation,
 # both graphically and as screen output.
