@@ -36,7 +36,7 @@ Lfun.make_dir(out_dir, clean=True)
 
 sect_list = [item.name for item in in_dir.glob('*.nc')]
 if Ldir['testing']:
-    sect_list = ['jdf3.nc']
+    sect_list = ['pc0.nc']
     
 # make vn_list by inspecting the first section
 ds = xr.open_dataset(in_dir / sect_list[0])
