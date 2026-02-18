@@ -129,7 +129,7 @@ for which_vol in vol_list:
             vn_list.remove(vn)
     if testing:
         # further trimming of vn_list
-        vn_list = ['salt','temp']
+        vn_list = ['salt','temp', 'oxygen']
     # add volume to vn_list
     vn_list += ['volume']
      

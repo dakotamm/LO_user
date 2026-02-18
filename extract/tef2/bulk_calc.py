@@ -102,7 +102,7 @@ for snp in sect_list:
         Q_dict[vn][:,:-1] = np.fliplr(np.cumsum(np.fliplr(TEF_lp[vn]), axis=1))
 
     # prepare arrays to hold multi-layer output
-    nlay =  31#30
+    nlay =  31 # 30 DM changed 20260217
     nmat = np.nan * np.ones((NT, nlay))
     MLO = dict()
     for vn in vn_list:
