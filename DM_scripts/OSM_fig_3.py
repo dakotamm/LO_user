@@ -37,7 +37,7 @@ Ldir['ds1'] = '2017.09.18'
 
 # %%
 
-def generate_buda_colors(n_colors=3):
+def generate_lajolla_colors(n_colors=3):
     """
     Generates a list of n colors from the 'batlow' colormap.
 
@@ -48,7 +48,7 @@ def generate_buda_colors(n_colors=3):
         list: A list of RGBA color tuples.
     """
     # Access the batlow colormap from cmcrameri
-    cmap = cmc.buda
+    cmap = cmc.lajolla
     
     # Generate evenly spaced values from 0 to 1 to sample the colormap
     # We use np.linspace to get n_colors evenly spaced points
@@ -61,7 +61,7 @@ def generate_buda_colors(n_colors=3):
     return colors.tolist()
 
 # Generate the three batlow colors
-three_colors = generate_buda_colors(3)
+three_colors = generate_lajolla_colors(3)
 
 # %%
 fng = Ldir['grid'] / 'grid.nc'
@@ -201,6 +201,8 @@ ax.plot(times, wind_mag, color = 'k')
 
 ax.text(0.025,0.85, '10m wind speed at entrance', transform=ax.transAxes, fontweight='bold', color = 'k')
 
+ax.set_ylim(top =10)
+
 ax.set_ylabel(r'$[m/s]$')
 
 ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
@@ -219,7 +221,9 @@ ax.plot(times, temp_bottom, color = 'k')
 
 ax.text(0.025,0.85, 'bottom temperature at entrance', transform=ax.transAxes, fontweight='bold', color = 'k')
 
-ax.set_ylabel(r'[°C]')
+ax.set_ylim(top =12)
+
+ax.set_ylabel(r'$[°C]$')
 
 ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
 
@@ -237,8 +241,9 @@ qprism_times = ds.qprism.time
 
 ax.plot(qprism_times[1:-2], qprism[1:-2], color = 'k')
 
-ax.text(0.025,0.85, 'tidal prism flow rate ' + r'$Q_{prism}$', transform=ax.transAxes, fontweight='bold', color = 'k')
+ax.text(0.025,0.85, 'tidal prism flow rate across entrance ' + r'$(\mathbf{Q_{prism}})$', transform=ax.transAxes, fontweight='bold', color = 'k')
 
+ax.set_ylim(top =1.2)
 
 ax.set_ylabel(r'$[km^3/s]$')
 
@@ -274,15 +279,16 @@ for m in m_list:
     
     c+=1
     
+ax.text(0.025,0.85, '[DO] at bottom at three points', transform=ax.transAxes, fontweight='bold', color = 'k')
+    
 ax.axhspan(0,2, color = 'lightgray', alpha = 0.5, zorder=-5, label='Hypoxia')
 
-    
+ax.set_ylim(0,12)
 
-ax.set_ylim(0,10)
-
-ax.set_ylabel('Bottom [DO] [mg/L]')
+ax.set_ylabel(r'$[mg/L]$')
 
 ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+
 
 import matplotlib.dates as mdates
 
