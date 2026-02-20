@@ -148,7 +148,7 @@ fig, ax = plt.subplots(figsize=(6,6))
 
 ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
 
-cs = ax.pcolormesh(plon,plat,accum,vmin = 0,vmax=20, cmap=cm.batlow)
+cs = ax.pcolormesh(plon,plat,accum,vmin = 0,vmax=30, cmap=cm.batlow)
 
 
 
@@ -163,7 +163,7 @@ pfun.dar(ax)
 ax.set_ylim(48.21, 48.25)
 ax.set_xlim(-122.740, -122.64)
 
-ax.set_xticks([-122.72, -122.68, -122.64], ['-122.72','-122.68', '-122.64'])
+ax.set_xticks([-122.73, -122.69, -122.65], ['-122.72','-122.68', '-122.64'])
 
 ax.set_yticks([48.21, 48.23, 48.25], ['48.21','48.23', '48.25'])
 
