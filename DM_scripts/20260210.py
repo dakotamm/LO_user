@@ -340,7 +340,7 @@ for tide in ['neap', 'spring']:
     
     ax.set_title(tide + ' DO [mg/L] ' + 'Bottom\n' +Ldir['ds0']+ '-' + Ldir['ds1'])
     
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pc_bottom_DO_springneap_2017.09.05-2017.09.18_wquiver.png', dpi=500, transparent=False, bbox_inches='tight')
+#plt.savefig('/Users/dakotamascarenas/Desktop/pltz/pc_bottom_DO_springneap_2017.09.05-2017.09.18_wquiver.png', dpi=500, transparent=False, bbox_inches='tight')
     
 # %%
 

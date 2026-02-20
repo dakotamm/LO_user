@@ -36,6 +36,34 @@ Ldir['ds0'] = '2017.09.05'
 Ldir['ds1'] = '2017.09.18'
 
 # %%
+
+def generate_batlow_colors(n_colors=3):
+    """
+    Generates a list of n colors from the 'batlow' colormap.
+
+    Args:
+        n_colors (int): The number of colors to generate.
+
+    Returns:
+        list: A list of RGBA color tuples.
+    """
+    # Access the batlow colormap from cmcrameri
+    cmap = cmc.batlow
+    
+    # Generate evenly spaced values from 0 to 1 to sample the colormap
+    # We use np.linspace to get n_colors evenly spaced points
+    sample_points = np.linspace(0, 1, n_colors)
+
+    # Get the colors from the colormap
+    # cmap returns RGBA values as a numpy array
+    colors = cmap(sample_points)
+    
+    return colors.tolist()
+
+# Generate the three batlow colors
+three_colors = generate_batlow_colors(4)
+
+# %%
 fng = Ldir['grid'] / 'grid.nc'
 dsg = xr.open_dataset(fng)
 lon_rho = dsg.lon_rho.values
@@ -92,9 +120,10 @@ z_rho, z_w = zrfun.get_z(hh, zeta, S)
 
 # %%
 
-mosaic = [['qprism'], ['d_rho_d_z'], ['bot_DO_section'], ['wind'], ['bot_DO_in'], ['bot_DO_out']]
+mosaic = [['qprism'], ['M3_bottom_less_top_salinity'], ['M3_wind'], ['M1-M3-M5_bottom_DO']]
 
-fig, axd = plt.subplot_mosaic(mosaic, figsize=(9,9), layout='constrained', gridspec_kw=dict(wspace=0.1), sharex=True)
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(6,6), layout='constrained', gridspec_kw=dict(wspace=0.1), sharex=True)
+
 
 ax = axd['qprism']
 
@@ -106,47 +135,48 @@ qprism = ds.qprism.values/1000
 
 qprism_times = ds.qprism.time
 
-ax.plot(qprism_times[1:-2], qprism[1:-2])
+ax.plot(qprism_times[1:-2], qprism[1:-2], color = 'k')
 
-ax.set_ylabel('Qprism [m^3/s]')
+ax.set_ylabel('Qprism [km^3/s]')
+
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
 
 
-ax = axd['d_rho_d_z']
 
-ds = xr.open_dataset('/Users/dakotamascarenas/LO_output/extract/wb1_r0_xn11b/tef2/extractions_2017.01.01_2017.12.31/pc0.nc')
+ax = axd['M3_bottom_less_top_salinity']
 
-df = pd.read_pickle('/Users/dakotamascarenas/LO_output/extract/tef2/sect_df_wb1_pc0.p')
+moor_dir = Ldir['LOo'] / 'extract'
 
-ij_pc0 = df[df['sn'] == 'pc0'][['i','j']]
+m = 'M3'
 
-lons = lon_1D[ij_pc0['i']]
+fn = m + '_2017.01.02_2017.12.30.nc'
+moor_fn = moor_dir / 'wb1_r0_xn11b' / 'moor' / 'pc0'/ fn
+ds = xr.open_dataset(moor_fn)
 
-lats = lat_1D[ij_pc0['j']]
-
+times = ds.ocean_time
 
 temp = ds.temp.values
 
 salt = ds.salt.values
 
-zeta = ds.zeta.values
-
 h = ds.h.values
 
-section_times = ds.time
+z_rho = ds.z_rho.values
 
+lats = ds.lat_rho.values
 
+lons = ds.lon_rho.values
 
-temp_bottom = temp[:,0,:]
+temp_bottom = temp[:,0]
 
-temp_top = temp[:,-1,:]
+temp_top = temp[:,-1]
 
-salt_bottom = salt[:,0,:]
+salt_bottom = salt[:,0]
 
-salt_top = salt[:,-1,:]
+salt_top = salt[:,-1]
 
-
-pres_top = gsw.p_from_z(z_rho[-1, ij_pc0['j'], ij_pc0['i']], lats) # pressure [dbar]
-pres_bottom = gsw.p_from_z(z_rho[0, ij_pc0['j'], ij_pc0['i']], lats) # pressure [dbar]
+pres_top = gsw.p_from_z(z_rho[:,-1], lats) # pressure [dbar]
+pres_bottom = gsw.p_from_z(z_rho[:,0], lats) # pressure [dbar]
 
 SA_top = gsw.SA_from_SP(salt_top, pres_top, lons, lats)
 SA_bottom = gsw.SA_from_SP(salt_bottom, pres_bottom, lons, lats)
@@ -158,51 +188,17 @@ CT_bottom = gsw.CT_from_pt(SA_bottom, temp_bottom)
 rho_top = gsw.rho(SA_top, CT_top, pres_top)
 rho_bottom = gsw.rho(SA_bottom, CT_bottom, pres_bottom)
 
-
 d_rho = rho_bottom - rho_top
 
-d_rho_d_z = d_rho/h
+ax.plot(times, d_rho, color = 'k')
 
-d_rho_d_z_avg = d_rho_d_z.mean(axis = 1)
+ax.set_ylabel('drho [g/kg]')
 
-
-ax.plot(section_times, d_rho_d_z_avg)
-
-ax.set_ylabel('drho/dz [g/kg/m]')
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
 
 
 
-ax = axd['bot_DO_section']
-
-oxygen = ds.oxygen.values*32/1000
-
-oxygen_bottom = oxygen[:,0,:]
-
-oxygen_bottom_avg = oxygen_bottom.mean(axis=1)
-
-
-ax.plot(section_times, oxygen_bottom_avg)
-
-ax.set_ylim(0,10)
-
-
-ax.set_ylabel('bot DO, section [mgL]')
-
-
-
-ax = axd['wind']
-
-
-moor_dir = Ldir['LOo'] / 'extract'
-
-m = 'M1'
-
-fn = m + '_2017.01.02_2017.12.30.nc'
-moor_fn = moor_dir / 'wb1_r0_xn11b' / 'moor' / 'pc0'/ fn
-ds = xr.open_dataset(moor_fn)
-
-oxygen_times = ds.ocean_time
-
+ax = axd['M3_wind']
 
 uwind = ds.Uwind.values
 
@@ -210,57 +206,51 @@ vwind = ds.Vwind.values
 
 wind_mag = np.hypot(uwind, vwind)
 
-ax.plot(oxygen_times, wind_mag)
+ax.plot(times, wind_mag, color = 'k')
 
 ax.set_ylabel('wind mag [m/s]')
 
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
 
 
 
-ax = axd['bot_DO_in']
-
-
-oxygen = ds.oxygen.values*32/1000
-
-oxygen_times = ds.ocean_time
-
-oxygen_bottom = oxygen[:,0]
-
-ax.plot(oxygen_times, oxygen_bottom)
-
-ax.set_ylim(0,10)
-
-
-ax.set_ylabel('bot DO, in [mgL]')
-
-
-ax = axd['bot_DO_out']
+ax = axd['M1-M3-M5_bottom_DO']
 
 
 moor_dir = Ldir['LOo'] / 'extract'
 
-m = 'M5'
+m_list = ['M1', 'M3', 'M5']
 
-fn = m + '_2017.01.02_2017.12.30.nc'
-moor_fn = moor_dir / 'wb1_r0_xn11b' / 'moor' / 'pc0'/ fn
-ds = xr.open_dataset(moor_fn)
+c=0
 
+for m in m_list:
 
+    fn = m + '_2017.01.02_2017.12.30.nc'
+    moor_fn = moor_dir / 'wb1_r0_xn11b' / 'moor' / 'pc0'/ fn
+    ds = xr.open_dataset(moor_fn)
+    
+    times = ds.ocean_time
 
-oxygen = ds.oxygen.values*32/1000
+    oxygen = ds.oxygen.values*32/1000
 
-oxygen_times = ds.ocean_time
+    oxygen_bottom = oxygen[:,0]
 
-oxygen_bottom = oxygen[:,0]
-
-ax.plot(oxygen_times, oxygen_bottom)
+    ax.plot(times, oxygen_bottom, color = three_colors[c], label = m)
+    
+    ax.legend()
+    
+    c+=1
+    
 
 ax.set_ylim(0,10)
 
-ax.set_ylabel('bot DO, out [mgL]')
+ax.set_ylabel('bot DO [mgL]')
+
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
 
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/splat.png', bbox_inches='tight', dpi=500, transparent=False)
+
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/OSM26_fig_3.png', bbox_inches='tight', dpi=500, transparent=True)
 
 
 
