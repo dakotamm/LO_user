@@ -144,7 +144,7 @@ outdir = Ldir['LOo'] / 'DM_outs'
 
 Lfun.make_dir(outdir)
 
-fig, ax = plt.subplots(figsize=(6,4))
+fig, ax = plt.subplots(figsize=(6,3))
 
 ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
 
