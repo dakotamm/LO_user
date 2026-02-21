@@ -144,7 +144,7 @@ outdir = Ldir['LOo'] / 'DM_outs'
 
 Lfun.make_dir(outdir)
 
-fig, ax = plt.subplots(figsize=(6,6))
+fig, ax = plt.subplots(figsize=(6,4))
 
 ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
 
@@ -169,7 +169,7 @@ ax.set_yticks([48.21, 48.23, 48.25], ['48.21','48.23', '48.25'])
 
 
 
-fig.colorbar(cs, ax=ax, shrink=0.6, label = 'Hypoxic Days')
+fig.colorbar(cs, ax=ax, label = 'Hypoxic Days')
 
 #ax.set_title('2017 Hypoxic Days')
 

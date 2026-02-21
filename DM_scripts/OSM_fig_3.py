@@ -173,7 +173,15 @@ rho_bottom = gsw.rho(SA_bottom, CT_bottom, pres_bottom)
 
 d_rho = rho_bottom - rho_top
 
-#ax.axvspan()
+ax.axvspan(np.datetime64('2017-08-01'), np.datetime64('2017-08-06'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-05'), np.datetime64('2017-09-11'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-12'), np.datetime64('2017-09-18'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-11-21'), np.datetime64('2017-11-27'), color='k', alpha =0.25, edgecolor = 'white')
+
+
 
 ax.plot(times, d_rho, color = 'k')
 
@@ -197,6 +205,14 @@ vwind = ds.Vwind.values
 
 wind_mag = np.hypot(uwind, vwind)
 
+ax.axvspan(np.datetime64('2017-08-01'), np.datetime64('2017-08-06'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-05'), np.datetime64('2017-09-11'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-12'), np.datetime64('2017-09-18'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-11-21'), np.datetime64('2017-11-27'), color='k', alpha =0.25, edgecolor = 'white')
+
 ax.plot(times, wind_mag, color = 'k')
 
 ax.text(0.025,0.85, '10m wind speed at entrance', transform=ax.transAxes, fontweight='bold', color = 'k')
@@ -216,6 +232,14 @@ temp = ds.temp.values
 temp_bottom = temp[:,0]
 
 wind_mag = np.hypot(uwind, vwind)
+
+ax.axvspan(np.datetime64('2017-08-01'), np.datetime64('2017-08-06'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-05'), np.datetime64('2017-09-11'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-12'), np.datetime64('2017-09-18'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-11-21'), np.datetime64('2017-11-27'), color='k', alpha =0.25, edgecolor = 'white')
 
 ax.plot(times, temp_bottom, color = 'k')
 
@@ -239,6 +263,14 @@ qprism = ds.qprism.values/1000
 
 qprism_times = ds.qprism.time
 
+ax.axvspan(np.datetime64('2017-08-01'), np.datetime64('2017-08-06'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-05'), np.datetime64('2017-09-11'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-12'), np.datetime64('2017-09-18'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-11-21'), np.datetime64('2017-11-27'), color='k', alpha =0.25, edgecolor = 'white')
+
 ax.plot(qprism_times[1:-2], qprism[1:-2], color = 'k')
 
 ax.text(0.025,0.85, 'tidal prism flow rate across entrance ' + r'$(\mathbf{Q_{prism}})$', transform=ax.transAxes, fontweight='bold', color = 'k')
@@ -259,6 +291,14 @@ moor_dir = Ldir['LOo'] / 'extract'
 
 m_list = ['M1', 'M3', 'M5']
 
+ax.axvspan(np.datetime64('2017-08-01'), np.datetime64('2017-08-06'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-05'), np.datetime64('2017-09-11'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-12'), np.datetime64('2017-09-18'), color='k', alpha =0.25, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-11-21'), np.datetime64('2017-11-27'), color='k', alpha =0.25, edgecolor = 'white')
+
 c=0
 
 for m in m_list:
@@ -272,6 +312,7 @@ for m in m_list:
     oxygen = ds.oxygen.values*32/1000
 
     oxygen_bottom = oxygen[:,0]
+    
 
     ax.plot(times, oxygen_bottom, color = three_colors[c]) #, label = m)
     

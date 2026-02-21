@@ -77,7 +77,7 @@ site_list = ['point_jefferson', 'near_seattle_offshore', 'saratoga_passage_mid',
 red =     "#4565e8"
 blue =     "#e04256"
 mosaic = [['map_big', 'map_ps']]
-fig, axd = plt.subplot_mosaic(mosaic, figsize=(6,6), layout='constrained', gridspec_kw=dict(wspace=0.1))
+fig, axd = plt.subplot_mosaic(mosaic, figsize=(5,5), layout='constrained', gridspec_kw=dict(wspace=0.1))
 ax = axd['map_big']
 ax.pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-1.25, vmax=0, cmap = 'Blues', zorder=-5)
 ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
@@ -85,10 +85,10 @@ ax.set_xlim(-127,-122)
 ax.set_ylim(47,50)
 # ax.scatter(-126.67, 48.65, color='k')
 # ax.text(-126.55, 48.6, 'P4', fontsize = 10, color = 'black')
-ax.plot([-123.2, -122.1], [47, 47], color='k')
-ax.plot([-123.2, -122.1], [48.5, 48.5], color='k')
-ax.plot([-123.2, -123.2], [47, 48.5], color='k')
-ax.plot([-122.1, -122.1], [47, 48.5], color='k')
+ax.plot([-123.2, -122.1], [47, 47], color='k', linewidth=0.5)
+ax.plot([-123.2, -122.1], [48.5, 48.5], color='k', linewidth=0.5)
+ax.plot([-123.2, -123.2], [47, 48.5], color='k', linewidth=0.5)
+ax.plot([-122.1, -122.1], [47, 48.5], color='k', linewidth=0.5)
 # ax.text(0.1,0.2, 'Pacific\nOcean', transform=ax.transAxes, fontsize = 14, color = 'black')
 # ax.text(0.8,0.7, 'Salish\nSea', transform=ax.transAxes, multialignment= 'center', ha='center', fontsize = 14, color = 'black')
 # ax.text(0.5,0.85, 'British Columbia,\nCanada', transform=ax.transAxes, multialignment= 'center', fontsize = 12, color = 'gray')
@@ -102,10 +102,10 @@ ffun.dar(ax)
 ax = axd['map_ps']
 ax.pcolormesh(plon, plat, zm, linewidth=0.5, vmin=-1.25, vmax=0, cmap = 'Blues', zorder=-5)
 ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
-ax.plot([-122.836, -122.1], [47.836, 47.836], color='k')
-ax.plot([-122.836, -122.1], [48.5, 48.5], color='k')
-ax.plot([-122.836, -122.836], [47.836, 48.5], color='k')
-ax.plot([-122.1, -122.1], [47.836, 48.5], color='k')
+ax.plot([-122.836, -122.1], [47.836, 47.836], color='k', linewidth=0.5)
+ax.plot([-122.836, -122.1], [48.5, 48.5], color='k', linewidth=0.5)
+ax.plot([-122.836, -122.836], [47.836, 48.5], color='k', linewidth=0.5)
+ax.plot([-122.1, -122.1], [47.836, 48.5], color='k', linewidth=0.5)
 # for site in site_list:
 #     path = site_polygon_dict[site]      
 #     if site in ['near_seattle_offshore']:
