@@ -120,7 +120,7 @@ z_rho, z_w = zrfun.get_z(hh, zeta, S)
 
 # %%
 
-mosaic = [['M3_bottom_less_top_salinity'], ['M3_wind'], ['M3_bottom_temp'], ['qprism'], ['M1-M3-M5_bottom_DO']]
+mosaic = [['M3_bottom_less_top_salinity'], ['M3_wind'], ['M3_bottom_temp'], ['qprism'], ['M1-M3-M5_surface_w'], ['M1-M3-M5_surface_phytoN'], ['M1-M3-M5_bottom_DO']]
 
 fig, axd = plt.subplot_mosaic(mosaic, figsize=(6,8), layout='constrained', gridspec_kw=dict(wspace=0.1), sharex=True)
 
@@ -284,7 +284,7 @@ ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
 
 
 
-ax = axd['M1-M3-M5_bottom_DO']
+ax = axd['M1-M3-M5_surface_w']
 
 
 moor_dir = Ldir['LOo'] / 'extract'
@@ -298,6 +298,81 @@ ax.axvspan(np.datetime64('2017-09-05'), np.datetime64('2017-09-11'), color='k', 
 ax.axvspan(np.datetime64('2017-09-12'), np.datetime64('2017-09-18'), color='k', alpha =0.15, edgecolor = 'white')
 
 ax.axvspan(np.datetime64('2017-11-21'), np.datetime64('2017-11-27'), color='k', alpha =0.15, edgecolor = 'white')
+
+c=0
+
+for m in m_list:
+
+    fn = m + '_2017.01.02_2017.12.30.nc'
+    moor_fn = moor_dir / 'wb1_r0_xn11b' / 'moor' / 'pc0'/ fn
+    ds = xr.open_dataset(moor_fn)
+    
+    times = ds.ocean_time
+
+    w = ds.w.values
+
+    w_surface = w[:,-1]
+    
+
+    ax.plot(times, w_surface, color = three_colors[c]) #, label = m)
+    
+    #ax.legend()
+    
+    c+=1
+    
+ax.text(0.025,0.85, 'w at surface at three points', transform=ax.transAxes, fontweight='bold', color = 'k')
+    
+#ax.set_ylim(0,12)
+
+ax.set_ylabel(r'$[m/s]$')
+
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+
+
+
+ax = axd['M1-M3-M5_surface_phytoN']
+
+ax.axvspan(np.datetime64('2017-08-01'), np.datetime64('2017-08-07'), color='k', alpha =0.15, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-05'), np.datetime64('2017-09-11'), color='k', alpha =0.15, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-09-12'), np.datetime64('2017-09-18'), color='k', alpha =0.15, edgecolor = 'white')
+
+ax.axvspan(np.datetime64('2017-11-21'), np.datetime64('2017-11-27'), color='k', alpha =0.15, edgecolor = 'white')
+
+c=0
+
+for m in m_list:
+
+    fn = m + '_2017.01.02_2017.12.30.nc'
+    moor_fn = moor_dir / 'wb1_r0_xn11b' / 'moor' / 'pc0'/ fn
+    ds = xr.open_dataset(moor_fn)
+    
+    times = ds.ocean_time
+
+    phytoplankton = ds.phytoplankton.values*14/1000
+
+    phytoplankton_surface = phytoplankton[:,-1]
+    
+
+    ax.plot(times, phytoplankton_surface, color = three_colors[c]) #, label = m)
+    
+    #ax.legend()
+    
+    c+=1
+    
+ax.text(0.025,0.85, 'phytoplankton [N] at surface at three points', transform=ax.transAxes, fontweight='bold', color = 'k')
+    
+#ax.set_ylim(0,12)
+
+ax.set_ylabel(r'$[mg/L]$')
+
+ax.grid(color = 'lightgray', linestyle = '--', alpha=0.5)
+
+
+
+ax = axd['M1-M3-M5_bottom_DO']
+
 
 c=0
 
@@ -358,7 +433,7 @@ bottom_ax.set_xlabel('2017')
 
 
 
-plt.savefig('/Users/dakotamascarenas/Desktop/pltz/OSM26_fig_3.png', bbox_inches='tight', dpi=500, transparent=True)
+plt.savefig('/Users/dakotamascarenas/Desktop/pltz/timeseries_exploring.png', bbox_inches='tight', dpi=500, transparent=False)
 
 
 

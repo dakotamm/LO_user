@@ -118,7 +118,7 @@ for i in [0,1,2,3]:
 
         Ldir['ds0'] = '2017.08.01'
         
-        Ldir['ds1'] = '2017.08.06'
+        Ldir['ds1'] = '2017.08.07'
         
     elif i == 1:
         
@@ -152,7 +152,7 @@ for i in [0,1,2,3]:
     
     transport_mean = transport.mean(axis=0)
     
-    fig, ax = plt.subplots(figsize = (6,3))
+    fig, ax = plt.subplots(figsize=(4,2))
     
     ax.axhspan(-27,0, color = '#f4f6f6')
     

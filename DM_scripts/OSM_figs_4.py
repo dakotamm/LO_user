@@ -114,7 +114,7 @@ for i in [0,1,2,3]:
 
         Ldir['ds0'] = '2017.08.01'
         
-        Ldir['ds1'] = '2017.08.06'
+        Ldir['ds1'] = '2017.08.07'
         
     elif i == 1:
         
@@ -193,12 +193,12 @@ for i in [0,1,2,3]:
     mean_bottom_oxygen_2d = sum_bottom_oxygen / count
     
     
-    fig, ax = plt.subplots(figsize=(6,3))
+    fig, ax = plt.subplots(figsize=(4,2))
     
         
     ax.pcolormesh(plon, plat, zm_inverse, linewidth=0.5, vmin=-20, vmax=0, cmap = 'gray', zorder=-5)
     
-    cs = ax.pcolormesh(plon, plat, mean_bottom_oxygen_2d, cmap=cmc.lajolla, vmin=0,vmax=10)
+    cs = ax.pcolormesh(plon, plat, mean_bottom_oxygen_2d, cmap=cmc.lajolla_r, vmin=0,vmax=10)
     
     cont = ax.contour(lon_rho, lat_rho, mean_bottom_oxygen_2d, levels=[2], colors='red', linewidths=1)
     
@@ -235,7 +235,7 @@ for i in [0,1,2,3]:
     
     # ADD VELOCITY VECTORS # FROM PFUN ADAPTED 20260210
     nngrid = 200
-    v_scl = 1
+    v_scl = 0.75
     v_leglen=0.1
     center=(.8,.05)
     # set masked values to 0
@@ -255,9 +255,9 @@ for i in [0,1,2,3]:
     
     mask = uu != 0
     # plot velocity vectors
-    Q = ax.quiver(xx[mask], yy[mask], uu[mask], vv[mask],
-        scale=v_scl, scale_units='width', color='white', units='width')
-    plt.quiverkey(Q, .9, .1, v_leglen, str(v_leglen)+' $ms^{-1}$', angle=20, color='black')
+    Q = ax.quiver(xx[mask], yy[mask], uu[mask], vv[mask],   
+                  scale=v_scl, scale_units='width', color='white', units='width')
+    plt.quiverkey(Q, .15, .8, v_leglen, str(v_leglen)+' $ms^{-1}$', angle=20, color='black')
     
     
     pfun.add_coast(ax)
