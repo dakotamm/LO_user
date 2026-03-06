@@ -82,5 +82,5 @@ dict_tmp = {'t': t,
             'vol_hrly': vol_hrly,
             'surf_s_flux': surf_s_flux
            }
-dir1 = Ldir['LOo'] / 'extract' / 'tef2'
+dir1 = Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'tef2'
 pickle.dump(dict_tmp, open(dir1 / ("vol_SV_hrly_"+Ldir['ds0'] +'_' + Ldir['ds1']+'_'+Ldir['gtagex']+'.p'),'wb'))
