@@ -16,8 +16,8 @@ tt0 = time()
 #
 Ldir = Lfun.Lstart(gridname = 'wb1', tag = 'r0', ex_name = 'xn11b')
 Ldir['collection_tag'] = 'pc0'
-Ldir['ds0'] = '2017.09.05'
-Ldir['ds1'] = '2017.09.17'
+Ldir['ds0'] = '2017.09.01'
+Ldir['ds1'] = '2017.09.30'
 Ldir['riv'] = 'riv00'
 sect_gctag = Ldir['gridname'] + '_' + Ldir['collection_tag']
 
