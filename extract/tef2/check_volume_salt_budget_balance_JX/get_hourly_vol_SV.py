@@ -30,8 +30,10 @@ ji_list = seg_df['pc0_m']['ji_list']
 jj = [x[0] for x in ji_list]
 ii = [x[1] for x in ji_list]
 
-
-in_dir = Ldir['roms_out'] / Ldir['gtagex']
+if Ldir['lo_env'] == 'dm_apogee':
+    in_dir = Ldir['roms_out2'] / Ldir['gtagex']
+else:
+    in_dir = Ldir['roms_out'] / Ldir['gtagex']
 G, S, T = zrfun.get_basic_info(in_dir / ('f' + Ldir['ds0']) / 'ocean_his_0002.nc')
 
 fn0 = xr.open_dataset(in_dir / ('f' + Ldir['ds0']) / 'ocean_his_0002.nc')
