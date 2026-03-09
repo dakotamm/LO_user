@@ -38,7 +38,7 @@ import matplotlib.patches as patches
 
 import cmocean as cmo 
 
-from cmcrameri import cmc
+from cmcrameri import cm as cmc
 
 
 
