@@ -19,9 +19,11 @@ from lo_tools import plotting_functions as pfun
 
 # exchange flow
 # at jdf1
-in_dir=Path('./data/jdf1_2017.nc') # DM - I think this is bulk output
+in_dir=Path('/Users/dakotamascarenas/LO_output/extract/wb1_r0_xn11b/tef2/bulk_2017.09.01_2017.09.30/pc0.nc') # DM - I think this is bulk output
 bulk = xr.open_dataset(in_dir)
 tef_df, vn_list, vec_list = get_two_layer.get_two_layer(bulk)
+
+# %%
 salt_p_jdf1 = tef_df['salt_p'] # 
 salt_m_jdf1 = tef_df['salt_m'] # 
 Q_p_jdf1 = tef_df['q_p'] # Qout
@@ -30,42 +32,47 @@ sf_p_jdf1 = salt_p_jdf1 * Q_p_jdf1 # salt flux
 sf_m_jdf1 = salt_m_jdf1 * Q_m_jdf1
 
 #%%-----------------------------
-# at sog6
-in_dir=Path('./data/sog6_2017.nc')
-bulk = xr.open_dataset(in_dir)
-tef_df, vn_list, vec_list = get_two_layer.get_two_layer(bulk)
-salt_p_sog6 = tef_df['salt_p']
-salt_m_sog6 = tef_df['salt_m']
-Q_p_sog6 = tef_df['q_p'] # Qout
-Q_m_sog6 = tef_df['q_m'] # Qin
+# # at sog6
+# in_dir=Path('./data/sog6_2017.nc')
+# bulk = xr.open_dataset(in_dir)
+# tef_df, vn_list, vec_list = get_two_layer.get_two_layer(bulk)
+# salt_p_sog6 = tef_df['salt_p']
+# salt_m_sog6 = tef_df['salt_m']
+# Q_p_sog6 = tef_df['q_p'] # Qout
+# Q_m_sog6 = tef_df['q_m'] # Qin
 
-sf_p_sog6 = salt_p_sog6 * Q_p_sog6 # salt flux
-sf_m_sog6 = salt_m_sog6 * Q_m_sog6
+# sf_p_sog6 = salt_p_sog6 * Q_p_sog6 # salt flux
+# sf_m_sog6 = salt_m_sog6 * Q_m_sog6
 
 # add jdf1 and sog6 together
-Qin  = Q_m_jdf1 + Q_m_sog6
-Qout = Q_p_jdf1 + Q_p_sog6
-Fin  = sf_m_jdf1 + sf_m_sog6
-Fout = sf_p_jdf1 + sf_p_sog6
+# Qin  = Q_m_jdf1 + Q_m_sog6
+# Qout = Q_p_jdf1 + Q_p_sog6
+# Fin  = sf_m_jdf1 + sf_m_sog6
+# Fout = sf_p_jdf1 + sf_p_sog6
+# %%
+Qin = Q_m_jdf1
+Qout = Q_p_jdf1
+Fin = sf_m_jdf1
+Fout = sf_p_jdf1
 
 ot = bulk['time']
 
 #%% river discharge
-seg_name = './data/seg_info_dict_cas7_c2_trapsV00.p'
+seg_name = '/Users/dakotamascarenas/LO_output/extract/tef2/seg_info_dict_wb1_pc0_riv00.p'
 seg_df = pd.read_pickle(seg_name)
-ji_list = seg_df['sog6_m']['ji_list']
+ji_list = seg_df['pc0_m']['ji_list']
 jj = [x[0] for x in ji_list]
 ii = [x[1] for x in ji_list]
 
 # all rivers inside the segment - Salish
-riv_list = seg_df['sog6_m']['riv_list']
+riv_list = seg_df['pc0_m']['riv_list']
 
 # all river names in LO domain
-fn = './data/rivers.nc'
+fn = '/Users/dakotamascarenas/LO_output/forcing/wb1/f2017.07.04/riv00/rivers.nc'
 ds = xr.open_dataset(fn)
 river_name_all = ds.river_name.values
 
-fn_riv = './data/extraction_2016.01.01_2018.12.31.nc'
+fn_riv = '/Users/dakotamascarenas/LO_output/pre/river1/wb1_riv00/Data_roms/extraction_2017.09.01_2017.09.30.nc'
 ds_riv = xr.open_dataset(fn_riv)
 t_riv = ds_riv.time.values # daily
 Q_riv = ds_riv.transport.values
@@ -79,13 +86,13 @@ Q_riv_sum = np.zeros(Q_riv.shape[0])
 for riv in riv_list:
     Q_riv_sum += Q_riv_tmp[riv]
 
-# get 2017 river discharge
-t_riv_2017 = t_riv[366:731]
-Q_riv_2017 = Q_riv_sum[366:731]
+#get 2017 river discharge
+t_riv_2017 = t_riv[1:-1]
+Q_riv_2017 = Q_riv_sum[1:-1]
 
 #%% check volume balance
-dir0 = Path('./data/'); #hourly volume, S*V, and EminusP
-fn_list = sorted(dir0.glob('vol_SV_hrly_*.p'))
+dir0 = Path('/Users/dakotamascarenas/LO_output/extract/wb1_r0_xn11b/tef2/'); #hourly volume, S*V, and EminusP
+fn_list = sorted(dir0.glob('vol_SV_hrly_2017.09.01_2017.09.30_wb1_r0_xn11b.p'))
 t1=[] 
 vol_hrly = []
 salt_vol_sum_hrly = []
@@ -100,12 +107,13 @@ for fn in fn_list:
 
 vol_hrly = np.array(vol_hrly)
 dVdt = np.diff(vol_hrly)/3600
+#dVdt_noon = dVdt[36:-34:24]
 dVdt_lp = zfun.lowpass(dVdt, f='godin')[36:-30:24]
 vol_lp  = zfun.lowpass(vol_hrly, f='godin')[36:-34:24]
-t1 = np.array(t1)
+t1 = np.array(t1)#[:,0]
 t1_noon = t1[36:-34:24][:,0]
 
-error = -Qin-Qout + Q_riv_2017 - dVdt_lp
+error = -Qin-Qout + Q_riv_2017 - dVdt_lp #dVdt_noon #dVdt_lp
 
 fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(211)
@@ -114,9 +122,16 @@ plt.plot(t1_noon, dVdt_lp, c='r', label='storage', lw=1)
 plt.plot(t1_noon, error, 'gray', lw=2, label='Error')
 plt.legend(ncol=3, loc='upper center')
 plt.ylabel('m$^3$ s$^{-1}$', fontsize=12)
-plt.xticks(fontsize=12); plt.yticks(fontsize=12)
+#plt.xticks(fontsize=12); plt.yticks(fontsize=12)
+#plt.ylim(-100,100)
 
-plt.xlim(datetime(2017,1,1), datetime(2018,1,1))
+#plt.plot(t1[:-1,0], dVdt)
+
+plt.plot(t1[:,0], vol_hrly- vol_hrly.mean())
+
+
+plt.plot(t1_noon, -Qin-Qout, color = 'm')
+#plt.xlim(datetime(2017,1,1), datetime(2018,1,1))
 plt.grid(which='major')
 plt.title('Volume budget')
 
@@ -136,9 +151,9 @@ plt.plot(t1_noon, dSvol_dt_lp, c='r', label='storage', lw=1)
 plt.plot(t1_noon, error, 'gray', lw=2, label='Error')
 plt.legend(ncol=3, loc='upper center')
 plt.ylabel('g kg$^{-1}$ m$^3$ s$^{-1}$', fontsize=12)
-plt.xticks(fontsize=12); plt.yticks(fontsize=12)
+#plt.xticks(fontsize=12); plt.yticks(fontsize=12)
 
-plt.xlim(datetime(2017,1,1), datetime(2018,1,1))
+#plt.xlim(datetime(2017,1,1), datetime(2018,1,1))
 plt.grid(which='major')
 plt.title('Salt budget')
 
