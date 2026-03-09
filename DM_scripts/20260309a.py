@@ -50,7 +50,7 @@ Ldir['ds0'] = '2017.01.02'
 
 Ldir['ds1'] = '2017.12.30'
 
-Ldir['list_type'] = 'lowpass'
+Ldir['list_type'] = 'daily'
 
 Ldir['his_num'] = 2
 
