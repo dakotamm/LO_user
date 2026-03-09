@@ -46,9 +46,9 @@ Ldir = Lfun.Lstart(gridname='wb1', tag='r0', ex_name='xn11b')
 
 # %%
 
-Ldir['ds0'] = '2017.01.01'
+Ldir['ds0'] = '2017.01.02'
 
-Ldir['ds1'] = '2017.12.31'
+Ldir['ds1'] = '2017.12.30'
 
 Ldir['list_type'] = 'lowpass'
 
