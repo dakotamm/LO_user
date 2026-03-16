@@ -50,7 +50,7 @@ Ldir['ds0'] = '2017.01.02'
 
 Ldir['ds1'] = '2017.12.30'
 
-Ldir['list_type'] = 'daily'
+Ldir['list_type'] = 'lowpass'
 
 Ldir['his_num'] = 2
 
@@ -293,6 +293,16 @@ mask = (uu != 0) & (uu < 0.05)
 Q = ax.quiver(xx[mask], yy[mask], uu[mask], vv[mask],   
               scale=v_scl, scale_units='width', color='red', units='width')
 plt.quiverkey(Q, .15, .8, v_leglen, str(v_leglen)+' $ms^{-1}$', angle=20, color='black')
+
+    
+latsss = [48.248, 48.22]
+
+
+lonsss = [-122.65741176, -122.65741176]
+
+from matplotlib.patches import Polygon
+
+ax.plot(lonsss, latsss, color='0.5', lw=2)  # grey
 
 c = 0 
 for m in ['M1', 'M3', 'M5']:
