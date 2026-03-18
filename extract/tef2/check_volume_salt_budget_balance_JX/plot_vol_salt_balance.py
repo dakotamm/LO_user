@@ -118,19 +118,20 @@ error = -Qin-Qout + Q_riv_2017 - dVdt_lp #dVdt_noon #dVdt_lp
 fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(211)
 plt.plot(-Qin-Qout+Q_riv_2017, c='k', lw=2, label='Q$_{in}$+Q$_{out}$+Q$_r$')
+plt.plot(Qin*-1, color = 'm', label = '-Qin') # DM added 20260317
 plt.plot(t1_noon, dVdt_lp, c='r', label='storage', lw=1)
 plt.plot(t1_noon, error, 'gray', lw=2, label='Error')
-plt.legend(ncol=3, loc='upper center')
+plt.legend(ncol=4, loc='upper center')
 plt.ylabel('m$^3$ s$^{-1}$', fontsize=12)
 #plt.xticks(fontsize=12); plt.yticks(fontsize=12)
 #plt.ylim(-100,100)
 
 #plt.plot(t1[:-1,0], dVdt)
 
-plt.plot(t1[:,0], vol_hrly- vol_hrly.mean())
+#plt.plot(t1[:,0], vol_hrly- vol_hrly.mean())
 
 
-plt.plot(t1_noon, -Qin-Qout, color = 'm')
+#plt.plot(t1_noon, -Qin-Qout, color = 'm')
 #plt.xlim(datetime(2017,1,1), datetime(2018,1,1))
 plt.grid(which='major')
 plt.title('Volume budget')
@@ -147,9 +148,10 @@ surf_s_flux_lp = zfun.lowpass(np.array(surf_s_flux), f='godin')[36:-34:24]  # Em
 error = -Fin-Fout - dSvol_dt_lp
 ax = fig.add_subplot(212)
 plt.plot(-Fin-Fout+surf_s_flux_lp, c='k', lw=2, label='F$_{in}$+F$_{out}$+EminusP')
+plt.plot(Fin*-1, color = 'm', label = '-Fin')
 plt.plot(t1_noon, dSvol_dt_lp, c='r', label='storage', lw=1)
 plt.plot(t1_noon, error, 'gray', lw=2, label='Error')
-plt.legend(ncol=3, loc='upper center')
+plt.legend(ncol=4, loc='upper center')
 plt.ylabel('g kg$^{-1}$ m$^3$ s$^{-1}$', fontsize=12)
 #plt.xticks(fontsize=12); plt.yticks(fontsize=12)
 
@@ -157,4 +159,7 @@ plt.ylabel('g kg$^{-1}$ m$^3$ s$^{-1}$', fontsize=12)
 plt.grid(which='major')
 plt.title('Salt budget')
 
-#plt.savefig('Vol_salt_budget_balance_2017',dpi=300, bbox_inches='tight')
+plt.savefig('/Users/dakotamascarenas/desktop/pltz/Vol_salt_budget_balance_2017_w_in',dpi=300, bbox_inches='tight')
+
+
+
