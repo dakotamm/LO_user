@@ -29,13 +29,176 @@ import xarray as xr
 import numpy as np
 import pickle
 
+from datetime import datetime, timedelta
+
 gctag = Ldir['gridname'] + '_' + Ldir['collection_tag']
 tef2_dir = Ldir['LOo'] / 'extract' / 'tef2'
 
 sect_df_fn = tef2_dir / ('sect_df_' + gctag + '.p')
 sect_df = pd.read_pickle(sect_df_fn)
 
-fn_list = Lfun.get_fn_list('average', Ldir, Ldir['ds0'], Ldir['ds1'], his_num=Ldir['his_num']) #DM modified 20260319 for average
+ds_fmt = '%Y.%m.%d'
+
+
+### DM modified 20260319 for average hourly from Lfun
+
+def date_list_utility(dt0, dt1, daystep=1):
+    """
+    INPUT: start and end datetimes
+    OUTPUT: list of LiveOcean formatted dates
+    """
+    date_list = []
+    dt = dt0
+    while dt <= dt1:
+        date_list.append(dt.strftime(ds_fmt))
+        dt = dt + timedelta(days=daystep)
+    return date_list
+
+def fn_list_utility(dt0, dt1, Ldir, hourmax=24, his_num=2):
+    """
+    INPUT: start and end datetimes
+    OUTPUT: list of all history files expected to span the dates
+    - list items are Path objects
+    """
+    dir0 = Ldir['roms_out'] / Ldir['gtagex']
+    fn_list = []
+    date_list = date_list_utility(dt0, dt1)
+    if his_num == 1:
+        # New scheme 2023.10.05 to work with new or continuation start_type,
+        # by assuming we want to start with ocean_his_0001.nc of dt0
+        fn_list.append(dir0 / ('f'+dt0.strftime(ds_fmt)) / 'ocean_his_0001.nc')
+        for dl in date_list:
+            f_string = 'f' + dl
+            hourmin = 1
+            for nhis in range(hourmin+1, hourmax+2):
+                nhiss = ('0000' + str(nhis))[-4:]
+                fn = dir0 / f_string / ('ocean_his_' + nhiss + '.nc')
+                fn_list.append(fn)
+    else:
+        # For any other value of his_num we assume this is a perfect start_type
+        # and so there is no ocean_his_0001.nc on any day and we start with
+        # ocean_his_0025.nc of the day before.
+        dt00 = (dt0 - timedelta(days=1))
+        fn_list.append(dir0 / ('f'+dt00.strftime(ds_fmt)) / 'ocean_his_0025.nc')
+        for dl in date_list:
+            f_string = 'f' + dl
+            hourmin = 1
+            for nhis in range(hourmin+1, hourmax+2):
+                nhiss = ('0000' + str(nhis))[-4:]
+                fn = dir0 / f_string / ('ocean_his_' + nhiss + '.nc')
+                fn_list.append(fn)
+    return fn_list
+
+# DM created
+def fn_list_utility_avg(dt0, dt1, Ldir, hourmax=24, his_num=2):
+    """
+    INPUT: start and end datetimes
+    OUTPUT: list of all history files expected to span the dates
+    - list items are Path objects
+    """
+    dir0 = Ldir['roms_out'] / Ldir['gtagex']
+    fn_list = []
+    date_list = date_list_utility(dt0, dt1)
+    if his_num == 1:
+        # New scheme 2023.10.05 to work with new or continuation start_type,
+        # by assuming we want to start with ocean_his_0001.nc of dt0
+        fn_list.append(dir0 / ('f'+dt0.strftime(ds_fmt)) / 'ocean_avg_0001.nc')
+        for dl in date_list:
+            f_string = 'f' + dl
+            hourmin = 1
+            for nhis in range(hourmin+1, hourmax+2):
+                nhiss = ('0000' + str(nhis))[-4:]
+                fn = dir0 / f_string / ('ocean_avg_' + nhiss + '.nc')
+                fn_list.append(fn)
+    else:
+        # For any other value of his_num we assume this is a perfect start_type
+        # and so there is no ocean_his_0001.nc on any day and we start with
+        # ocean_his_0025.nc of the day before.
+        dt00 = (dt0 - timedelta(days=1))
+        fn_list.append(dir0 / ('f'+dt00.strftime(ds_fmt)) / 'ocean_avg_0025.nc')
+        for dl in date_list:
+            f_string = 'f' + dl
+            hourmin = 1
+            for nhis in range(hourmin+1, hourmax+2):
+                nhiss = ('0000' + str(nhis))[-4:]
+                fn = dir0 / f_string / ('ocean_avg_' + nhiss + '.nc')
+                fn_list.append(fn)
+    return fn_list
+
+def get_fn_list(list_type, Ldir, ds0, ds1, his_num=2):
+    """
+    INPUT:
+    A function for getting lists of history files.
+    List items are Path objects
+    
+    NEW 2023.10.05: for list_type = 'hourly', if you pass his_num = 1
+    it will start with ocean_his_0001.nc on the first day instead of the default which
+    is to start with ocean_his_0025.nc on the day before.
+
+    NEW 2025.06.20: for list_type = 'hourly0'
+    which will start with ocean_his_0001.nc on the first day instead of the default which
+    is to start with ocean_his_0025.nc on the day before.
+    This is identical to passing his_num = 1, but may be more convenient, especially
+    as we move to "continuation" start_type, which always writes an 0001 file.
+    """
+    dt0 = datetime.strptime(ds0, ds_fmt)
+    dt1 = datetime.strptime(ds1, ds_fmt)
+    dir0 = Ldir['roms_out'] / Ldir['gtagex']
+    if list_type == 'snapshot':
+        # a single file name in a list
+        his_string = ('0000' + str(his_num))[-4:]
+        fn_list = [dir0 / ('f' + ds0) / ('ocean_his_' + his_string + '.nc')]
+    elif list_type == 'hourly':
+        # list of hourly files over a date range
+        fn_list = fn_list_utility(dt0,dt1,Ldir,his_num=his_num)
+    elif list_type == 'hourly0':
+        # list of hourly files over a date range, starting with 0001 of dt0.
+        fn_list = fn_list_utility(dt0,dt1,Ldir,his_num=1)
+    elif list_type == 'daily':
+        # list of history file 21 (Noon PST) over a date range
+        fn_list = []
+        date_list = date_list_utility(dt0, dt1)
+        for dl in date_list:
+            f_string = 'f' + dl
+            fn = dir0 / f_string / 'ocean_his_0021.nc'
+            fn_list.append(fn)
+    elif list_type == 'lowpass':
+        # list of lowpassed files (Noon PST) over a date range
+        fn_list = []
+        date_list = date_list_utility(dt0, dt1)
+        for dl in date_list:
+            f_string = 'f' + dl
+            fn = dir0 / f_string / 'lowpassed.nc'
+            fn_list.append(fn)
+    elif list_type == 'average':
+        # list of daily averaged files (Noon PST) over a date range
+        fn_list = []
+        date_list = date_list_utility(dt0, dt1)
+        for dl in date_list:
+            f_string = 'f' + dl
+            fn = dir0 / f_string / 'ocean_avg_0001.nc'
+            fn_list.append(fn)
+    elif list_type == 'hourlyaverage':
+        # DM created 
+        fn_list = fn_list_utility_avg(dt0,dt1,Ldir,his_num=his_num)
+    elif list_type == 'weekly':
+        # like "daily" but at 7-day intervals
+        fn_list = []
+        date_list = date_list_utility(dt0, dt1, daystep=7)
+        for dl in date_list:
+            f_string = 'f' + dl
+            fn = dir0 / f_string / 'ocean_his_0021.nc'
+            fn_list.append(fn)
+    elif list_type == 'allhours':
+        # a list of all the history files in a directory
+        # (this is the only list_type that actually finds files)
+        in_dir = dir0 / ('f' + ds0)
+        fn_list = [ff for ff in in_dir.glob('ocean_his*nc')]
+        fn_list.sort()
+
+    return fn_list
+
+fn_list = Lfun.get_fn_list('hourlyaverage', Ldir, Ldir['ds0'], Ldir['ds1'], his_num=Ldir['his_num']) #DM modified 20260319 for average
 
 out_dir0 = Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'tef2'
 out_dir = out_dir0 / ('extractions_avg_' + Ldir['ds0'] + '_' + Ldir['ds1']) #DM modified 20260319 for average
