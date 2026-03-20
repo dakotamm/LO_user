@@ -90,7 +90,7 @@ def fn_list_utility(dt0, dt1, Ldir, hourmax=24, his_num=2):
     return fn_list
 
 # DM created
-def fn_list_utility_avg(dt0, dt1, Ldir, hourmax=24, his_num=2):
+def fn_list_utility_avg(dt0, dt1, Ldir, hourmax=23, his_num=2): #DM modified  20260320
     """
     INPUT: start and end datetimes
     OUTPUT: list of all history files expected to span the dates
