@@ -198,7 +198,7 @@ def get_fn_list(list_type, Ldir, ds0, ds1, his_num=2):
 
     return fn_list
 
-fn_list = Lfun.get_fn_list('hourlyaverage', Ldir, Ldir['ds0'], Ldir['ds1'], his_num=Ldir['his_num']) #DM modified 20260319 for average
+fn_list = get_fn_list('hourlyaverage', Ldir, Ldir['ds0'], Ldir['ds1'], his_num=Ldir['his_num']) #DM modified 20260319 for average
 
 out_dir0 = Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'tef2'
 out_dir = out_dir0 / ('extractions_avg_' + Ldir['ds0'] + '_' + Ldir['ds1']) #DM modified 20260319 for average
