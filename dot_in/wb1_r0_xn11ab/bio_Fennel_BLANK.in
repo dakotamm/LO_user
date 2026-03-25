@@ -434,8 +434,8 @@ Aout(idTvar) == 15*T    ! ..., NO3, ...           biological tracer
 Aout(idTTav) == 15*F    ! ..., NO3_2, ...         quadratic <t*t> tracer terms
 Aout(idUTav) == 15*F    ! ..., u_NO3, ...         quadratic <u*t> tracer terms
 Aout(idVTav) == 15*F    ! ..., v_NO3, ...         quadratic <v*t> tracer terms
-Aout(iHUTav) == 15*T    ! ..., Huon_NO3, ...      tracer volume flux, <Huon*t>
-Aout(iHVTav) == 15*T    ! ..., Hvom_NO3, ...      tracer volume flux, <Hvom*t>
+Aout(iHUTav) == 15*F    ! ..., Huon_NO3, ...      tracer volume flux, <Huon*t>
+Aout(iHVTav) == 15*F    ! ..., Hvom_NO3, ...      tracer volume flux, <Hvom*t>
 
 ! Logical switches (TRUE/FALSE) to activate writing of time-averaged,
 ! biological tracer diagnostic terms into DIAGNOSTIC output file:
