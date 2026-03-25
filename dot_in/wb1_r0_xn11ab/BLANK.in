@@ -789,13 +789,13 @@ Aout(idTair) == F       ! Tair               surface air temperature
 Aout(idUair) == T       ! Uair               surface U-wind component
 Aout(idVair) == T       ! Vair               surface V-wind component
 
-Aout(idTsur) == T F     ! shflux, ssflux     surface net heat and salt flux
-Aout(idLhea) == F       ! latent             latent heat flux
-Aout(idShea) == F       ! sensible           sensible heat flux
-Aout(idLrad) == F       ! lwrad              longwave radiation flux
-Aout(idSrad) == F       ! swrad              shortwave radiation flux
-Aout(idevap) == F       ! evaporation        evaporation rate
-Aout(idrain) == F       ! rain               precipitation rate
+Aout(idTsur) == T T     ! shflux, ssflux     surface net heat and salt flux
+Aout(idLhea) == T       ! latent             latent heat flux
+Aout(idShea) == T       ! sensible           sensible heat flux
+Aout(idLrad) == T       ! lwrad              longwave radiation flux
+Aout(idSrad) == T       ! swrad              shortwave radiation flux
+Aout(idevap) == T       ! evaporation        evaporation rate
+Aout(idrain) == T       ! rain               precipitation rate
 
 Aout(idDano) == F       ! rho                density anomaly
 Aout(idVvis) == F       ! AKv                vertical viscosity
@@ -817,8 +817,8 @@ Aout(idFsuD) == F       ! zeta_detided       detided free-surface
 
 Aout(idTrcD) == F F     ! temp_detided, ...  detided temperature and salinity
 
-Aout(idHUav) == F       ! Huon               u-volume flux, Huon
-Aout(idHVav) == F       ! Hvom               v-volume flux, Hvom
+Aout(idHUav) == T       ! Huon               u-volume flux, Huon
+Aout(idHVav) == T       ! Hvom               v-volume flux, Hvom
 Aout(idUUav) == F       ! uu                 quadratic <u*u> term
 Aout(idUVav) == F       ! uv                 quadratic <u*v> term
 Aout(idVVav) == F       ! vv                 quadratic <v*v> term
