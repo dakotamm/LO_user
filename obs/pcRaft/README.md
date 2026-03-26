@@ -4,7 +4,7 @@ Author: Dakota Mascarenas
 
 Last updated: 2026/02/24
 
-This file is from email corresp
+These files are from the work conducted and discussed in Roberts and Carrington (2023)
 
 Note intro about salinity missing and interpolation from Roberts Carrington intro.
 
