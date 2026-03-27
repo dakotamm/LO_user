@@ -12,6 +12,7 @@ from lo_tools import Lfun, zrfun, zfun
 from lo_tools import extract_argfun as exfun
 Ldir = exfun.intro() # this handles the argument passing
 
+from tef2_avg_fun import get_avg_fn_list
 from subprocess import Popen as Po
 from subprocess import PIPE as Pi
 from time import time
@@ -27,7 +28,7 @@ tef2_dir = Ldir['LOo'] / 'extract' / 'tef2'
 sect_df_fn = tef2_dir / ('sect_df_' + gctag + '.p')
 sect_df = pd.read_pickle(sect_df_fn)
 
-fn_list = Lfun.get_fn_list('average', Ldir, Ldir['ds0'], Ldir['ds1'], his_num=Ldir['his_num'])
+fn_list = get_avg_fn_list(Ldir, Ldir['ds0'], Ldir['ds1'])
 
 out_dir0 = Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'tef2'
 out_dir = out_dir0 / ('extractions_avg_' + Ldir['ds0'] + '_' + Ldir['ds1'])

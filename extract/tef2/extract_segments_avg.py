@@ -15,6 +15,7 @@ from lo_tools import Lfun, zrfun
 from lo_tools import extract_argfun as exfun
 Ldir = exfun.intro() # this handles the argument passing
 
+from tef2_avg_fun import get_avg_fn_list
 import sys
 from time import time
 import numpy as np
@@ -49,7 +50,7 @@ print(' out_dir0 = ' + str(out_dir0))
 print(' out_name = ' + out_name)
 print(' temp dir = ' + temp_dir.name)
 
-fn_list = Lfun.get_fn_list('average', Ldir, Ldir['ds0'], Ldir['ds1'], his_num=Ldir['his_num'])
+fn_list = get_avg_fn_list(Ldir, Ldir['ds0'], Ldir['ds1'])
 if Ldir['testing']:
     fn_list = fn_list[:3]
 
