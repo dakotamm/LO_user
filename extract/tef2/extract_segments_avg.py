@@ -66,7 +66,7 @@ for ii in range(N):
     d = fn.parent.name.replace('f','')
     nhis = int(fn.name.split('.')[0].split('_')[-1])
     
-    cmd_list = ['python3', 'extract_segments_one_time.py',
+    cmd_list = ['python3', 'extract_segments_one_time_avg.py',
             '-in_fn',str(fn),
             '-out_dir',str(temp_dir),
             '-file_num',str(ii),
