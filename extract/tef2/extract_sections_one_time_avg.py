@@ -71,6 +71,10 @@ CC['zeta'] = (aa[sect_df.jrp, sect_df.irp]  + aa[sect_df.jrm, sect_df.irm])/2
 
 # Then: volume flux using Huon and Hvom
 # Huon is on the u-grid, Hvom is on the v-grid (already volume flux in m3/s)
+if 'Huon' not in ds.data_vars or 'Hvom' not in ds.data_vars:
+    print(f'ERROR: Huon/Hvom not found in {args.in_fn}')
+    print(f'Available data_vars: {list(ds.data_vars)}')
+    raise AttributeError('Huon or Hvom not in dataset')
 Hu = ds.Huon.values.squeeze()
 Hv = ds.Hvom.values.squeeze()
 # Apply the section sign convention (pm is +1 or -1)

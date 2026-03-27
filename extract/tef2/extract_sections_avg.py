@@ -29,6 +29,10 @@ sect_df_fn = tef2_dir / ('sect_df_' + gctag + '.p')
 sect_df = pd.read_pickle(sect_df_fn)
 
 fn_list = get_avg_fn_list(Ldir, Ldir['ds0'], Ldir['ds1'])
+print(f'\nNumber of avg files: {len(fn_list)}')
+print(f'First: {fn_list[0]}')
+print(f'Last: {fn_list[-1]}')
+print(f'First file exists: {fn_list[0].is_file()}\n')
 
 out_dir0 = Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'tef2'
 out_dir = out_dir0 / ('extractions_avg_' + Ldir['ds0'] + '_' + Ldir['ds1'])
