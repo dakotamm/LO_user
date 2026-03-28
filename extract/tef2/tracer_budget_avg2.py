@@ -1,11 +1,16 @@
 """
 Do volume and tracer budgets for user-specified volumes,
-using avg/Huon pipeline outputs.
+using avg/Huon pipeline outputs for ocean fluxes, and history-file
+segments for storage terms.
+
+Uses forward differences for d_dt: (net[h+1] - net[h]) / dt,
+which is time-aligned with the hourly avg flux interval, since
+ocean_avg_000N.nc represents the flux over the interval between
+ocean_his_000N.nc and ocean_his_000(N+1).nc.
 
 To test on mac:
-run tracer_budget_avg -gtx cas7_trapsV00_meV00 -ctag c0 -riv trapsV00 -0 2017.07.04 -1 2017.07.06 -test True
-run tracer_budget_avg -gtx cas7_trapsV00_meV00 -ctag c0 -riv trapsV00 -0 2017.01.01 -1 2017.01.10 -test True
-run tracer_budget_avg -gtx cas7_trapsV00_meV00 -ctag c0 -riv trapsV00 -0 2017.01.01 -1 2017.12.31 -test True
+run tracer_budget_avg2 -gtx cas7_trapsV00_meV00 -ctag c0 -riv trapsV00 -0 2017.07.04 -1 2017.07.06 -test True
+run tracer_budget_avg2 -gtx cas7_trapsV00_meV00 -ctag c0 -riv trapsV00 -0 2017.01.01 -1 2017.01.10 -test True
 
 Run with -test True to make a plot, and avoid overwriting the output directory.
 
@@ -68,10 +73,8 @@ for which_vol in vol_list:
     # (Huon/Hvom time-averaged volume flux from avg files)
     bulk_dir = dir0 / ('bulk_avg' + date_str)
     
-    # we use the REGULAR (history-based) "segments" output to get the net tracer
-    # storage in the volume. This is critical: d_dt needs instantaneous snapshots
-    # of volume and tracers (from history files), NOT time-averaged values from
-    # avg files, in order to close the budget with time-averaged fluxes.
+    # we use the REGULAR (history-based) "segments" output to get instantaneous
+    # volume and tracer content for computing d_dt.
     seg_ds_fn = dir0 / ('segments' + date_str + '_' + sect_gctag + '_' + Ldir['riv'] + '.nc')
     seg_ds = xr.open_dataset(seg_ds_fn)
     
@@ -194,9 +197,14 @@ for which_vol in vol_list:
                     # Note: this does not work very well. May need to do a proper
                     # heat budget keeping track of actual Joules m-3, but this implies
                     # intervening in the extractions.
-        d_dt_h= (net_h[2:] - net_h[:-2])/(2*3600)
+        
+        # d_dt using FORWARD differences: (net[h+1] - net[h]) / dt
+        # This aligns with the avg flux interval:
+        #   ocean_avg_000N represents the flux between his_000N and his_000(N+1)
+        #   so d_dt[h] = (V[h+1] - V[h]) / 3600 should equal the net flux at hour h
+        d_dt_h = (net_h[1:] - net_h[:-1]) / 3600
         d_dt_h_full = nanvec_h.copy()
-        d_dt_h_full[1:-1] = d_dt_h
+        d_dt_h_full[:-1] = d_dt_h  # assign to the start of each interval
         d_dt = nanvec_d.copy()
         d_dt[1:-1] = zfun.lowpass(d_dt_h_full, f='godin')[pad:-pad+1:24]
         df['d_dt'] = d_dt
@@ -248,6 +256,6 @@ for which_vol in vol_list:
         
     else:
         # save output as a pickled dict of DataFrames
-        out_dir = dir0 / ('Budgets_avg_' + date_str)
+        out_dir = dir0 / ('Budgets_avg2_' + date_str)
         Lfun.make_dir(out_dir, clean=True)
         pd.to_pickle(B_dict, (out_dir / (vol_str + '.p')))
