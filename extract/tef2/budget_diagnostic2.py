@@ -212,17 +212,29 @@ fig, ax = plt.subplots(1, 1)
 ax.pcolormesh(vol_mask, cmap='Blues', alpha=0.5)
 ax.set_title('Penn Cove: segment cells (blue) + section faces (red/green)')
 
-# Plot section faces
-for tup in sntup_list:
-    sn = tup[0]
+# Plot section faces — show ALL sections with base 'pc', not just the open boundary
+colors = {'pc00': 'red', 'pc0': 'lime'}  # add more as needed
+all_pc_sections = sect_df[sect_df.sn.str.startswith('pc')].sn.unique()
+print(f'\nAll pc sections in sect_df: {list(all_pc_sections)}')
+for sn in all_pc_sections:
     this_sect = sect_df[sect_df.sn == sn]
+    color = colors.get(sn, 'yellow')
     for _, row in this_sect.iterrows():
         if row.uv == 'u':
             # u-face at (j, i): vertical line between rho(j,i-1) and rho(j,i)
-            ax.plot([row.i, row.i], [row.j, row.j+1], 'r-', linewidth=2)
+            ax.plot([row.i, row.i], [row.j, row.j+1], '-', color=color, linewidth=2)
         else:
             # v-face at (j, i): horizontal line between rho(j-1,i) and rho(j,i)
-            ax.plot([row.i, row.i+1], [row.j, row.j], 'g-', linewidth=2)
+            ax.plot([row.i, row.i+1], [row.j, row.j], '-', color=color, linewidth=2)
+    n_u = len(this_sect[this_sect.uv == 'u'])
+    n_v = len(this_sect[this_sect.uv == 'v'])
+    print(f'  {sn} ({color}): {n_u} u + {n_v} v = {len(this_sect)} faces, '
+          f'j=[{this_sect.j.min()},{this_sect.j.max()}], i=[{this_sect.i.min()},{this_sect.i.max()}]')
+
+# Add legend
+from matplotlib.lines import Line2D
+legend_elements = [Line2D([0],[0], color=colors.get(sn, 'yellow'), lw=2, label=sn) for sn in all_pc_sections]
+ax.legend(handles=legend_elements, loc='upper left')
 
 # Zoom to region of interest
 j_min = all_j.min() - 3
