@@ -35,36 +35,36 @@ ds1 = '2017.12.31'
 out_dir0 = Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'tef2'
 
 # %% Load hourly extraction data at pc0 section
+# NOTE: check your directory names — use 'extractions_avg_' if you ran the avg pipeline,
+# or 'extractions_' if you ran the standard (history-based) pipeline.
 
-ext_dir = out_dir0 / ('extractions_avg_' + ds0 + '_' + ds1)
+ext_dir = out_dir0 / ('extractions_' + ds0 + '_' + ds1)
 ext_fn = ext_dir / 'pc0.nc'
 
+print(f'Loading extraction: {ext_fn}')
 ds_ext = xr.open_dataset(ext_fn)
 
-q = ds_ext.q.values       # (time, z, p) volume flux [m3/s]
+print(f'  Variables: {list(ds_ext.data_vars)}')
+print(f'  Dims: {dict(ds_ext.sizes)}')
+
 dd = ds_ext.dd.values      # (p,) section point width [m]
 h = ds_ext.h.values        # (p,) depth at section points [m]
 zeta = ds_ext.zeta.values  # (time, p) sea surface height [m]
+DZ = ds_ext.DZ.values      # (time, z, p) vertical cell thickness [m]
+
+# This extraction has 'vel' (velocity in m/s) rather than 'q' (volume flux in m3/s).
+# vel is the section-normal velocity with sign convention from pm.
+vel = ds_ext.vel.values    # (time, z, p) velocity [m/s]
 
 # time coordinate
 ot = ds_ext.time.values
 time_hours = ot  # raw hourly times
 
-NT, NZ, NP = q.shape
+NT, NZ, NP = vel.shape
+print(f'  NT={NT} (hours), NZ={NZ} (layers), NP={NP} (section points)')
 
-# Compute DZ (vertical cell thickness) from h, zeta, and S-coordinates
-# DZ is needed to get cross-sectional area. If DZ is in the dataset, use it.
-if 'DZ' in ds_ext.data_vars:
-    DZ = ds_ext.DZ.values  # (time, z, p)
-else:
-    # Reconstruct from S-coordinates
-    from lo_tools import zrfun
-    G, S, T = zrfun.get_basic_info(Ldir['grid'] / 'grid.nc')
-    # Build DZ for each time step
-    DZ = np.zeros((NT, NZ, NP))
-    for tt in range(NT):
-        zw = zrfun.get_z(h.reshape(1, NP), zeta[tt, :].reshape(1, NP), S, only_w=True)
-        DZ[tt, :, :] = np.diff(zw, axis=0)
+# Compute volume flux from velocity: q = vel * dd * DZ [m3/s]
+q = vel * dd[np.newaxis, np.newaxis, :] * DZ
 
 ds_ext.close()
 
@@ -74,11 +74,10 @@ ds_ext.close()
 qnet = np.nansum(q.reshape(NT, -1), axis=1)
 
 # A(t) = time-varying cross-sectional area [m2]
-# dd is (p,), DZ is (time, z, p) -> dd[None, None, :] * DZ gives (time, z, p)
 A = np.nansum(dd[np.newaxis, np.newaxis, :] * DZ, axis=(1, 2))
 
 # Section-averaged velocity [m/s]
-# Positive = into Penn Cove (consistent with TEF sign convention from pm in extraction)
+# Positive = into Penn Cove (consistent with TEF sign convention)
 v_mean = qnet / A
 
 # %% Integrate velocity to get particle displacement
@@ -142,7 +141,7 @@ L_e_lp = zfun.lowpass(L_e_interp, f='godin', nanpad=True)
 
 # %% Load qprism from bulk output for comparison
 
-bulk_dir = out_dir0 / ('bulk_avg_' + ds0 + '_' + ds1)
+bulk_dir = out_dir0 / ('bulk_' + ds0 + '_' + ds1)
 bulk_fn = bulk_dir / 'pc0.nc'
 
 ds_bulk = xr.open_dataset(bulk_fn)
