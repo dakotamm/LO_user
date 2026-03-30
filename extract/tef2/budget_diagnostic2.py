@@ -237,6 +237,9 @@ ax.set_ylabel('j (eta)')
 ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
+out_fig = Ldir['LOo'] / 'extract' / Ldir['gtagex'] / 'tef2' / 'budget_diagnostic2.png'
+plt.savefig(out_fig)
+print(f'\nFigure saved to {out_fig}')
 plt.show()
 pfun.end_plot()
 
