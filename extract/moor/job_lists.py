@@ -148,6 +148,17 @@ def get_sta_dict(job_name):
         # DM defined 11/13/2025 for field planning meeting
         sta_dict = {
             'M1': (-122.63883, 48.23627)}
+    
+    elif job_name == 'pc_field':
+        # DM defined 4/6/2025 with current Penn Cove mooring locations
+        sta_dict = {
+            'outerN': (-122.625453, 48.229776),
+            'longPointS': (-122.6416, 48.241762),
+            'lovejoyN': (-122.670354, 48.235082),
+            'lovejoyS': (-122.669771, 48.227576),
+            'innerN': (-122.703108, 48.232424), 
+            'innerS': (-122.702241, 48.224669)}
+
 
     else:
         print('Unsupported job name!')
