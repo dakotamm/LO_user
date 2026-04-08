@@ -19,7 +19,7 @@ import pandas as pd
 import xarray as xr
 
 from lo_tools import Lfun, zfun
-import tef_fun_lorenz as tfl
+import extract.tef2.archive.tef_fun_lorenz as tfl
 
 from lo_tools import extract_argfun as exfun
 Ldir = exfun.intro() # this handles the argument passing

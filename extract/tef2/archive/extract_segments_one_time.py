@@ -11,7 +11,7 @@ from time import time
 import pandas as pd
 
 from lo_tools import Lfun, zfun, zrfun
-import tef_fun
+import extract.tef2.archive.tef_fun as tef_fun
 
 # command line arguments
 parser = argparse.ArgumentParser()

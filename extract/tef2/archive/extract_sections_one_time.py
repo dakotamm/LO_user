@@ -8,7 +8,7 @@ from numpy import nan, ones, diff
 from pickle import dump
 from pandas import read_pickle, to_datetime
 from lo_tools import Lfun
-import tef_fun
+import extract.tef2.archive.tef_fun as tef_fun
 
 parser = ArgumentParser()
 parser.add_argument('-sect_df_fn', type=str) # path to sect_df

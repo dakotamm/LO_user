@@ -141,6 +141,34 @@ def make_initial_info(gridname=gridname):
                 
         if dch['use_z_offset']:
             z = z + dch['z_offset']
+            
+    elif gridname == 'wbtest': #DM edits
+        # Whidbey Basin 20260408
+        dch = gfun.default_choices()
+        # dch['z_offset'] = -2 # same logic as wgh2 ### DM removed cuz do we really need this???
+        
+        dch['do_traps'] = True
+
+        aa = [-122.836, -122.1, 47.836, 48.5] #lat/lon area
+        res = 200 # target resolution (m)
+        Lon_vec, Lat_vec = gfu.simple_grid(aa, res)
+        dch['nudging_edges'] = ['north', 'west', 'south'] #separate netCDF ultimately fed to ROMS
+        dch['nudging_days'] = (0.1, 1.0)
+        
+        # by setting a small min_depth were are planning to use
+        # wetting and drying in ROMS, but maintaining positive depth
+        # for all water cells
+        dch['min_depth'] = 0.2 # meters (positive down)
+        
+        # Make the rho grid.
+        lon, lat = np.meshgrid(Lon_vec, Lat_vec)
+        
+        # Initialize bathymetry
+        dch['t_list'] = ['nw_pacific', 'psdem'] #processed bathy in LO_data...can also handle list > psdem ~10m resolution
+        z = gfu.combine_bathy_from_sources(lon, lat, dch)
+                
+        if dch['use_z_offset']:
+            z = z + dch['z_offset']
                     
     elif gridname == 'wgh2':
         # Willapa Bay and Grays Harbor nest

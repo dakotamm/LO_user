@@ -8,7 +8,7 @@ Created on Tue Mar  3 14:42:12 2026
 
 from lo_tools import Lfun, zfun
 from lo_tools import plotting_functions as pfun
-import tef_fun
+import extract.tef2.archive.tef_fun as tef_fun
 
 import numpy as np
 import pickle

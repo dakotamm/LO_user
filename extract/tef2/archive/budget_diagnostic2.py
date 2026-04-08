@@ -15,7 +15,7 @@ run budget_diagnostic2 -gtx cas7_trapsV00_meV00 -ctag c0 -riv trapsV00 -0 2017.0
 
 from lo_tools import Lfun, zfun, zrfun
 from lo_tools import plotting_functions as pfun
-import tef_fun
+import extract.tef2.archive.tef_fun as tef_fun
 
 import numpy as np
 import pandas as pd
