@@ -1,43 +1,35 @@
-# README for pcRafts
+# README for pcRaft
 
 Author: Dakota Mascarenas
 
-Last updated: 2026/02/24
+Last updated: 2026/04/13
 
-These files are from the work conducted and discussed in Roberts and Carrington (2023)
+These files are Penn Cove mussel raft sonde data from the work conducted and discussed in, or adjacent to, Roberts & Carrington (2023): https://doi.org/10.1016/j.jembe.2023.151927
 
-Note intro about salinity missing and interpolation from Roberts Carrington intro.
+Data received via email on 2026/01/02 and 2026/02/24 from Emily Carrington to Dakota Mascarenas, with metadata clarification also on 2026/02/24.
 
-Lat and lon from paper: 48.220861, -122.705667
+Location: 48.220861°N, 122.705667°W
 
-NOTE: are sondes but call them "moor" data type (PST???)
+Two stations are processed:
+* `raft_main`: Primary YSI sonde data from 2014-2019 (hourly). Variables: temperature, salinity, chlorophyll, pH, DO. Source file: `PennCove-mussel-raft-sonde-data-2014-2019.xlsx` (sheet: `cleaned_data`).
+* `raft_hiRes`: July-December 2017 high-resolution HOBO temperature sondes at 0.5-7 m depth (originally 10-minute resolution, resampled to hourly). Source files: `B8_[depth]m.csv`. Temperature only — salinity is not directly measured.
 
+NOTE: Data type is `moor` (mooring format) despite being measured by YSI sondes.
 
-NOTE THE 2017 B8 sondes are 10 minute resolution... (GMT -7)
+NOTE: Original timestamps are in PST (UTC-8); converted to UTC during processing.
 
+NOTE: `raft_hiRes` does not have directly measured salinity associated with temperature values. CT is computed using salinity interpolated from `raft_main` at the nearest time and depth using the GSW toolbox.
 
+NOTE: GSW conversions applied are from practical salinity (SP) to absolute salinity (SA) and in-situ temperature to conservative temperature (CT) using the `gsw` library.
 
-XXXXXXX
+NOTE: DO converted from mg/L to uM (x1000/32). Chl are in ug/L = mg/m3.
 
-These files are from King County's marine offshore monitoring water column CTD samples in Whidbey Basin.
+Mooring data availability (`raft_main`):
+* CT: 2014-2019
+* SA: 2014-2019
+* DO: 2014-2019
+* PH: 2014-2019
+* Chl: 2014-2019
 
-CTD data is publically-accessible and was downloaded with data up to April 2024 by Dakota Mascarenas from  https://data.kingcounty.gov/Environment-Waste-Management/Whidbey-Basin-CTD-Casts/uz4m-4d96
-
-Station information downloaded in March 2024 by Dakota Mascarenas from: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf
-
-Sampling analysis plans and methods are included in the corresponding data folder.
-
-Two email correspondences are attached for further metadata:
-* "metadata_questions_email - GI to DM 20230726.pdf" - answers to specific unit/processing questions
-* "his_methods_email - TM to DM 20250117.pdf" - explains sampling method change overtime especially for dissolved oxygen
-
-NOTE: Light transmission is currently not considered in this data processing.
-
-NOTE: Whidbey Basin bottle samples from this time period are included in the kc bottle data.
-
-CTD data availability:
-* CT: 2022-2024
-* Chl: 2022-2024
-* DO: 2022-2024
-* NO3: 2022-2024
-* SA: 2022-2024
+Mooring data availability (`raft_hiRes`):
+* CT: 2017

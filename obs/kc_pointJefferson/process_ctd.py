@@ -11,6 +11,8 @@ Finalized for group use: 2025/09/05
 
 Written by: Dakota Mascarenas
 
+Most recent update: 2026/04/13
+
 NOTE: TaylorQuality and TaylorNote columns are considered insofar as to filter to only TaylorQuality = 'ok'.
 
 NOTE: "field" data and temperature are from CTD and others are from bottle. Here, considering just CTD.
@@ -67,6 +69,8 @@ big_df_use5 = big_df_use2.pivot_table(index = ['CollectDateTime', 'Depth','Latit
                                       columns = 'ParmDisplayName', values = 'Value').reset_index()
 big_df_use6 = big_df_use5.copy()
 big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['CollectDateTime'])
+# Ensure times are timezone-aware UTC (raw data already in UTC).
+big_df_use6['time'] = big_df_use6['time'].dt.tz_localize('UTC')
 
 # Create unique cast IDs (cid).
 big_df_use7 = big_df_use6.copy()

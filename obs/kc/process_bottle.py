@@ -11,6 +11,8 @@ Finalized for group use: 2025/09/04
 
 Written by: Dakota Mascarenas
 
+Most recent update: 2026/04/13
+
 """
 
 import pandas as pd
@@ -70,6 +72,8 @@ big_df_use5 = big_df_use4.pivot_table(index = ['Profile ID', 'Collect DateTime',
                                       columns = 'Parameter', values = 'Value').reset_index()
 big_df_use6 = big_df_use5.copy()
 big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['Collect DateTime'])
+# Convert from PST (UTC-8, no daylight savings adjustment) to UTC.
+big_df_use6['time'] = big_df_use6['time'].dt.tz_localize('Etc/GMT+8').dt.tz_convert('UTC')
 
 # Create unique cast IDs (cid).
 big_df_use6['cid'] = np.nan

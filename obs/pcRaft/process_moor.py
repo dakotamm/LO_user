@@ -1,13 +1,11 @@
 """
 Code to process Penn Cove mussel raft sonde data as discussed in Roberts & Carrington (2023): https://doi.org/10.1016/j.jembe.2023.151927
 
-This specificically CONVERTS TO PANDAS DATAFRAMES, similar to the process for CTD and Bottle casts.
-
-Data received via email on 2026/01/02 from Emily Carrington to Dakota Mascarenas.
+Data received via email on 2026/01/02 and 2026/02/24 from Emily Carrington to Dakota Mascarenas, with metadata clarification also on 2026/02/24.
 
 Initial author date: 2026/02/24
 
-Finalized for public use: XXXX/XX/XX
+Finalized for public use: 2026/04/13
 
 Written by: Dakota Mascarenas
 
@@ -46,7 +44,7 @@ big_df['time'] = big_df['time'].dt.tz_localize('Etc/GMT+8').dt.tz_convert('UTC')
 big_df['station'] = 'raft_main'
 big_df = big_df[['station', 'time', 'depth', 'temp', 'sal', 'chl', 'pH', 'DO']]
 
-# Load in July 2017 high resolution sampling (10 minute frequency to be selected only on even hour marks).
+# Load in July-December 2017 high resolution sampling (10 minute frequency to be selected only on even hour marks).
 little_df = pd.DataFrame()
 for depth in [0.5, 1, 2, 3, 4, 5, 6, 7]:
     little_df_temp = pd.read_csv(in_dir0/ ('B8_' + str(depth) + 'm.csv'))

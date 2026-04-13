@@ -11,6 +11,8 @@ Finalized for public use: 2025/09/04
 
 Written by: Dakota Mascarenas
 
+Most recent update: 2026/04/13
+
 """
 
 import pandas as pd
@@ -72,6 +74,8 @@ v_list = np.array(list(v_dict_use.keys()))
 # Clean column names.
 big_df_use6 = big_df_use0.copy()
 big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['Sampledate'])
+# Convert from PST (UTC-8, no daylight savings adjustment) to UTC.
+big_df_use6['time'] = big_df_use6['time'].dt.tz_localize('Etc/GMT+8').dt.tz_convert('UTC')
 
 # Create unique cast IDs (cid).
 big_df_use6['cid'] = np.nan

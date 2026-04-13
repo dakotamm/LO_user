@@ -9,6 +9,8 @@ Finalized for group use: 2025/09/05
 
 Written by: Dakota Mascarenas
 
+Most recent update: 2026/04/13
+
 NOTE: "field" data and temperature are from CTD and others are from bottle. Here, considering just CTD.
 
 NOTE: Salinity is only 1998-2000. We could use bottle salinity but not implemented for now.
@@ -65,6 +67,8 @@ big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['COLLECTDATE'])
 start_date = pd.Timestamp('2025-01-01')
 mask = (big_df_use6['time'] >= start_date)
 big_df_use6.loc[mask, 'time'] -= pd.DateOffset(years=100)
+# Convert from PST (UTC-8, no daylight savings adjustment) to UTC.
+big_df_use6['time'] = big_df_use6['time'].dt.tz_localize('Etc/GMT+8').dt.tz_convert('UTC')
 
 # Create unique cast IDs (cid).
 big_df_use6['cid'] = np.nan

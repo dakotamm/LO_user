@@ -9,6 +9,8 @@ Finalized for group use: 2025/09/03
 
 Written by: Dakota Mascarenas
 
+Most recent update: 2026/04/13
+
 NOTE: Despite the labeling on the Excel files received from WA Dept. of Ecology records request, we consider all data in this set bottle (discrete) data. Email requests for information were sent on 2025/05/06 with follow up on 2025/09/03.
 
 """
@@ -63,6 +65,8 @@ big_df_raw1 = big_df_raw1.rename(columns = {'NO2+NO3':'NO2+NO3 (dissolved size f
 
 # Concatenate two datasets.
 big_df_raw = pd.concat([big_df_raw0, big_df_raw1])
+# Convert from PST (UTC-8, no daylight savings adjustment) to UTC.
+big_df_raw['Date'] = big_df_raw['Date'].dt.tz_localize('Etc/GMT+8').dt.tz_convert('UTC')
 
 # Merge station data.
 big_df = big_df_raw.merge(sta_df[['Station','lat', 'lon']], on = 'Station', how='left')

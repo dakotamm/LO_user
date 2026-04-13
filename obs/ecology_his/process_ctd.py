@@ -9,6 +9,8 @@ Finalized for group use: 2025/09/03
 
 Written by: Dakota Mascarenas
 
+Most recent update: 2026/04/13
+
 NOTE: Despite the labeling on the Excel files received from WA Dept. of Ecology records request, we consider only data in this set to be CTD data. Email requests for information were sent on 2025/05/06 with follow up on 2025/09/03.
 
 """
@@ -33,6 +35,8 @@ Lfun.make_dir(out_dir)
 
 # Load big data sets and stations.
 big_df_raw = pd.read_excel(in_dir0/ 'Nov1989toDec1998CTDprofiles.xlsx', parse_dates=['Date'])
+# Ensure times are timezone-aware UTC (raw data already in UTC).
+big_df_raw['Date'] = big_df_raw['Date'].dt.tz_localize('UTC')
 sta_df = pd.read_excel(in_dir0 / 'ParkerMacCreadyCoreStationInfoFeb2018.xlsx') #station list copied from apogee: dat1/parker/LO_data/ecology/
 
 # Parse station lat/lon.

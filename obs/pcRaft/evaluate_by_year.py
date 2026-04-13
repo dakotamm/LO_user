@@ -7,6 +7,8 @@ Produces two figure types per station per year:
 
 Usage: set `year` at the top and run.  Set year = None to loop all years.
 
+Finalized for public use: 2026/04/13
+
 Author: Dakota Mascarenas
 """
 
