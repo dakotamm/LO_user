@@ -194,4 +194,4 @@ Attributes:
 
 - **pcRaft** Penn Cove mussel raft sonde data from the work conducted and discussed in, or adjacent to, Roberts & Carrington (2023): https://doi.org/10.1016/j.jembe.2023.151927. Data received from Emily Carrington. Processed by Dakota Mascarenas. See the README in the associated folder for details. Two stations are processed:
   - `raft_main`: 2014-2019, hourly. Variables: CT, SA, DO (uM), PH, Chl (mg m-3).
-  - `raft_hiRes`: July-December 2017, hourly temperature profiles at 0.5-7 m depth (8 levels). Salinity is not directly measured (set to NaN); conservative temperature (CT) was computed using absolute salinity interpolated from `raft_main`.
+  - `raft_hiRes`: July-December 2017, hourly temperature profiles at 0.5-7 m depth (8 levels). Salinity is not directly measured (set to NaN); conservative temperature (CT) was computed using absolute salinity (SA) interpolated from `raft_main`.
