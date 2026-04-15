@@ -4,6 +4,7 @@ Plot the full O2 budget for Penn Cove (wb1_pc0), combining:
   - BGC + air-sea terms from get_DO_bgc_air_sea_wb1.py NetCDF
 
 All terms are daily (Godin-filtered) in units of [mmol O2 s-1].
+Note: SOD (sediment) terms account for 50% burial of sinking detritus.
 
 Budget equation:
   d_dt = ocn + riv + bio + airsea + error

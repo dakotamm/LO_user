@@ -13,7 +13,7 @@ Key changes from original:
 Budget terms computed (all integrated over Penn Cove domain):
   - TN_vol_sum:          TN × volume [mmol N] (TN = NO3+NH4+Phy+Zoo+SDetN+LDetN)
   - denitri_flux_sum:    denitrification loss of NO3 [mmol N/hr]
-  - NH4_gain_flux_sum:   remineralization gain of NH4 from sediment [mmol N/hr]
+  - NH4_gain_flux_sum:   remineralization gain of NH4 from sediment (50% burial accounted for) [mmol N/hr]
   - detritus_loss_sum:   particulate N settling flux into sediment [mmol N/hr]
 
 The TN budget closes as:
@@ -122,6 +122,7 @@ print(f'Penn Cove domain: {len(jj)} grid cells')
 Ws_L = 80.0   # Large detritus sinking velocity [m/day]
 Ws_S = 8.0    # Small detritus sinking velocity [m/day]
 rOxNH4 = 106 / 16  # O2:N ratio for remineralization
+burials = 50  # Burial fraction [%] — only (1-burial/100) is remineralized
 
 # ============ INITIALIZATION ============
 TN_vol_sum = []
@@ -175,8 +176,9 @@ for fi, fn in enumerate(fn_list_all):
     NO3loss = 1.2 * (1 / 24) / dz[0, :, :]  # mmol N/m3/hr (cap from fennel.h)
 
     # --- Small detritus ---
+    # Account for burial: only (1-burial/100) fraction is remineralized in sediment
     FC_S = (SDetN_bot * Ws_S) / 24  # settling flux [mmol N/m2/hr]
-    cff1_S = FC_S / dz[0, :, :] * 1  # concentration change [mmol N/m3]
+    cff1_S = (SDetN_bot * (1 - burials / 100) * Ws_S) / 24 / dz[0, :, :] * 1  # concentration change [mmol N/m3]
     denitri_S = np.zeros([NX, NY])
     NH4_gain_S = np.zeros([NX, NY])
     for i in range(NX):
@@ -193,10 +195,11 @@ for fi, fn in enumerate(fn_list_all):
     NH4_gain_flux_S = NH4_gain_S * area * dz[0, :, :]
 
     # --- Large detritus (after small detritus has modified bottom O2 and NO3) ---
+    # Account for burial: only (1-burial/100) fraction is remineralized in sediment
     Oxy_bot2 = Oxy_bot - NH4_gain_S * rOxNH4
     NO3_bot2 = NO3_bot - denitri_S
     FC_L = (LDetN_bot * Ws_L) / 24
-    cff1_L = FC_L / dz[0, :, :] * 1
+    cff1_L = (LDetN_bot * (1 - burials / 100) * Ws_L) / 24 / dz[0, :, :] * 1
     denitri_L = np.zeros([NX, NY])
     NH4_gain_L = np.zeros([NX, NY])
     for i in range(NX):

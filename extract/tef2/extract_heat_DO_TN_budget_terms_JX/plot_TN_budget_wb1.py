@@ -4,6 +4,7 @@ Plot the total nitrogen (TN) budget for Penn Cove (wb1_pc0), combining:
   - Sediment terms (denitrification, detritus loss) from get_TN_sediment_wb1.py NetCDF
 
 TN = NO3 + NH4 + phytoplankton + zooplankton + SdetritusN + LdetritusN
+Note: Sediment remineralization accounts for 50% burial of sinking detritus.
 
 If tracer_budget_avg was run with all tracers (not just salt/temp/oxygen),
 this script will sum the individual N-tracer budgets to get TN transport.

@@ -10,7 +10,7 @@ Key changes from original:
     consistent with the tef2 avg pipeline (extract_segments_avg.py, etc.)
   - Domain: Penn Cove segments from seg_info_dict_wb1_pc0_riv00.p
     (uses same segment selection logic as tracer_budget_avg.py)
-  - AttSW: uniform 0.05 m-1 (matches wb1 bio_Fennel.in; original used 0.15 inside Salish Sea)
+  - AttSW: uniform 0.15 m-1 (Salish Sea value; matches Jilian's original code)
   - Vp: temperature-dependent Eppley curve Vp = Vp0 * 1.066^temp (matches ROMS fennel.h;
     original hardcoded Vp = 1.7)
 
@@ -19,7 +19,7 @@ Budget terms computed (all integrated over Penn Cove volume):
   - Oxy_nitri_sum:    O2 consumption by nitrification [mmol O2/hr]
   - Oxy_remi_sum:     O2 consumption by water column remineralization [mmol O2/hr]
   - Oxy_sed_sum:      SOD method 1 (Parker's benthic_flux.py approach) [mmol O2/day]
-  - Oxy_sed_sum2:     SOD method 2 (fennel.h O2-limited approach) [mmol O2/hr]
+  - Oxy_sed_sum2:     SOD method 2 (fennel.h O2-limited approach, with 50% burial) [mmol O2/hr]
   - Oxy_vol_sum:      DO × volume [mmol O2]
   - Oxy_air_flux_sum: Air-sea O2 exchange [mmol O2/hr]
 
@@ -145,9 +145,9 @@ inDomain[jj, ii] = 1
 print(f'Penn Cove domain: {len(jj)} grid cells')
 
 # ============ LIGHT ATTENUATION ============
-# wb1 uses uniform AttSW = 0.05 m-1 (from bio_Fennel_BLANK.in)
-# Jilian's cas7 code used 0.15 inside Salish Sea — NOT applicable to wb1
-AttSW = 0.05  # [1/m], uniform for wb1
+# Light attenuation coefficient (uniform)
+# Using Salish Sea value of 0.15 m-1 (from Jilian's cas7 code)
+AttSW = 0.15  # [1/m], uniform for wb1
 
 # ============ BIOLOGY PARAMETERS ============
 # All from wb1 bio_Fennel_BLANK.in (confirmed identical to Jilian's values)
@@ -164,6 +164,7 @@ NitriR = 0.05    # Nitrification rate [1/day]
 Ws_L = 80.0      # Large detritus sinking velocity [m/day]
 Ws_S = 8.0       # Small detritus sinking velocity [m/day]
 PARfrac = 0.43   # Fraction of shortwave that is PAR
+burials = 50     # Burial fraction [%] — only (1-burial/100) is remineralized
 
 # ============ AIR-SEA FLUX PARAMETERS ============
 dtdays = 3600 * (1.0 / 86400) / 1  # time step in days (1 hr history file, BioIter=1)
@@ -316,7 +317,8 @@ for fi, fn in enumerate(fn_list_all):
 
     # ---------- SEDIMENT SOD: METHOD 2 (fennel.h O2-limited) ----------
     # Large detritus decomposition in sediment
-    cff1_L = (LDeN[0, :, :] * Ws_L) / 24 / dz[0, :, :] * 1  # mmol/m3
+    # Account for burial: only (1-burial/100) fraction is remineralized in sediment
+    cff1_L = (LDeN[0, :, :] * (1 - burials / 100) * Ws_L) / 24 / dz[0, :, :] * 1  # mmol/m3
     NH4_gain_L = np.zeros([NX, NY])
     for i in range(NX):
         for j in range(NY):
@@ -325,7 +327,8 @@ for fi, fn in enumerate(fn_list_all):
     NH4_gain_flux_L = NH4_gain_L * area * dz[0, :, :]  # mmol/hr
 
     # Small detritus decomposition in sediment
-    cff1_S = (SDeN[0, :, :] * Ws_S) / 24 / dz[0, :, :] * 1  # mmol/m3
+    # Account for burial: only (1-burial/100) fraction is remineralized in sediment
+    cff1_S = (SDeN[0, :, :] * (1 - burials / 100) * Ws_S) / 24 / dz[0, :, :] * 1  # mmol/m3
     NH4_gain_S = np.zeros([NX, NY])
     for i in range(NX):
         for j in range(NY):
