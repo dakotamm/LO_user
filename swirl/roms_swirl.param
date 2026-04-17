@@ -1,0 +1,43 @@
+# SWIRL parameters file tuned for ROMS ocean model output
+# Target: Penn Cove large recirculation cells on wb1 200m grid
+#
+# These are large (~20-40 grid cell), bathymetrically-forced recirculations
+# with weak swirling strength relative to strain. Parameters are maximally
+# permissive to capture these shallow-water cove eddies.
+#
+# See Canivete Cuissa & Steiner (2022) for parameter descriptions.
+
+[Criterion]
+# Stencil(s) for numerical derivatives.
+# [1, 2, 3, 4, 5] = full multi-scale: stencil 5 resolves velocity gradient
+# tensor at scales of ~10-20 grid cells, matching cove-scale recirculations.
+stencils : [1, 2, 3, 4, 5]
+# Swirling strength parameters: [epsilon_lambda, kappa_zeta, delta_zeta]
+# All zeros = NO vorticity-vs-strain filter. These cove recirculations
+# have comparable vorticity and strain; any nonzero kappa/delta rejects them.
+swirlstr_params : [0., 0., 0.]
+
+[Clustering]
+# Critical distance parameter for clustering.
+# 20 grid cells (~4 km) allows EVC points across a full cove-width
+# recirculation cell to merge into one vortex.
+dc_param : 20.
+# Adaptive critical distance (True recommended for variable-density flows)
+dc_adaptive : True
+# Grid-adapted fast clustering (keep True)
+cluster_fast : True
+# Clustering kernel: 'Gaussian' or 'Heaviside'
+cluster_kernel : Gaussian
+# Cluster center selection: 'delta-rho' or 'gamma'
+cluster_decision : delta-rho
+# Cluster selection parameters: [delta_p, rho_p, gamma_p]
+# Very permissive: accept even weak/diffuse clusters.
+cluster_params : [0.5, 0.3, 1.0]
+
+[Noise]
+# Noise removal parameter (r_p). 0.5 = minimal filtering; keeps all but
+# the most spurious single-point detections.
+noise_param : 0.5
+# Kink removal parameter. 0.3 = very permissive; cove recirculations are
+# heavily deformed by irregular coastline and bathymetry.
+kink_param : 0.3
