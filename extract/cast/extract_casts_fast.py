@@ -17,6 +17,7 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 from datetime import datetime
+from pathlib import Path
 
 from lo_tools import Lfun, zfun, zrfun
 from lo_tools import extract_argfun as exfun
@@ -67,7 +68,8 @@ if info_fn.is_file():
             
             # Nproc controls how many subprocesses we allow to stack up
             # before we require them all to finish.
-            cmd_list = ['python','cast_worker.py',
+            this_dir = Path(__file__).parent
+            cmd_list = ['python', str(this_dir / 'cast_worker.py'),
             '-out_fn',str(out_fn),
             '-fn',str(fn),
             '-lon',str(lon),
