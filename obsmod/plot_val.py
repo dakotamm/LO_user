@@ -291,7 +291,16 @@ for depth_range in depth_list:
 ax = fig.add_subplot(1,4,4)
 df_dict['obs'].plot(x='lon',y='lat',style='.g',legend=False, ax=ax)
 pfun.add_coast(ax)
-ax.axis([-130,-122,42,52])
+# auto-zoom to obs station extent with padding
+obs_lon = df0_dict['obs']['lon']
+obs_lat = df0_dict['obs']['lat']
+if len(obs_lon) > 0 and obs_lon.notna().any():
+    pad_lon = 0.1 * max((obs_lon.max() - obs_lon.min()), 0.05)
+    pad_lat = 0.1 * max((obs_lat.max() - obs_lat.min()), 0.05)
+    ax.axis([obs_lon.min() - pad_lon, obs_lon.max() + pad_lon,
+             obs_lat.min() - pad_lat, obs_lat.max() + pad_lat])
+else:
+    ax.axis([-130,-122,42,52])
 pfun.dar(ax)
 ax.set_xlabel('')
 ax.set_ylabel('')
