@@ -210,3 +210,34 @@ for otype in otype_list:
             print(stderr.decode())
     print('---Time to make DO bias map = %0.1f sec' % (time()-tt0))
     sys.stdout.flush()
+
+# - Penn Cove bottom DO time series (runs once across all years)
+print('\n' + (' Penn Cove Bottom DO Time Series ').center(50,'*') + '\n')
+
+tt0 = time()
+# Hook to LO_user
+fn = Ldir['LO'] / 'obsmod' / 'plot_penn_cove_DO.py'
+ufn = Ldir['LOu'] / 'obsmod' / 'plot_penn_cove_DO.py'
+if ufn.is_file():
+    fn = ufn
+# End Hook
+cmd_list = ['python', str(fn),
+    '-gtx', Ldir['gtagex'],
+    '-year0', str(Ldir['year0']),
+    '-year1', str(Ldir['year1'])]
+if Ldir['testing']:
+    print(cmd_list)
+else:
+    proc = Po(cmd_list, stdout=Pi, stderr=Pi)
+    stdout, stderr = proc.communicate()
+    if len(stdout) > 0:
+        print(' stdout '.center(20,'-'))
+        a = stdout.decode()
+        print(a)
+    else:
+        print('  no stdout')
+    if len(stderr) > 0:
+        print(' stderr '.center(20,'-'))
+        print(stderr.decode())
+print('---Time to make Penn Cove DO plot = %0.1f sec' % (time()-tt0))
+sys.stdout.flush()
