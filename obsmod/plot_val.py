@@ -164,13 +164,13 @@ for fil in fil_dict.keys():
 plt.close('all')
 
 if not do_arag:
-    vn_list_full = ['SA','CT','DO (uM)','NO3 (uM)','NH4 (uM)','DIN (uM)',
+    vn_list = ['SA','CT','DO (uM)','NO3 (uM)','NH4 (uM)','DIN (uM)',
         'Chl (mg m-3)']
 else:
-    vn_list_full = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)','pCO2 (uatm)',
+    vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)','pCO2 (uatm)',
         'DIC (uM)', 'TA (uM)', 'Omega']
 
-jj_list_full = [1,2,3,5,6,7,9,10,11,12] # indices for the data plots
+jj_list = [1,2,3,5,6,7,9,10,11,12] # indices for the data plots
 
 lim_dict = {'SA':(14,36),'CT':(0,20),'DO (uM)':(0,500),'DO (mg L-1)':(0,15),
     'NO3 (uM)':(0,50),'NH4 (uM)':(0,10),'DIN (uM)':(0,50),
@@ -213,14 +213,6 @@ if do_arag:
         df0_dict[og]['Omega'] = CO2dict['saturation_aragonite']
         # also get pCO2
         df0_dict[og]['pCO2 (uatm)'] = CO2dict['pCO2']
-
-# Filter vn_list to only include variables present in the data
-# (SA and CT are always present; others depend on obs type)
-vn_list = []
-for vn in vn_list_full:
-    if vn in df0_dict['obs'].columns and df0_dict['obs'][vn].notna().any():
-        vn_list.append(vn)
-jj_list = jj_list_full[:len(vn_list)]
 
 if small:
     fs = 10
