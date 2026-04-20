@@ -94,12 +94,6 @@ for source in source_list:
     obs_df = pd.read_pickle(obs_fn)
     obs_df['source'] = source
 
-    # ensure all expected data columns exist in obs_df (some otypes like ctd
-    # may lack columns like NH4, TA, DIC); fill missing columns with NaN
-    for vn in vn_list:
-        if vn not in obs_df.columns:
-            obs_df[vn] = np.nan
-
     # hack for bad DO in nceiCoastal for 2021
     if (year=='2021') & (source=='nceiCoastal'):
         print('>> hack for bad DO <<')

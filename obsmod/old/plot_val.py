@@ -57,13 +57,11 @@ otype = args.otype
 # specify input
 in_fn = in_dir / ('combined_' + otype + '_' + year + '_' + gtx + '.p')
 df0_dict = pickle.load(open(in_fn, 'rb'))
+print(df0_dict.keys())
 
-# add DIN field if both components are available
-has_NO3 = 'NO3 (uM)' in df0_dict['obs'].columns
-has_NH4 = 'NH4 (uM)' in df0_dict['obs'].columns
-if has_NO3 and has_NH4:
-    for gtxo in df0_dict.keys():
-        df0_dict[gtxo]['DIN (uM)'] = df0_dict[gtxo]['NO3 (uM)'] + df0_dict[gtxo]['NH4 (uM)']
+# add DIN field
+for gtxo in df0_dict.keys():
+    df0_dict[gtxo]['DIN (uM)'] = df0_dict[gtxo]['NO3 (uM)'] + df0_dict[gtxo]['NH4 (uM)']
 
 # Get a list of available obs sources
 source_list = list(df0_dict['obs']['source'].unique())
@@ -92,16 +90,7 @@ small = False # True for laptop size plot
 H = args.dividing_depth # dividing depth [m] for deep and shallow
 
 # Calculate  and plot values of aragonite saturation state and pCO2
-# Require DIC and TA in both obs and model DataFrames
-if (args.do_arag
-        and 'DIC (uM)' in df0_dict['obs'].columns
-        and 'TA (uM)' in df0_dict['obs'].columns
-        and 'DIC (uM)' in df0_dict[gtx].columns
-        and 'TA (uM)' in df0_dict[gtx].columns
-        and df0_dict['obs']['DIC (uM)'].notna().any()):
-    do_arag = True
-else:
-    do_arag = False
+do_arag = args.do_arag
 # Otherwise it plots DIN and Chl
 
 # (3) Filtering choices
@@ -164,13 +153,13 @@ for fil in fil_dict.keys():
 plt.close('all')
 
 if not do_arag:
-    vn_list_full = ['SA','CT','DO (uM)','NO3 (uM)','NH4 (uM)','DIN (uM)',
-        'Chl (mg m-3)']
+    vn_list = ['SA','CT','DO (uM)','NO3 (uM)','NH4 (uM)','DIN (uM)',
+        'DIC (uM)', 'TA (uM)', 'Chl (mg m-3)']
 else:
-    vn_list_full = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)','pCO2 (uatm)',
-        'DIC (uM)', 'TA (uM)', 'Omega']
+    vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)']#,'pCO2 (uatm)',
+        #'DIC (uM)', 'TA (uM)', 'Omega'] #DM mod 20260204
 
-jj_list_full = [1,2,3,5,6,7,9,10,11,12] # indices for the data plots
+jj_list = [1,2,3,5,6,7,9,10,11,12] # indices for the data plots
 
 lim_dict = {'SA':(14,36),'CT':(0,20),'DO (uM)':(0,500),'DO (mg L-1)':(0,15),
     'NO3 (uM)':(0,50),'NH4 (uM)':(0,10),'DIN (uM)':(0,50),
@@ -180,10 +169,9 @@ lim_dict = {'SA':(14,36),'CT':(0,20),'DO (uM)':(0,500),'DO (mg L-1)':(0,15),
 # create DO (mg L-1) and pCO2 (uatm)
 for og in ['obs',gtx]:
     df0_dict[og]['DO (mg L-1)'] = (32 / 1000) * df0_dict[og]['DO (uM)']
-
 if do_arag:
     import gsw
-    #from PyCO2SYS import CO2SYS
+    from PyCO2SYS import CO2SYS
     # calculate and add Aragonite Saturation State
     for og in ['obs',gtx]:
         # load data to vectors
@@ -192,35 +180,27 @@ if do_arag:
         lat = df0_dict[og]['lat'].to_numpy()
         SA = df0_dict[og]['SA'].to_numpy()
         CT = df0_dict[og]['CT'].to_numpy()
-        DIC0 = df0_dict[og]['DIC (uM)'].to_numpy()
-        TA0 = df0_dict[og]['TA (uM)'].to_numpy()
+        # DIC0 = df0_dict[og]['DIC (uM)'].to_numpy() #DM 20260204 - for wb1_r0_xn11b only because no data here!
+        # TA0 = df0_dict[og]['TA (uM)'].to_numpy()
         # Calculate derived quantities
         p = gsw.p_from_z(z, lat)
         SP = gsw.SP_from_SA(SA, p, lon, lat)
         rho = gsw.rho(SA, CT, p) # in situ density
         temp = gsw.t_from_CT(SA, CT, p) # in situ temperature
-        # convert from umol/L to umol/kg using in situ dentity
-        TA = 1000 * TA0 / rho
-        TA[TA < 100] = np.nan
-        TIC = 1000 * DIC0 / rho
-        TIC[TIC < 100] = np.nan
+        # # convert from umol/L to umol/kg using in situ dentity
+        # TA = 1000 * TA0 / rho # same as above DM note
+        # TA[TA < 100] = np.nan
+        # TIC = 1000 * DIC0 / rho
+        # TIC[TIC < 100] = np.nan
         # See LPM/co2sys_test/test0.py for info.
-        import PyCO2SYS as pyco2
-        CO2dict = pyco2.sys(par1=TA, par2=TIC, par1_type=1, par2_type=2,
-            salinity=SP, temperature=temp, pressure=p,
-            total_silicate=50, total_phosphate=2,
-            opt_pH_scale=1, opt_k_carbonic=10, opt_k_bisulfate=1)
-        df0_dict[og]['Omega'] = CO2dict['saturation_aragonite']
+        # import PyCO2SYS as pyco2
+        # CO2dict = pyco2.sys(par1=TA, par2=TIC, par1_type=1, par2_type=2, #same as above DM note
+        #     salinity=SP, temperature=temp, pressure=p,
+        #     total_silicate=50, total_phosphate=2,
+        #     opt_pH_scale=1, opt_k_carbonic=10, opt_k_bisulfate=1)
+        # df0_dict[og]['Omega'] = CO2dict['saturation_aragonite']
         # also get pCO2
-        df0_dict[og]['pCO2 (uatm)'] = CO2dict['pCO2']
-
-# Filter vn_list to only include variables present in the data
-# (SA and CT are always present; others depend on obs type)
-vn_list = []
-for vn in vn_list_full:
-    if vn in df0_dict['obs'].columns and df0_dict['obs'][vn].notna().any():
-        vn_list.append(vn)
-jj_list = jj_list_full[:len(vn_list)]
+        # df0_dict[og]['pCO2 (uatm)'] = CO2dict['pCO2'] #same as above DM note
 
 if small:
     fs = 10
