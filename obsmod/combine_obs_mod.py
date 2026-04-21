@@ -41,7 +41,7 @@ import obsmod_functions as omfun
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-gtx', '--gtagex', type=str)   # e.g. cas7_t1_x11ab
-parser.add_argument('-sources', type=str, default='all') # e.g. all, or other user-defined list
+parser.add_argument('-sources', type=str, default='all') # named key, one source, or comma list
 parser.add_argument('-otype', type=str, default='bottle') # observation type, e.g. ctd, bottle, etc.
 parser.add_argument('-year', type=int) # e.g. 2019
 parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
@@ -50,7 +50,11 @@ args = parser.parse_args()
 Ldir = Lfun.Lstart()
 
 # Get the list of obs sources to use
-source_list = omfun.source_dict[args.sources]
+try:
+    source_list = omfun.parse_sources_arg(args.sources)
+except ValueError as e:
+    print('*** Bad -sources argument: ' + str(e))
+    sys.exit()
 
 gtx = args.gtagex
 year = str(args.year)

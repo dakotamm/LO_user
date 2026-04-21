@@ -4,12 +4,12 @@ Driver code to do a cast extraction, combine the results with bottle data, and p
 For -test True it plots to the screen instead of a png.
 
 Testing on mac:
-run one_step_bottle_val_plot -gtx cas7_t0_x4b -lt hourly -year0 2017 -test True
+run one_step_val_plot -gtx cas7_t0_x4b -lt hourly -year0 2017 -test True
 
 Production runs on apogee:
-python one_step_bottle_val_plot.py -gtx cas7_t0_x4b -lt hourly -year0 2017 > one_step_test.log &
-python one_step_bottle_val_plot.py -gtx cas7_t1_x11ab -lt average -year0 2017 > one_step_test.log &
-python one_step_bottle_val_plot.py -gtx cas7_t1_x11ab -lt average -year0 2013 -year1 2024 > one_step_test.log &
+python one_step_val_plot.py -gtx cas7_t0_x4b -lt hourly -year0 2017 > one_step_test.log &
+python one_step_val_plot.py -gtx cas7_t1_x11ab -lt average -year0 2017 > one_step_test.log &
+python one_step_val_plot.py -gtx cas7_t1_x11ab -lt average -year0 2013 -year1 2024 > one_step_test.log &
 """
 
 import argparse
@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-gtx', '--gtagex', type=str)   # e.g. cas7_t1_x11ab
 parser.add_argument('-ro', '--roms_out_num', type=int, default=0) # 1 = Ldir['roms_out1'], etc.
 parser.add_argument('-lt', '--list_type', type=str, default='average') # hourly, average
-parser.add_argument('-sources', type=str, default='all') # e.g. all, or other user-defined list
+parser.add_argument('-sources', type=str, default='all') # named key, one source, or comma list
 parser.add_argument('-otype', type=str, default='all') # observation type: bottle, ctd, or all (=bottle,ctd)
 parser.add_argument('-year0', type=int) # e.g. 2019
 parser.add_argument('-year1', type=int, default=0) # will set to year0 if not specified
@@ -67,7 +67,11 @@ else:
     omfun = Lfun.module_from_file('obsmod_functions', fn)
 
 # Get the list of obs sources to use
-source_list = omfun.source_dict[Ldir['sources']]
+try:
+    source_list = omfun.parse_sources_arg(Ldir['sources'])
+except ValueError as e:
+    print('*** Bad -sources argument: ' + str(e))
+    sys.exit()
 
 # Build list of observation types to process
 if Ldir['otype'] == 'all':
