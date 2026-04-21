@@ -164,7 +164,7 @@ for fil in fil_dict.keys():
 plt.close('all')
 
 if not do_arag:
-    vn_list = ['SA','CT','DO (uM)','NO3 (uM)','NH4 (uM)','DIN (uM)',
+    vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)','DIN (uM)',
         'Chl (mg m-3)']
 else:
     vn_list = ['SA','CT','DO (mg L-1)','NO3 (uM)','NH4 (uM)','pCO2 (uatm)',

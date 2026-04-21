@@ -215,6 +215,38 @@ for otype in otype_list:
     print('---Time to make DO bias map = %0.1f sec' % (time()-tt0))
     sys.stdout.flush()
 
+# - Hypoxic days map (one per year, uses combined pickles from both otypes)
+for year in year_list:
+    print('\n' + (' ' + str(year) + ' Hypoxic Days Map ').center(50,'*') + '\n')
+
+    tt0 = time()
+    # Hook to LO_user
+    fn = Ldir['LO'] / 'obsmod' / 'plot_hypoxic_days.py'
+    ufn = Ldir['LOu'] / 'obsmod' / 'plot_hypoxic_days.py'
+    if ufn.is_file():
+        fn = ufn
+    # End Hook
+    cmd_list = ['python', str(fn),
+        '-gtx', Ldir['gtagex'],
+        '-ro', str(Ldir['roms_out_num']),
+        '-otype', Ldir['otype'],
+        '-year', str(year)]
+    if Ldir['testing']:
+        print(cmd_list)
+    else:
+        proc = Po(cmd_list, stdout=Pi, stderr=Pi)
+        stdout, stderr = proc.communicate()
+        if len(stdout) > 0:
+            print(' stdout '.center(20,'-'))
+            print(stdout.decode())
+        else:
+            print('  no stdout')
+        if len(stderr) > 0:
+            print(' stderr '.center(20,'-'))
+            print(stderr.decode())
+    print('---Time to make hypoxic days map = %0.1f sec' % (time()-tt0))
+    sys.stdout.flush()
+
 # - Penn Cove bottom DO time series (runs once across all years)
 print('\n' + (' Penn Cove Bottom DO Time Series ').center(50,'*') + '\n')
 

@@ -50,14 +50,16 @@ if 'DO (uM)' not in obs.columns or 'DO (uM)' not in mod.columns:
     sys.exit()
 
 # Build working dataframe
+# Convert DO from uM to mg/L
+DO_UM_TO_MGL = 32.0 / 1000.0
 wdf = pd.DataFrame({
     'lon': obs['lon'].values,
     'lat': obs['lat'].values,
     'z': obs['z'].values,
     'time': obs['time'].values,
     'cid': obs['cid'].values,
-    'obs_DO': obs['DO (uM)'].values,
-    'mod_DO': mod['DO (uM)'].values,
+    'obs_DO': obs['DO (uM)'].values * DO_UM_TO_MGL,
+    'mod_DO': mod['DO (uM)'].values * DO_UM_TO_MGL,
     'source': obs['source'].values if 'source' in obs.columns else '',
 })
 if 'name' in obs.columns:
@@ -125,9 +127,9 @@ for page in range(n_pages):
         ax.plot(sdf['time'], sdf['mod_DO'], 's--', color='tab:red',
                 markersize=5, markerfacecolor='none', label='Model DO')
 
-        ax.axhline(y=62.5, color='gray', linestyle=':', linewidth=1)
+        ax.axhline(y=2.0, color='gray', linestyle=':', linewidth=1)
 
-        ax.set_ylabel('DO (uM)')
+        ax.set_ylabel('DO (mg/L)')
         ax.grid(True, alpha=0.3)
 
         # Secondary axis: sample depth
@@ -144,7 +146,7 @@ for page in range(n_pages):
         ax.legend(lines1 + lines2, labels1 + labels2,
                   loc='upper right', fontsize=7, ncol=2)
 
-        ax.set_title('%s  (n=%d, mean z=%.0f m, mean bias=%.1f uM)' %
+        ax.set_title('%s  (n=%d, mean z=%.0f m, mean bias=%.2f mg/L)' %
                      (stn, int(stats['n_casts']), stats['mean_z'], stats['mean_bias']),
                      fontweight='bold', fontsize=10, loc='left')
 

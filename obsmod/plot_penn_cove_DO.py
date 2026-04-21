@@ -49,6 +49,9 @@ year_list = list(range(args.year0, args.year1 + 1))
 # Penn Cove station definitions
 penn_cove_stations = ['PENNCOVECW', 'PENNCOVEENT', 'PENNCOVEWEST', 'PENNCOVEPNN001']
 
+# DO unit conversion uM -> mg/L
+DO_UM_TO_MGL = 32.0 / 1000.0
+
 # source for Penn Cove data
 source = 'kc_whidbeyBasin'
 otype = 'ctd'
@@ -89,7 +92,8 @@ for year in year_list:
             # bottom obs value (most negative z)
             bot_idx = cast['z'].idxmin()
             bot_obs = cast.loc[bot_idx]
-            obs_do = bot_obs['DO (uM)'] if 'DO (uM)' in cast.columns else np.nan
+            obs_do_uM = bot_obs['DO (uM)'] if 'DO (uM)' in cast.columns else np.nan
+            obs_do = obs_do_uM * DO_UM_TO_MGL
             obs_time = bot_obs['time']
             obs_z = bot_obs['z']
 
@@ -103,7 +107,7 @@ for year in year_list:
                     mz = ds.z_rho.values
                     # find model level nearest to obs bottom depth
                     iz = zfun.find_nearest_ind(mz, obs_z)
-                    mod_do = float(ds.oxygen[iz].values)
+                    mod_do = float(ds.oxygen[iz].values) * DO_UM_TO_MGL
                     mod_z = float(mz[iz])
                 ds.close()
 
@@ -164,11 +168,11 @@ for i, stn in enumerate(stations):
             alpha=0.7, markerfacecolor='none',
             label='Model (bottom)')
 
-    ax.set_ylabel('DO (uM)')
+    ax.set_ylabel('DO (mg/L)')
     ax.set_title(label_dict.get(stn, stn), fontweight='bold')
     ax.legend(loc='best', fontsize=9)
     ax.grid(True, alpha=0.3)
-    ax.axhline(y=62.5, color='gray', linestyle=':', linewidth=1, label='hypoxic (2 mg/L)')
+    ax.axhline(y=2.0, color='gray', linestyle=':', linewidth=1, label='hypoxic (2 mg/L)')
 
     # add bottom depth info
     mean_z = stn_df['obs_z'].mean()
@@ -207,8 +211,8 @@ for stn in stations:
              color=c, markersize=4, alpha=0.6, markerfacecolor='none',
              label=lbl + ' model')
 
-ax2.axhline(y=62.5, color='gray', linestyle=':', linewidth=1, label='hypoxic (2 mg/L)')
-ax2.set_ylabel('DO (uM)')
+ax2.axhline(y=2.0, color='gray', linestyle=':', linewidth=1, label='hypoxic (2 mg/L)')
+ax2.set_ylabel('DO (mg/L)')
 ax2.set_xlabel('Date')
 ax2.set_title('Penn Cove Bottom DO: obs vs %s' % gtx, fontweight='bold')
 ax2.legend(loc='best', fontsize=8, ncol=2)

@@ -55,12 +55,14 @@ if 'DO (uM)' not in obs.columns or 'DO (uM)' not in mod.columns:
     sys.exit()
 
 # Build a working DataFrame with per-observation bias
+# Convert DO from uM to mg/L
+DO_UM_TO_MGL = 32.0 / 1000.0
 wdf = pd.DataFrame({
     'lon': obs['lon'].values,
     'lat': obs['lat'].values,
     'z': obs['z'].values,
-    'obs_DO': obs['DO (uM)'].values,
-    'mod_DO': mod['DO (uM)'].values,
+    'obs_DO': obs['DO (uM)'].values * DO_UM_TO_MGL,
+    'mod_DO': mod['DO (uM)'].values * DO_UM_TO_MGL,
 })
 # use station name if available, otherwise group by rounded lat/lon
 if 'name' in obs.columns:
@@ -124,11 +126,11 @@ def _plot_bias_panel(ax, sdf, title):
         pfun.dar(ax)
         return
     vmax = np.nanpercentile(np.abs(sdf['mean_bias'].values), 95)
-    vmax = max(vmax, 1)
+    vmax = max(vmax, 0.1)  # floor in mg/L
     sc = ax.scatter(sdf['lon'], sdf['lat'], c=sdf['mean_bias'],
                     cmap='RdBu_r', vmin=-vmax, vmax=vmax,
                     s=30, edgecolors='k', linewidths=0.3, zorder=5)
-    plt.colorbar(sc, ax=ax, shrink=0.7, label='mean DO bias (uM)')
+    plt.colorbar(sc, ax=ax, shrink=0.7, label='mean DO bias (mg/L)')
     ax.set_title(title + '\n(%d stations)' % len(sdf))
     pfun.add_coast(ax)
     ax.axis(extent)
@@ -179,7 +181,7 @@ if len(stn_over) > 0:
     sc2 = ax2.scatter(stn_over['lon'], stn_over['lat'], c=stn_over['mean_bias'],
                       cmap='Reds', s=40, edgecolors='k', linewidths=0.3,
                       alpha=0.8, vmin=0, zorder=5)
-    plt.colorbar(sc2, ax=ax2, shrink=0.7, label='mean DO overprediction (uM)')
+    plt.colorbar(sc2, ax=ax2, shrink=0.7, label='mean DO overprediction (mg/L)')
 
     # label the top overpredictors
     n_label = min(10, len(stn_over))
