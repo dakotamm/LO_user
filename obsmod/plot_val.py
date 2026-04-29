@@ -143,8 +143,12 @@ ff_str = otype + '_' + year + '_' + gtx # a string for the output .png file name
 
 # limit which sources to use
 if single_source == 'all':
-    # use df_dict as-is
-    f_str += 'Source = all\n'
+    # use df_dict as-is; report what is actually in the pickle
+    if 'source' in df0_dict['obs'].columns:
+        sources_in_pickle = sorted(df0_dict['obs']['source'].dropna().unique().tolist())
+        f_str += 'Sources = ' + ', '.join(sources_in_pickle) + '\n'
+    else:
+        f_str += 'Source = all\n'
     ff_str += '_all'
 else:
     # use just one source
