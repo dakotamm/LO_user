@@ -18,6 +18,7 @@ Usage
 
 import argparse
 import sys
+import warnings
 import numpy as np
 import xarray as xr
 from pathlib import Path
@@ -204,7 +205,10 @@ if __name__ == '__main__':
 
             # Depth-average 3D fields (z is first axis after squeeze)
             if fld.ndim == 3:
-                fld_depth_avg = np.nanmean(fld, axis=0)
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore',
+                                          category=RuntimeWarning)
+                    fld_depth_avg = np.nanmean(fld, axis=0)
             elif fld.ndim == 2:
                 fld_depth_avg = fld
             else:
