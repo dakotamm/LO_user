@@ -21,9 +21,16 @@ Tracking algorithm (greedy nearest-neighbor on centroids):
 
 Usage
 -----
-    python track_eddies.py -csv path/to/ow_vortices_..._.csv \
+    # Mirror the run_swirl_roms.py CLI to find the input CSV
+    python track_eddies.py -gtx wb1_t0_xn11ab \
+        -0 2024.01.01 -1 2024.01.31 \
+        -method ow -ftype his -vel surface \
         [-max_dist_km 2.0] [-max_gap 1] [-min_persistence 3] \
         [-phase_file path/to/phases_penn_cove.nc]
+
+    # Or pass an explicit CSV path
+    python track_eddies.py -gtx wb1_t0_xn11ab \
+        -csv /path/to/ow_vortices_..._.csv
 """
 
 import argparse
@@ -39,13 +46,32 @@ from lo_tools import Lfun
 # ---------------------------------------------------------------------------
 def get_args():
     p = argparse.ArgumentParser(description='Track eddies across snapshots.')
-    p.add_argument('-csv', type=str, required=True,
-                   help='Per-snapshot vortex CSV from run_swirl_roms.py')
+
+    # --- Run identification (matches run_swirl_roms.py) ---
     p.add_argument('-gtx', '--gtagex', type=str, required=True,
-                   help='gtagex (e.g. wb1_t0_xn11ab); used to resolve '
-                        'default output dir LOo/swirl/<gtagex>/')
+                   help='gtagex, e.g. wb1_t0_xn11ab')
+    p.add_argument('-0', '--ds0', type=str, default=None,
+                   help='Start date YYYY.MM.DD (matches run_swirl_roms output)')
+    p.add_argument('-1', '--ds1', type=str, default=None,
+                   help='End date YYYY.MM.DD')
+    p.add_argument('-method', type=str, default='ow',
+                   choices=['ow', 'vorticity', 'swirl'],
+                   help='Detection method used by run_swirl_roms.py')
+    p.add_argument('-ftype', '--file_type', type=str, default='his',
+                   choices=['his', 'avg'])
+    p.add_argument('-vel', '--vel_type', type=str, default='surface',
+                   choices=['surface', 'depth_avg', 'depth_level'])
+
+    # --- Override / explicit path ---
+    p.add_argument('-csv', type=str, default=None,
+                   help='Explicit CSV path (overrides -gtx/-0/-1/etc).')
+    p.add_argument('-in_dir', type=str, default=None,
+                   help='Directory containing the CSV '
+                        '(default: LOo/swirl/<gtagex>/).')
     p.add_argument('-out_dir', type=str, default=None,
-                   help='Output directory (default: LOo/swirl/<gtagex>/)')
+                   help='Output directory (default: same as input dir).')
+
+    # --- Tracking parameters ---
     p.add_argument('-max_dist_km', type=float, default=2.0,
                    help='Max centroid displacement to link detections [km]')
     p.add_argument('-max_gap', type=int, default=1,
@@ -57,12 +83,25 @@ def get_args():
     p.add_argument('-phase_file', type=str, default=None,
                    help='Optional NetCDF with is_flood/is_spring labels '
                         'from compute_tide_phases.py')
+
     args = p.parse_args()
 
     gridname, tag, ex_name = args.gtagex.split('_')
     Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)
+    default_dir = Ldir['LOo'] / 'swirl' / args.gtagex
+
+    # Resolve input CSV
+    if args.csv is None:
+        if args.ds0 is None or args.ds1 is None:
+            sys.exit('ERROR: provide either -csv or both -0 and -1.')
+        in_dir = Path(args.in_dir) if args.in_dir else default_dir
+        fname = (f'{args.method}_vortices_{args.ds0}_{args.ds1}'
+                 f'_{args.file_type}_{args.vel_type}.csv')
+        args.csv = str(in_dir / fname)
+
     if args.out_dir is None:
-        args.out_dir = str(Ldir['LOo'] / 'swirl' / args.gtagex)
+        args.out_dir = str(Path(args.csv).parent)
+
     return args
 
 
