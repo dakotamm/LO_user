@@ -31,6 +31,32 @@ import tide_phase_fun as tpf
 
 
 # -----------------------------------------------------------------------
+# Per-variable plot styling
+# -----------------------------------------------------------------------
+# (cmap, diverging?)  diverging=True -> symmetric vlims around 0
+VAR_STYLE = {
+    'u':      (cmo.balance, True),
+    'v':      (cmo.balance, True),
+    'w':      (cmo.balance, True),
+    'zeta':   (cmo.balance, True),
+    'salt':   (cmo.haline,  False),
+    'temp':   (cmo.thermal, False),
+    'oxygen': (cmo.oxy,     False),
+    'NO3':    (cmo.matter,  False),
+    'NH4':    (cmo.matter,  False),
+    'phytoplankton': (cmo.algae,  False),
+    'zooplankton':   (cmo.algae,  False),
+    'TIC':    (cmo.dense,   False),
+    'alkalinity': (cmo.dense, False),
+}
+
+# Map zoom: Penn Cove + northern Saratoga Passage
+ZOOM_BOUNDS = {
+    'penn_cove': (-122.78, -122.40, 48.05, 48.30),
+}
+
+
+# -----------------------------------------------------------------------
 # Argument parsing
 # -----------------------------------------------------------------------
 def get_args():
@@ -115,74 +141,121 @@ def plot_zeta_phases(ds_phase, Ldir):
 # -----------------------------------------------------------------------
 # Plot 2: 2x2 phase-averaged fields
 # -----------------------------------------------------------------------
-def plot_phase_avg_fields(Ldir, vn='u', cmap=cmo.balance, vlims=None):
-    """2x2 panel of depth-averaged field for each tidal phase."""
+def plot_phase_avg_fields(Ldir, vn='u', cmap=None, vlims=None):
+    """2x2 panel of depth-averaged field for each tidal phase.
+
+    Uses VAR_STYLE for default colormap and ZOOM_BOUNDS[label] for zoom.
+    Vlims are shared across all four panels (per-variable, percentile-based).
+    """
     phase_names = ['spring_flood', 'spring_ebb', 'neap_flood', 'neap_ebb']
     titles = ['Spring Flood', 'Spring Ebb', 'Neap Flood', 'Neap Ebb']
+
+    style_cmap, diverging = VAR_STYLE.get(vn, (cmo.haline, False))
+    if cmap is None:
+        cmap = style_cmap
 
     avg_dir = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
                / ('phase_avg_' + Ldir['ds0'] + '_' + Ldir['ds1']
                   + '_' + Ldir['file_type']))
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-    for idx, (pn, title) in enumerate(zip(phase_names, titles)):
-        ax = axes.flat[idx]
+    # First pass: read all four panels so we can pick shared vlims
+    panels = []
+    for pn in phase_names:
         fn = avg_dir / (Ldir['label'] + '_' + pn + '.nc')
         if not fn.is_file():
-            ax.set_title(f'{title}\n(no data)')
+            panels.append(None)
             continue
-
         ds = xr.open_dataset(fn)
-
         if vn not in ds:
-            ax.set_title(f'{title}\n({vn} not available)')
             ds.close()
+            panels.append(None)
             continue
-
         fld = ds[vn].values
         n_ts = ds.attrs.get('n_timesteps', '?')
-
-        # Determine appropriate grid coordinates
-        if vn in ('u',):
+        if vn == 'u':
             lon_key, lat_key = 'lon_u', 'lat_u'
-        elif vn in ('v',):
+        elif vn == 'v':
             lon_key, lat_key = 'lon_v', 'lat_v'
         else:
             lon_key, lat_key = 'lon_rho', 'lat_rho'
-
         if lon_key in ds and lat_key in ds:
-            lon = ds[lon_key].values
-            lat = ds[lat_key].values
-            plon, plat = pfun.get_plon_plat(lon, lat)
+            plon, plat = pfun.get_plon_plat(ds[lon_key].values,
+                                            ds[lat_key].values)
         else:
             plon = plat = None
-
         ds.close()
+        panels.append({'fld': fld, 'plon': plon, 'plat': plat,
+                       'n': n_ts, 'pn': pn})
 
-        if vlims is None:
-            vmax = np.nanpercentile(np.abs(fld), 95)
-            vmin = -vmax
+    # Determine zoom bounds first so we can compute vlims only on visible cells
+    bounds = ZOOM_BOUNDS.get(Ldir['label'])
+
+    if vlims is None:
+        # Restrict vlim stats to cells inside the zoom window when possible
+        sample_vals = []
+        for p in panels:
+            if p is None:
+                continue
+            v = p['fld']
+            if bounds is not None and p['plon'] is not None:
+                # plon/plat are corner arrays (one larger than fld in each dim);
+                # average to cell centers for masking
+                lon_c = 0.25 * (p['plon'][:-1, :-1] + p['plon'][1:, :-1] +
+                                p['plon'][:-1, 1:] + p['plon'][1:, 1:])
+                lat_c = 0.25 * (p['plat'][:-1, :-1] + p['plat'][1:, :-1] +
+                                p['plat'][:-1, 1:] + p['plat'][1:, 1:])
+                in_box = ((lon_c >= bounds[0]) & (lon_c <= bounds[1])
+                          & (lat_c >= bounds[2]) & (lat_c <= bounds[3]))
+                v = v[in_box]
+            sample_vals.append(v[np.isfinite(v)].ravel())
+        if sample_vals and any(s.size for s in sample_vals):
+            allv = np.concatenate(sample_vals)
+            if diverging:
+                vmax = float(np.nanpercentile(np.abs(allv), 98))
+                vmin = -vmax
+            else:
+                vmin = float(np.nanpercentile(allv, 2))
+                vmax = float(np.nanpercentile(allv, 98))
         else:
-            vmin, vmax = vlims
+            vmin, vmax = -1.0, 1.0
+    else:
+        vmin, vmax = vlims
 
-        if plon is not None:
-            cs = ax.pcolormesh(plon, plat, fld, cmap=cmap,
-                               vmin=vmin, vmax=vmax)
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    last_cs = None
+    for idx, (panel, title) in enumerate(zip(panels, titles)):
+        ax = axes.flat[idx]
+        if panel is None:
+            ax.set_title(f'{title}\n(no data)')
+            ax.set_axis_off()
+            continue
+        if panel['plon'] is not None:
+            cs = ax.pcolormesh(panel['plon'], panel['plat'], panel['fld'],
+                               cmap=cmap, vmin=vmin, vmax=vmax)
             pfun.add_coast(ax)
             pfun.dar(ax)
-            # Zoom to data extent (wb1 grid bounds)
-            ax.set_xlim(np.nanmin(plon), np.nanmax(plon))
-            ax.set_ylim(np.nanmin(plat), np.nanmax(plat))
+            if bounds is not None:
+                ax.set_xlim(bounds[0], bounds[1])
+                ax.set_ylim(bounds[2], bounds[3])
+            else:
+                ax.set_xlim(np.nanmin(panel['plon']),
+                            np.nanmax(panel['plon']))
+                ax.set_ylim(np.nanmin(panel['plat']),
+                            np.nanmax(panel['plat']))
         else:
-            cs = ax.pcolormesh(fld, cmap=cmap, vmin=vmin, vmax=vmax)
+            cs = ax.pcolormesh(panel['fld'], cmap=cmap,
+                               vmin=vmin, vmax=vmax)
+        ax.set_title(f'{title}  (n={panel["n"]})')
+        last_cs = cs
 
-        ax.set_title(f'{title}\n(n={n_ts})')
-        fig.colorbar(cs, ax=ax, fraction=0.046)
+    if last_cs is not None:
+        cbar = fig.colorbar(last_cs, ax=axes.ravel().tolist(),
+                            shrink=0.85, fraction=0.04, pad=0.02)
+        cbar.set_label(vn)
 
-    fig.suptitle(f'Depth-Averaged {vn} — {Ldir["label"]} ({Ldir["file_type"]}) '
+    fig.suptitle(f'Depth-Averaged {vn} — {Ldir["label"]} '
+                 f'({Ldir["file_type"]}) '
                  f'({Ldir["ds0"]} to {Ldir["ds1"]})', fontsize=14)
-    fig.tight_layout()
 
     out_fn = Ldir['out_dir'] / (f'phase_avg_{vn}_{Ldir["label"]}_{Ldir["file_type"]}_'
                                  f'{Ldir["ds0"]}_{Ldir["ds1"]}.png')
@@ -229,8 +302,7 @@ if __name__ == '__main__':
 
             print('\n--- Plot 2: Phase-averaged fields ---')
             for vn in available_vns:
-                cmap = cmo.balance if vn in ('u', 'v') else cmo.haline
-                plot_phase_avg_fields(Ldir, vn=vn, cmap=cmap)
+                plot_phase_avg_fields(Ldir, vn=vn)
     else:
         print(f'No phase_avg directory found: {avg_dir}')
 
