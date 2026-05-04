@@ -20,6 +20,7 @@ import argparse
 import sys
 import warnings
 import numpy as np
+import pandas as pd
 import xarray as xr
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -29,6 +30,26 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from lo_tools import Lfun
 
 import tide_phase_fun as tpf
+
+
+# 2-month season tags -> month numbers
+SEASONS = {
+    'JF': (1, 2),
+    'MA': (3, 4),
+    'MJ': (5, 6),
+    'JA': (7, 8),
+    'SO': (9, 10),
+    'ND': (11, 12),
+}
+
+
+def _season_of(t64):
+    """Return season tag for a numpy datetime64, or None."""
+    m = pd.Timestamp(t64).month
+    for tag, months in SEASONS.items():
+        if m in months:
+            return tag
+    return None
 
 
 # -----------------------------------------------------------------------
@@ -102,6 +123,10 @@ def get_args():
                         help='Comma-separated phase names to average over')
     parser.add_argument('-Nproc', type=int, default=10,
                         help='Number of parallel worker processes')
+    parser.add_argument('-by_season', type=Lfun.boolean_string,
+                        default=False,
+                        help='Also bin by 2-month seasons '
+                             '(JF, MA, MJ, JA, SO, ND).')
     parser.add_argument('-test', '--testing', type=Lfun.boolean_string,
                         default=False)
 
@@ -220,14 +245,14 @@ if __name__ == '__main__':
 
     # ----- Map each ROMS file to its nearest phase label -----
     # Build a time-to-phase lookup
-    import pandas as pd
     phase_series = pd.Series(phase_str, index=pd.DatetimeIndex(phase_time))
 
     # ----- Accumulate phase-averaged fields (parallel I/O) -----
-    # Structure: accumulators[phase_name][vn] = sum array
-    #            counts[phase_name] = int
-    accumulators = {pn: {} for pn in phase_names}
-    counts = {pn: 0 for pn in phase_names}
+    # Keys are (season, phase). When by_season is False, season is 'all'.
+    by_season = bool(Ldir['by_season'])
+    season_tags = list(SEASONS.keys()) if by_season else ['all']
+    accumulators = {(s, pn): {} for s in season_tags for pn in phase_names}
+    counts = {(s, pn): 0 for s in season_tags for pn in phase_names}
     grid_info = {}
 
     Nproc = max(1, int(Ldir['Nproc']))
@@ -262,12 +287,21 @@ if __name__ == '__main__':
                 n_skipped += 1
                 continue
 
+            if by_season:
+                file_season = _season_of(file_time)
+                if file_season is None:
+                    n_skipped += 1
+                    continue
+            else:
+                file_season = 'all'
+            key = (file_season, file_phase)
+
             for vn, arr in out_vns.items():
-                if vn not in accumulators[file_phase]:
-                    accumulators[file_phase][vn] = arr.copy()
+                if vn not in accumulators[key]:
+                    accumulators[key][vn] = arr.copy()
                 else:
-                    accumulators[file_phase][vn] += arr
-            counts[file_phase] += 1
+                    accumulators[key][vn] += arr
+            counts[key] += 1
 
             if n_done % 100 == 0:
                 print(f'  processed {n_done}/{len(fn_list)} files '
@@ -281,70 +315,77 @@ if __name__ == '__main__':
                / ('phase_avg_' + ds0 + '_' + ds1 + '_' + Ldir['file_type']))
     Lfun.make_dir(out_dir)
 
-    for pn in phase_names:
-        if counts[pn] == 0:
-            print(f'  {pn}: no timesteps — skipping')
-            continue
+    for season_tag in season_tags:
+        for pn in phase_names:
+            key = (season_tag, pn)
+            if counts[key] == 0:
+                print(f'  {season_tag} {pn}: no timesteps \u2014 skipping')
+                continue
 
-        print(f'  {pn}: {counts[pn]} timesteps averaged')
-        out_fn = out_dir / (label + '_' + pn + '.nc')
-
-        ds_out = xr.Dataset(attrs={
-            'gridname': Ldir['gridname'],
-            'gtagex': Ldir['gtagex'],
-            'ds0': ds0,
-            'ds1': ds1,
-            'phase': pn,
-            'label': label,
-            'file_type': Ldir['file_type'],
-            'n_timesteps': counts[pn],
-        })
-
-        # Grid coordinates — use proper ROMS dim names since rho/u/v grids
-        # have different sizes.
-        gvn_dims = {
-            'lon_rho':  ('eta_rho', 'xi_rho'),
-            'lat_rho':  ('eta_rho', 'xi_rho'),
-            'mask_rho': ('eta_rho', 'xi_rho'),
-            'h':        ('eta_rho', 'xi_rho'),
-            'lon_u':    ('eta_u', 'xi_u'),
-            'lat_u':    ('eta_u', 'xi_u'),
-            'mask_u':   ('eta_u', 'xi_u'),
-            'lon_v':    ('eta_v', 'xi_v'),
-            'lat_v':    ('eta_v', 'xi_v'),
-            'mask_v':   ('eta_v', 'xi_v'),
-        }
-        for gvn, gdata in grid_info.items():
-            if gvn in gvn_dims:
-                ds_out[gvn] = (gvn_dims[gvn], gdata)
-
-        # Map each variable to the right horizontal grid
-        vn_dims = {
-            'u': ('eta_u', 'xi_u'),
-            'v': ('eta_v', 'xi_v'),
-        }
-        # Phase-averaged fields (write everything in accumulators, including
-        # *_top and *_bot variants from 3D fields).
-        for out_vn, sum_fld in accumulators[pn].items():
-            mean_fld = sum_fld / counts[pn]
-            base_vn = out_vn.replace('_top', '').replace('_bot', '')
-            hdims = vn_dims.get(base_vn, ('eta_rho', 'xi_rho'))
-            if mean_fld.ndim == 2:
-                ds_out[out_vn] = (hdims, mean_fld)
-            elif mean_fld.ndim == 1:
-                ds_out[out_vn] = ((hdims[0],), mean_fld)
-            if out_vn.endswith('_top'):
-                ds_out[out_vn].attrs['long_name'] = (
-                    f'surface-layer {base_vn}, phase={pn}')
-            elif out_vn.endswith('_bot'):
-                ds_out[out_vn].attrs['long_name'] = (
-                    f'bottom-layer {base_vn}, phase={pn}')
+            print(f'  {season_tag} {pn}: {counts[key]} timesteps averaged')
+            if by_season:
+                out_fn = out_dir / (label + '_' + season_tag
+                                    + '_' + pn + '.nc')
             else:
-                ds_out[out_vn].attrs['long_name'] = (
-                    f'depth-averaged {base_vn}, phase={pn}')
+                out_fn = out_dir / (label + '_' + pn + '.nc')
 
-        ds_out.to_netcdf(out_fn)
-        ds_out.close()
-        print(f'    saved: {out_fn}')
+            ds_out = xr.Dataset(attrs={
+                'gridname': Ldir['gridname'],
+                'gtagex': Ldir['gtagex'],
+                'ds0': ds0,
+                'ds1': ds1,
+                'phase': pn,
+                'season': season_tag,
+                'label': label,
+                'file_type': Ldir['file_type'],
+                'n_timesteps': counts[key],
+            })
+
+            # Grid coordinates — use proper ROMS dim names since rho/u/v
+            # grids have different sizes.
+            gvn_dims = {
+                'lon_rho':  ('eta_rho', 'xi_rho'),
+                'lat_rho':  ('eta_rho', 'xi_rho'),
+                'mask_rho': ('eta_rho', 'xi_rho'),
+                'h':        ('eta_rho', 'xi_rho'),
+                'lon_u':    ('eta_u', 'xi_u'),
+                'lat_u':    ('eta_u', 'xi_u'),
+                'mask_u':   ('eta_u', 'xi_u'),
+                'lon_v':    ('eta_v', 'xi_v'),
+                'lat_v':    ('eta_v', 'xi_v'),
+                'mask_v':   ('eta_v', 'xi_v'),
+            }
+            for gvn, gdata in grid_info.items():
+                if gvn in gvn_dims:
+                    ds_out[gvn] = (gvn_dims[gvn], gdata)
+
+            # Map each variable to the right horizontal grid
+            vn_dims = {
+                'u': ('eta_u', 'xi_u'),
+                'v': ('eta_v', 'xi_v'),
+            }
+            # Phase-averaged fields (write everything in accumulators,
+            # including *_top and *_bot variants from 3D fields).
+            for out_vn, sum_fld in accumulators[key].items():
+                mean_fld = sum_fld / counts[key]
+                base_vn = out_vn.replace('_top', '').replace('_bot', '')
+                hdims = vn_dims.get(base_vn, ('eta_rho', 'xi_rho'))
+                if mean_fld.ndim == 2:
+                    ds_out[out_vn] = (hdims, mean_fld)
+                elif mean_fld.ndim == 1:
+                    ds_out[out_vn] = ((hdims[0],), mean_fld)
+                if out_vn.endswith('_top'):
+                    ds_out[out_vn].attrs['long_name'] = (
+                        f'surface-layer {base_vn}, phase={pn}')
+                elif out_vn.endswith('_bot'):
+                    ds_out[out_vn].attrs['long_name'] = (
+                        f'bottom-layer {base_vn}, phase={pn}')
+                else:
+                    ds_out[out_vn].attrs['long_name'] = (
+                        f'depth-averaged {base_vn}, phase={pn}')
+
+            ds_out.to_netcdf(out_fn)
+            ds_out.close()
+            print(f'    saved: {out_fn}')
 
     print(f'\nTotal time: {timer() - tt0:.1f} s')
