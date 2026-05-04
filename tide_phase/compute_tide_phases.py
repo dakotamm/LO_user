@@ -2,8 +2,8 @@
 Compute tidal phase labels from a zeta time series via UTide.
 
 Reads output from extract_zeta_ts.py, runs harmonic analysis with UTide,
-classifies flood/ebb from d(prediction)/dt and spring/neap from the
-M2+S2 beat envelope.
+classifies flood/ebb from d(prediction)/dt, slack from extrema, and
+spring/neap from the M2+S2 beat envelope.
 
 Usage
 -----
@@ -69,6 +69,15 @@ if __name__ == '__main__':
 
     print(f'Loaded zeta: {len(zeta)} timesteps, {time_zeta[0]} to {time_zeta[-1]}')
     print(f'Location: ({lon:.4f}, {lat:.4f})')
+
+    # Safety: deduplicate timestamps (his-file day boundaries produce duplicates)
+    _, unique_idx = np.unique(time_zeta, return_index=True)
+    n_dup = len(time_zeta) - len(unique_idx)
+    if n_dup > 0:
+        unique_idx = np.sort(unique_idx)
+        time_zeta = time_zeta[unique_idx]
+        zeta = zeta[unique_idx]
+        print(f'Removed {n_dup} duplicate timestamps from zeta input.')
 
     # UTide harmonic analysis
     print('\n--- UTide harmonic analysis ---')

@@ -146,6 +146,17 @@ if __name__ == '__main__':
     zeta_arr = np.array(zeta_list)
     time_arr = np.array(time_list, dtype='datetime64[ns]')
 
+    # Deduplicate timestamps (his files: ocean_his_0025 of one day equals
+    # ocean_his_0001 of the next day -> identical time entries)
+    _, unique_idx = np.unique(time_arr, return_index=True)
+    n_dup = len(time_arr) - len(unique_idx)
+    if n_dup > 0:
+        unique_idx = np.sort(unique_idx)
+        time_arr = time_arr[unique_idx]
+        zeta_arr = zeta_arr[unique_idx]
+        print(f'Removed {n_dup} duplicate timestamps '
+              f'(his-file day boundaries).')
+
     # Save
     out_dir = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
                / ('zeta_ts_' + Ldir['ds0'] + '_' + Ldir['ds1']))
