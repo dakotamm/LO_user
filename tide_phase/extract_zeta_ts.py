@@ -22,10 +22,28 @@ import numpy as np
 import xarray as xr
 from datetime import datetime, timedelta
 from time import time as timer
+from concurrent.futures import ProcessPoolExecutor
 
 from lo_tools import Lfun
 
 import tide_phase_fun as tpf
+
+
+# -----------------------------------------------------------------------
+# Worker (top-level so it pickles for ProcessPoolExecutor)
+# -----------------------------------------------------------------------
+def _extract_one(args):
+    """Open one ROMS file and return (time, zeta_value) at (j_pt, i_pt)."""
+    fn, j_pt, i_pt = args
+    try:
+        ds = xr.open_dataset(fn)
+        ot = ds.ocean_time.values
+        zeta_val = float(ds.zeta.values.squeeze()[j_pt, i_pt])
+        ds.close()
+        t = ot.item() if ot.ndim == 0 else ot[0].item()
+        return (t, zeta_val, None)
+    except Exception as e:
+        return (None, None, f'{fn}: {e}')
 
 
 # -----------------------------------------------------------------------
@@ -43,6 +61,8 @@ def get_args():
     parser.add_argument('-label', type=str, default=None,
                         help='Output filename label. If matches tide_phase_fun.LOCATIONS, '
                              'coords are looked up from there.')
+    parser.add_argument('-Nproc', type=int, default=10,
+                        help='Number of parallel worker processes')
     parser.add_argument('-test', '--testing', type=Lfun.boolean_string,
                         default=False)
 
@@ -130,18 +150,29 @@ if __name__ == '__main__':
           f'grid (j={j_pt}, i={i_pt}) at ({actual_lon:.4f}, {actual_lat:.4f}), '
           f'h={actual_h:.1f} m')
 
-    # Loop and extract
+    # Loop and extract (parallel)
+    Nproc = max(1, int(Ldir['Nproc']))
+    print(f'Extracting with Nproc={Nproc} ...')
+    work = [(fn, j_pt, i_pt) for fn in fn_list]
+
     zeta_list = []
     time_list = []
-    for ii, fn in enumerate(fn_list):
-        ds = xr.open_dataset(fn)
-        ot = ds.ocean_time.values
-        zeta_2d = ds.zeta.values.squeeze()
-        ds.close()
-        zeta_list.append(float(zeta_2d[j_pt, i_pt]))
-        time_list.append(ot.item() if ot.ndim == 0 else ot[0].item())
-        if (ii + 1) % 200 == 0:
-            print(f'  processed {ii + 1}/{len(fn_list)} files')
+    n_done = 0
+    n_errors = 0
+    with ProcessPoolExecutor(max_workers=Nproc) as ex:
+        for t, zeta_val, err in ex.map(_extract_one, work, chunksize=8):
+            n_done += 1
+            if err is not None:
+                n_errors += 1
+                print(f'  [warn] {err}')
+                continue
+            time_list.append(t)
+            zeta_list.append(zeta_val)
+            if n_done % 200 == 0:
+                print(f'  processed {n_done}/{len(fn_list)} files '
+                      f'({timer() - tt0:.1f} s)')
+    if n_errors:
+        print(f'  {n_errors} files failed to read.')
 
     zeta_arr = np.array(zeta_list)
     time_arr = np.array(time_list, dtype='datetime64[ns]')
