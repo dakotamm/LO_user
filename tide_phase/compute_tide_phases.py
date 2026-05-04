@@ -93,6 +93,14 @@ if __name__ == '__main__':
         names = list(coef['name'])
         print(f'  constituents fit: {len(names)} '
               f"(top: {', '.join(names[:8])}{'...' if len(names) > 8 else ''})")
+    print(f'  coef keys: {list(coef.keys()) if hasattr(coef, "keys") else dir(coef)}')
+    if hasattr(coef, 'A') or 'A' in coef:
+        try:
+            A = coef['A']
+            print(f'  amplitudes A: shape={np.shape(A)}, '
+                  f'max={np.nanmax(A) if np.size(A) else "n/a"}')
+        except Exception as e:
+            print(f'  could not read coef[A]: {e}')
 
     # Optionally re-do spring/neap with custom percentile
     if Ldir['sn_percentile'] != 50:
