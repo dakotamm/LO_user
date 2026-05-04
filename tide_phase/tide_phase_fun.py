@@ -236,8 +236,6 @@ def detect_phases_utide(zeta, time, lat):
 
     # Convert datetime64 to datetime objects for UTide
     time_num = _to_datenum(time)
-    print(f'  detect_phases_utide: time[0]={time_num[0]}, '
-          f'time[-1]={time_num[-1]}, n={len(time_num)}')
 
     # UTide doesn't tolerate NaN in input zeta. Mask NaN for solve, but
     # always reconstruct on the full time grid.
@@ -253,8 +251,7 @@ def detect_phases_utide(zeta, time, lat):
                        method='ols',
                        conf_int='MC',
                        Rayleigh_min=0.95,
-                       verbose=True)
-    print(f'  utide.solve returned {len(coef["name"])} constituents.')
+                       verbose=False)
 
     pred = utide.reconstruct(time_num, coef, verbose=False).h
     pred = np.asarray(pred, dtype=float)
