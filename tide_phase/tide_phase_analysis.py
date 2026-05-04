@@ -44,7 +44,7 @@ def get_args():
                         choices=['avg', 'his'],
                         help='Which phase_avg_fields output to plot')
     parser.add_argument('-out_dir', type=str, default=None,
-                        help='Output directory for plots (default: Desktop/pltz)')
+                        help='Output directory for plots (default: LOo/tide_phase/plots)')
 
     args = parser.parse_args()
 
@@ -55,7 +55,7 @@ def get_args():
             Ldir[k] = v
 
     if Ldir['out_dir'] is None:
-        Ldir['out_dir'] = Path.home() / 'Desktop' / 'pltz'
+        Ldir['out_dir'] = Ldir['LOo'] / 'tide_phase' / 'plots'
     else:
         Ldir['out_dir'] = Path(Ldir['out_dir'])
     Lfun.make_dir(Ldir['out_dir'])
