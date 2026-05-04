@@ -1,5 +1,0 @@
-track_id,n_detections,snapshot_first,snapshot_last,span_snapshots,duration_hours,rotation,mean_lon,mean_lat,mean_radius_m,mean_n_cells,mean_vorticity
-0,10,0,9,10,10.0,1,-122.69730000000001,48.2218,600.0,20.0,0.0001
-2,6,2,7,6,6.0,-1,-122.64999842382821,48.239970115108655,500.0,15.0,-0.0001
-1,4,0,4,5,5.0,1,-122.72,48.25,400.0,10.0,0.0001
-3,2,4,5,2,2.0,1,-122.62,48.21,400.0,12.0,0.0001

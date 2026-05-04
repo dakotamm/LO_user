@@ -28,10 +28,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from lo_tools import Lfun
+
 
 HERE = Path(__file__).parent
-TEST_DIR = HERE / '_test_tracking'
-TEST_DIR.mkdir(exist_ok=True)
+GTAGEX = 'wb1_t0_xn11ab'
+_g, _t, _e = GTAGEX.split('_')
+_Ldir = Lfun.Lstart(gridname=_g, tag=_t, ex_name=_e)
+TEST_DIR = _Ldir['LOo'] / 'swirl' / GTAGEX
+TEST_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def make_synthetic_csv():
@@ -114,6 +119,7 @@ def run_tracker(csv_path):
     cmd = [
         sys.executable, str(HERE / 'track_eddies.py'),
         '-csv', str(csv_path),
+        '-gtx', GTAGEX,
         '-max_dist_km', '1.0',
         '-max_gap', '1',
         '-min_persistence', '2',
@@ -129,8 +135,8 @@ def run_tracker(csv_path):
 def verify(csv_path):
     """Check the tracker output against expectations."""
     stem = csv_path.stem
-    tracks = pd.read_csv(csv_path.parent / f'{stem}_tracks.csv')
-    tracked = pd.read_csv(csv_path.parent / f'{stem}_tracked.csv')
+    tracks = pd.read_csv(TEST_DIR / f'{stem}_tracks.csv')
+    tracked = pd.read_csv(TEST_DIR / f'{stem}_tracked.csv')
 
     print('\n=== Tracks summary ===')
     print(tracks[['track_id', 'n_detections', 'span_snapshots',

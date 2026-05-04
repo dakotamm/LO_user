@@ -33,14 +33,19 @@ import pandas as pd
 import xarray as xr
 from pathlib import Path
 
+from lo_tools import Lfun
+
 
 # ---------------------------------------------------------------------------
 def get_args():
     p = argparse.ArgumentParser(description='Track eddies across snapshots.')
     p.add_argument('-csv', type=str, required=True,
                    help='Per-snapshot vortex CSV from run_swirl_roms.py')
+    p.add_argument('-gtx', '--gtagex', type=str, required=True,
+                   help='gtagex (e.g. wb1_t0_xn11ab); used to resolve '
+                        'default output dir LOo/swirl/<gtagex>/')
     p.add_argument('-out_dir', type=str, default=None,
-                   help='Output directory (default: same as input)')
+                   help='Output directory (default: LOo/swirl/<gtagex>/)')
     p.add_argument('-max_dist_km', type=float, default=2.0,
                    help='Max centroid displacement to link detections [km]')
     p.add_argument('-max_gap', type=int, default=1,
@@ -52,7 +57,13 @@ def get_args():
     p.add_argument('-phase_file', type=str, default=None,
                    help='Optional NetCDF with is_flood/is_spring labels '
                         'from compute_tide_phases.py')
-    return p.parse_args()
+    args = p.parse_args()
+
+    gridname, tag, ex_name = args.gtagex.split('_')
+    Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)
+    if args.out_dir is None:
+        args.out_dir = str(Ldir['LOo'] / 'swirl' / args.gtagex)
+    return args
 
 
 # ---------------------------------------------------------------------------
