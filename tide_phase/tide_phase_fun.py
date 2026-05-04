@@ -237,12 +237,29 @@ def detect_phases_utide(zeta, time, lat):
     # Convert datetime64 to matplotlib datenums for UTide
     time_num = _to_datenum(time)
 
-    coef = utide.solve(time_num, zeta, lat=lat,
+    # UTide doesn't tolerate NaN in input zeta. Mask NaN for solve, but
+    # always reconstruct on the full time grid.
+    finite_in = np.isfinite(zeta)
+    n_nan_in = (~finite_in).sum()
+    if n_nan_in > 0:
+        print(f'  detect_phases_utide: {n_nan_in} NaN in input zeta '
+              f'(masked for solve).')
+    coef = utide.solve(time_num[finite_in], zeta[finite_in], lat=lat,
                        method='ols',
                        conf_int='none',
                        verbose=False)
 
     pred = utide.reconstruct(time_num, coef, verbose=False).h
+    pred = np.asarray(pred, dtype=float)
+
+    n_nan_pred = (~np.isfinite(pred)).sum()
+    if n_nan_pred > 0:
+        print(f'  detect_phases_utide: WARNING — {n_nan_pred} NaN in '
+              f'reconstructed prediction. Filling via interpolation.')
+        # Linear-interp over NaN gaps so gradient/extrema work
+        idx = np.arange(len(pred))
+        good = np.isfinite(pred)
+        pred = np.interp(idx, idx[good], pred[good])
 
     # Flood/ebb from derivative of predicted tide
     dt_sec = _dt_seconds(time)
@@ -308,6 +325,12 @@ def spring_neap_from_m2s2(time, coef, percentile_thresh=50, window_hours=25):
         pred_m2s2 = utide.reconstruct(time_num, coef,
                                       constit=constit,
                                       verbose=False).h
+    pred_m2s2 = np.asarray(pred_m2s2, dtype=float)
+    if not np.all(np.isfinite(pred_m2s2)):
+        idx = np.arange(len(pred_m2s2))
+        good = np.isfinite(pred_m2s2)
+        if good.sum() >= 2:
+            pred_m2s2 = np.interp(idx, idx[good], pred_m2s2[good])
 
     n = len(pred_m2s2)
     half = window_hours // 2

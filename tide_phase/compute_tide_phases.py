@@ -83,6 +83,17 @@ if __name__ == '__main__':
     print('\n--- UTide harmonic analysis ---')
     phase_dict = tpf.detect_phases_utide(zeta, time_zeta, lat)
 
+    pred = phase_dict['pred']
+    print(f'  zeta:        finite={np.isfinite(zeta).sum()}/{len(zeta)}, '
+          f'min={np.nanmin(zeta):.3f}, max={np.nanmax(zeta):.3f}')
+    print(f'  pred (full): finite={np.isfinite(pred).sum()}/{len(pred)}, '
+          f'min={np.nanmin(pred):.3f}, max={np.nanmax(pred):.3f}')
+    coef = phase_dict['coef']
+    if 'name' in coef:
+        names = list(coef['name'])
+        print(f'  constituents fit: {len(names)} '
+              f"(top: {', '.join(names[:8])}{'...' if len(names) > 8 else ''})")
+
     # Optionally re-do spring/neap with custom percentile
     if Ldir['sn_percentile'] != 50:
         print(f'Recomputing spring/neap at percentile={Ldir["sn_percentile"]}')
