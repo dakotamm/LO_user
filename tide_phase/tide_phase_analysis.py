@@ -73,7 +73,7 @@ def _resolve_units(vn):
 
 # Map zoom: Penn Cove proper plus the entrance
 ZOOM_BOUNDS = {
-    'penn_cove': (-122.755, -122.645, 48.21, 48.255),
+    'penn_cove': (-122.755, -122.60, 48.215, 48.255),
 }
 
 # Sub-region(s) to EXCLUDE when computing color limits (still plotted, just
@@ -273,7 +273,20 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=None, vlims=None):
             ax.set_axis_off()
             continue
         if panel['plon'] is not None:
-            cs = ax.pcolormesh(panel['plon'], panel['plat'], panel['fld'],
+            fld_plot = panel['fld'].astype(float).copy()
+            if bounds is not None:
+                lon_c = 0.25 * (panel['plon'][:-1, :-1]
+                                + panel['plon'][1:, :-1]
+                                + panel['plon'][:-1, 1:]
+                                + panel['plon'][1:, 1:])
+                lat_c = 0.25 * (panel['plat'][:-1, :-1]
+                                + panel['plat'][1:, :-1]
+                                + panel['plat'][:-1, 1:]
+                                + panel['plat'][1:, 1:])
+                outside = ~((lon_c >= bounds[0]) & (lon_c <= bounds[1])
+                            & (lat_c >= bounds[2]) & (lat_c <= bounds[3]))
+                fld_plot[outside] = np.nan
+            cs = ax.pcolormesh(panel['plon'], panel['plat'], fld_plot,
                                cmap=cmap, vmin=vmin, vmax=vmax)
             pfun.add_coast(ax)
             pfun.dar(ax)
@@ -395,11 +408,20 @@ def plot_phase_avg_quiver(Ldir, layer='', skip=2, scale=None):
             ax.set_title(f'{title}\n(no data)')
             ax.set_axis_off()
             continue
-        cs = ax.pcolormesh(p['lon'], p['lat'], p['spd'],
+        spd_plot = p['spd'].astype(float).copy()
+        u_plot = p['u'].astype(float).copy()
+        v_plot = p['v'].astype(float).copy()
+        if bounds is not None:
+            outside = ~((p['lon'] >= bounds[0]) & (p['lon'] <= bounds[1])
+                        & (p['lat'] >= bounds[2]) & (p['lat'] <= bounds[3]))
+            spd_plot[outside] = np.nan
+            u_plot[outside] = np.nan
+            v_plot[outside] = np.nan
+        cs = ax.pcolormesh(p['lon'], p['lat'], spd_plot,
                            cmap=cmo.speed, vmin=0, vmax=smax,
                            shading='auto')
         ax.quiver(p['lon'][::skip, ::skip], p['lat'][::skip, ::skip],
-                  p['u'][::skip, ::skip], p['v'][::skip, ::skip],
+                  u_plot[::skip, ::skip], v_plot[::skip, ::skip],
                   scale=scale, color='k', width=0.003)
         pfun.add_coast(ax)
         pfun.dar(ax)
