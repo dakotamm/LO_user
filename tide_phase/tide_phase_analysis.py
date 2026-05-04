@@ -83,6 +83,12 @@ COLOR_EXCLUDE = {
     'penn_cove': [(-122.77, -122.66, 48.20, 48.27)],
 }
 
+# Sub-region(s) to MASK OUT (set to NaN) entirely so they don't appear
+# on the plot. Each entry is a list of (lon0, lon1, lat0, lat1) boxes.
+PLOT_EXCLUDE = {
+    'penn_cove': [(-122.755, -122.73, 48.205, 48.215)],
+}
+
 
 def _color_mask(lon, lat, label, bounds):
     """Boolean mask of cells used for vlim stats: inside zoom AND not in
@@ -285,6 +291,9 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=None, vlims=None):
                                 + panel['plat'][1:, 1:])
                 outside = ~((lon_c >= bounds[0]) & (lon_c <= bounds[1])
                             & (lat_c >= bounds[2]) & (lat_c <= bounds[3]))
+                for ex in PLOT_EXCLUDE.get(Ldir['label'], []):
+                    outside |= ((lon_c >= ex[0]) & (lon_c <= ex[1])
+                                & (lat_c >= ex[2]) & (lat_c <= ex[3]))
                 fld_plot[outside] = np.nan
             cs = ax.pcolormesh(panel['plon'], panel['plat'], fld_plot,
                                cmap=cmap, vmin=vmin, vmax=vmax)
@@ -414,6 +423,9 @@ def plot_phase_avg_quiver(Ldir, layer='', skip=2, scale=None):
         if bounds is not None:
             outside = ~((p['lon'] >= bounds[0]) & (p['lon'] <= bounds[1])
                         & (p['lat'] >= bounds[2]) & (p['lat'] <= bounds[3]))
+            for ex in PLOT_EXCLUDE.get(Ldir['label'], []):
+                outside |= ((p['lon'] >= ex[0]) & (p['lon'] <= ex[1])
+                            & (p['lat'] >= ex[2]) & (p['lat'] <= ex[3]))
             spd_plot[outside] = np.nan
             u_plot[outside] = np.nan
             v_plot[outside] = np.nan
