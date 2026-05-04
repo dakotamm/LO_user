@@ -1,7 +1,7 @@
 """
 Code to process the King County Water Quality CTD data for Puget Sound.
 
-To process King County QCed dataset received by Dakota Mascarenas from Greg Ikeda, King County, via file transfer on 2024/04/05.
+To process King County QCed dataset received by Dakota Mascarenas from Greg Ikeda, King County, via file transfer on 2024/04/05 and updated the same way via file transfer on 2026/05/01.
 
 Station information downloaded by Dakota Mascarenas from: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf
 
@@ -11,7 +11,7 @@ Finalized for public use: 2025/09/04
 
 Written by: Dakota Mascarenas
 
-Most recent update: 2026/04/13
+Most recent update: 2026/05/01
 
 """
 
@@ -29,7 +29,7 @@ Ldir = Lfun.Lstart()
 source = 'kc'
 otype = 'ctd'
 in_dir0 = Ldir['data'] / 'obs' / source 
-year_list = range(1998,2025)
+year_list = range(1998,2027)
 
 # output location
 out_dir = Ldir['LOo'] / 'obs' / source / otype
@@ -50,7 +50,7 @@ for f in fn:
         big_df_raw = pd.concat([big_df_raw, raw])
     
 # Load station data.
-sta_df = pd.read_csv(in_dir0 / 'WLRD_Sites_March2024.csv')
+sta_df = pd.read_csv(in_dir0 / 'WLRD_Sites_20260421.csv')
 
 # Merge station data.
 big_df = big_df_raw.merge(sta_df[['Locator','Latitude', 'Longitude']], on = 'Locator', how='left')
