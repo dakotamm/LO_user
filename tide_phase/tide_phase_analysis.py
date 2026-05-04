@@ -1,16 +1,19 @@
 """
 Visualize tidal phase detection results and phase-averaged fields.
 
-Reads output from compute_tide_phases.py, phase_avg_fields.py, and
-phase_avg_budgets.py to create summary plots.
+Reads output from compute_tide_phases.py and phase_avg_fields.py and
+produces:
+  1. zeta time series colored by flood/ebb with spring/neap shading
+  2. 2x2 phase-averaged scalar maps (depth-avg, surface, bottom) for
+     salt, temp, oxygen (mg/L), u, v
+  3. 2x2 phase-averaged velocity quivers at depth-avg, surface, bottom
 
 Designed to run locally (after copying results from apogee).
 
 Usage
 -----
-    python tide_phase_analysis.py -gtx wb1_t0_xn11ab -label penn_cove \
-        -0 2024.01.01 -1 2024.06.30
-
+    python tide_phase_analysis.py -gtx wb1_r0_xn11ab -label penn_cove \
+        -0 2017.01.01 -1 2017.01.31 -file_type his
 """
 
 import argparse
@@ -68,10 +71,32 @@ def _resolve_units(vn):
     return factor, label, base
 
 
-# Map zoom: Penn Cove + entrance/Saratoga Passage approach
+# Map zoom: Penn Cove proper plus the entrance
 ZOOM_BOUNDS = {
-    'penn_cove': (-122.77, -122.55, 48.20, 48.27),
+    'penn_cove': (-122.77, -122.60, 48.20, 48.255),
 }
+
+# Sub-region(s) to EXCLUDE when computing color limits (still plotted, just
+# not used for vlim percentiles). Each entry is a list of
+# (lon0, lon1, lat0, lat1) boxes.
+COLOR_EXCLUDE = {
+    'penn_cove': [(-122.77, -122.66, 48.20, 48.27)],
+}
+
+
+def _color_mask(lon, lat, label, bounds):
+    """Boolean mask of cells used for vlim stats: inside zoom AND not in
+    any COLOR_EXCLUDE box.
+    """
+    in_box = np.ones_like(lon, dtype=bool)
+    if bounds is not None:
+        in_box = ((lon >= bounds[0]) & (lon <= bounds[1])
+                  & (lat >= bounds[2]) & (lat <= bounds[3]))
+    for ex in COLOR_EXCLUDE.get(label, []):
+        in_ex = ((lon >= ex[0]) & (lon <= ex[1])
+                 & (lat >= ex[2]) & (lat <= ex[3]))
+        in_box &= ~in_ex
+    return in_box
 
 
 # -----------------------------------------------------------------------
@@ -211,22 +236,20 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=None, vlims=None):
     bounds = ZOOM_BOUNDS.get(Ldir['label'])
 
     if vlims is None:
-        # Restrict vlim stats to cells inside the zoom window when possible
+        # Restrict vlim stats to cells inside the zoom window AND outside
+        # any COLOR_EXCLUDE box for this label.
         sample_vals = []
         for p in panels:
             if p is None:
                 continue
             v = p['fld']
-            if bounds is not None and p['plon'] is not None:
-                # plon/plat are corner arrays (one larger than fld in each dim);
-                # average to cell centers for masking
+            if p['plon'] is not None:
                 lon_c = 0.25 * (p['plon'][:-1, :-1] + p['plon'][1:, :-1] +
                                 p['plon'][:-1, 1:] + p['plon'][1:, 1:])
                 lat_c = 0.25 * (p['plat'][:-1, :-1] + p['plat'][1:, :-1] +
                                 p['plat'][:-1, 1:] + p['plat'][1:, 1:])
-                in_box = ((lon_c >= bounds[0]) & (lon_c <= bounds[1])
-                          & (lat_c >= bounds[2]) & (lat_c <= bounds[3]))
-                v = v[in_box]
+                mask = _color_mask(lon_c, lat_c, Ldir['label'], bounds)
+                v = v[mask]
             sample_vals.append(v[np.isfinite(v)].ravel())
         if sample_vals and any(s.size for s in sample_vals):
             allv = np.concatenate(sample_vals)
@@ -343,13 +366,9 @@ def plot_phase_avg_quiver(Ldir, layer='', skip=4, scale=None):
         ds.close()
 
         spd = np.sqrt(u_int**2 + v_int**2)
-        # Restrict speed stats to the zoom box
-        if bounds is not None:
-            in_box = ((lon_rho >= bounds[0]) & (lon_rho <= bounds[1])
-                      & (lat_rho >= bounds[2]) & (lat_rho <= bounds[3]))
-            speed_vals.append(spd[in_box & np.isfinite(spd)].ravel())
-        else:
-            speed_vals.append(spd[np.isfinite(spd)].ravel())
+        # Restrict speed stats to the zoom box minus exclusions
+        mask = _color_mask(lon_rho, lat_rho, Ldir['label'], bounds)
+        speed_vals.append(spd[mask & np.isfinite(spd)].ravel())
 
         panels.append({'u': u_int, 'v': v_int, 'spd': spd,
                        'lon': lon_rho, 'lat': lat_rho,
