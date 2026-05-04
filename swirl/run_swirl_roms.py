@@ -51,10 +51,12 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import argparse
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
 import matplotlib.dates as mdates
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from scipy import ndimage
 from scipy.ndimage import gaussian_filter
 
@@ -188,6 +190,12 @@ parser.add_argument('-roms_dir', type=str, default=None,
                     help='Path to dir containing fYYYY.MM.DD/ folders.')
 parser.add_argument('-grid_file', type=str, default=None,
                     help='Path to ROMS grid.nc file.')
+
+# --- parallelization ---
+parser.add_argument('-nproc', type=int, default=1,
+                    help='Number of worker processes for per-file detection. '
+                         '1 = sequential (default). When >1, plotting is '
+                         'disabled and -method swirl is not supported.')
 
 args = parser.parse_args()
 
@@ -1205,6 +1213,113 @@ def plot_vortex_summary(df_vort, dsg, out_path=None):
 
 
 # ============================================================================
+# Parallel worker (top-level so it pickles for ProcessPoolExecutor)
+# ============================================================================
+# Worker globals (initialized once per process via _init_worker)
+_W = {}
+
+
+def _init_worker(grid_file, bbox, args_dict):
+    """Initialize per-worker state: open grid once, cache args + bbox slices."""
+    import xarray as _xr
+    dsg = _xr.open_dataset(grid_file)
+    _W['dsg'] = dsg
+    _W['bbox'] = bbox
+    _W['args'] = args_dict
+
+    # Pre-compute SSH bbox slices and mask once per worker
+    if bbox is not None:
+        lon = dsg.lon_rho.values
+        lat = dsg.lat_rho.values
+        m = ((lon >= bbox[0]) & (lon <= bbox[1])
+             & (lat >= bbox[2]) & (lat <= bbox[3]))
+        eidx, xidx = np.where(m)
+        e0, e1 = int(eidx.min()), int(eidx.max()) + 1
+        x0, x1 = int(xidx.min()), int(xidx.max()) + 1
+        _W['ssh_es'] = slice(e0, e1)
+        _W['ssh_xs'] = slice(x0, x1)
+        _W['ssh_mask'] = dsg.mask_rho.values[e0:e1, x0:x1]
+    else:
+        _W['ssh_es'] = slice(None)
+        _W['ssh_xs'] = slice(None)
+        _W['ssh_mask'] = dsg.mask_rho.values
+
+
+def _worker_one_file(task):
+    """
+    Process one ROMS file: extract velocity, detect features, return record.
+
+    task: dict(date_str, fi, nc_path, file_type, file_label)
+    Returns: dict with keys date, fi, time, mean_ssh, summary, vortex_records.
+    Returns None on failure.
+    """
+    date_str = task['date_str']
+    fi = task['fi']
+    nc_path = task['nc_path']
+    file_type = task['file_type']
+    a = _W['args']
+    dsg = _W['dsg']
+    bbox = _W['bbox']
+
+    try:
+        ds = xr.open_dataset(nc_path)
+
+        # SSH (always read for time series, cheap since file is open)
+        t = pd.Timestamp(ds.ocean_time.values[0])
+        ssh = ds.zeta.values[0, _W['ssh_es'], _W['ssh_xs']]
+        ssh = np.where(_W['ssh_mask'] == 1, ssh, np.nan)
+        mean_ssh = float(np.nanmean(ssh))
+
+        # Velocity
+        vx, vy, _ = get_velocity_2d(ds, dsg, a['vel_type'], a['s_level'])
+
+        if bbox is not None:
+            vx, vy, dsg_plot, _, _ = subset_to_bbox(vx, vy, dsg, *bbox)
+            dx_m, dy_m = get_grid_spacing(dsg_plot)
+        else:
+            dsg_plot = dsg
+            dx_m, dy_m = get_grid_spacing(dsg)
+
+        max_speed = float(np.sqrt(vx**2 + vy**2).max())
+
+        if a['method'] == 'ow':
+            features, _, _ = detect_ow_features(
+                vx, vy, dsg_plot, dx_m, dy_m,
+                ow_thresh=a['ow_thresh'],
+                min_cells=a['min_cells'],
+                smooth_sigma=a['smooth'])
+            recs = extract_vorticity_records(
+                features, date_str, file_type, fi,
+                a['vel_type'], a['s_level'])
+            method = 'ow'
+        elif a['method'] == 'vorticity':
+            features, _ = detect_vorticity_features(
+                vx, vy, dsg_plot, dx_m, dy_m,
+                vort_thresh=a['vort_thresh'],
+                min_cells=a['min_cells'])
+            recs = extract_vorticity_records(
+                features, date_str, file_type, fi,
+                a['vel_type'], a['s_level'])
+            method = 'vorticity'
+        else:
+            raise RuntimeError(
+                "Method 'swirl' is not supported in parallel mode.")
+
+        ds.close()
+
+        return dict(
+            date_str=date_str, fi=fi, time=t, mean_ssh=mean_ssh,
+            summary=dict(
+                date=date_str, file_type=file_type, file_num=fi,
+                n_vortices=len(features), max_speed=max_speed,
+                method=method),
+            vortex_records=recs,
+        )
+    except Exception as e:
+        return dict(date_str=date_str, fi=fi, error=str(e))
+
+
+# ============================================================================
 # Main
 # ============================================================================
 if __name__ == '__main__':
@@ -1320,274 +1435,365 @@ if __name__ == '__main__':
     vortex_records = []    # one row per vortex
     dsg_plot_last = dsg    # track subsetted grid for summary plot
 
-    # --- Pre-scan: collect SSH time series across all snapshots ---
-    # ROMS stores free-surface height as 'zeta' (eta_rho, xi_rho)
-    print('\nPre-scanning SSH across all snapshots...')
-    ssh_times = []   # datetime objects
-    ssh_values = []  # mean SSH [m] over bbox water points
-    ssh_file_keys = []  # (date_str, fi) tuples for matching
+    # ====================================================================
+    # PARALLEL PATH (nproc > 1): merged SSH + detection across files
+    # ====================================================================
+    if args.nproc > 1:
+        if args.method == 'swirl':
+            print('ERROR: -method swirl not supported with -nproc > 1.')
+            import sys; sys.exit(1)
+        if not args.no_plot:
+            print('NOTE: -nproc > 1 forces -no_plot True (per-file plots '
+                  'across many snapshots are skipped).')
+            args.no_plot = True
 
-    # Compute bbox index slices once for SSH extraction
-    if bbox is not None:
-        _lon = dsg.lon_rho.values
-        _lat = dsg.lat_rho.values
-        _mask_bb = ((_lon >= bbox[0]) & (_lon <= bbox[1]) &
-                    (_lat >= bbox[2]) & (_lat <= bbox[3]))
-        _eidx, _xidx = np.where(_mask_bb)
-        _e0, _e1 = int(_eidx.min()), int(_eidx.max()) + 1
-        _x0, _x1 = int(_xidx.min()), int(_xidx.max()) + 1
-        _ssh_eslice = slice(_e0, _e1)
-        _ssh_xslice = slice(_x0, _x1)
-        _ssh_mask = dsg.mask_rho.values[_e0:_e1, _x0:_x1]
+        # Build task list
+        tasks = []
+        for date_str in date_list:
+            if local_mode:
+                date_dir = roms_dir / f'f{date_str}'
+            else:
+                date_dir = find_date_dir(date_str, Ldir, gtagex)
+            if date_dir is None or not date_dir.exists():
+                continue
+            nc_files = sorted(date_dir.glob(file_glob))
+            if file_num is not None:
+                idxs = [file_num] if file_num < len(nc_files) else []
+            else:
+                idxs = list(range(len(nc_files)))
+            for fi in idxs:
+                tasks.append(dict(
+                    date_str=date_str, fi=fi,
+                    nc_path=str(nc_files[fi]),
+                    file_type=file_type,
+                    file_label=file_label))
+
+        print(f'\nParallel detection: {len(tasks)} files across '
+              f'{args.nproc} workers...')
+
+        # Resolve grid file path for worker initializer
+        if local_mode:
+            _grid_file = str(grid_file)
+        else:
+            _grid_file = str(Ldir['grid'] / 'grid.nc')
+
+        # Pickle-friendly args dict
+        args_dict = dict(
+            method=args.method,
+            vel_type=args.vel_type,
+            s_level=args.s_level,
+            ow_thresh=args.ow_thresh,
+            vort_thresh=args.vort_thresh,
+            min_cells=args.min_cells,
+            smooth=args.smooth,
+        )
+
+        results = []
+        n_done = 0
+        with ProcessPoolExecutor(
+                max_workers=args.nproc,
+                initializer=_init_worker,
+                initargs=(_grid_file, bbox, args_dict)) as ex:
+            for res in ex.map(_worker_one_file, tasks, chunksize=4):
+                n_done += 1
+                if res is None:
+                    continue
+                if 'error' in res:
+                    print(f'  ERROR {res["date_str"]}/{res["fi"]}: '
+                          f'{res["error"]}')
+                    continue
+                results.append(res)
+                if n_done % 50 == 0 or n_done == len(tasks):
+                    print(f'  [{n_done}/{len(tasks)}] '
+                          f'{res["date_str"]} #{res["fi"]:04d} '
+                          f'-> {res["summary"]["n_vortices"]} feat')
+
+        # Sort results chronologically (by date_str then fi)
+        results.sort(key=lambda r: (r['date_str'], r['fi']))
+
+        # Collect SSH series + records
+        ssh_times = np.array([r['time'] for r in results])
+        ssh_values = np.array([r['mean_ssh'] for r in results])
+        for r in results:
+            summary_records.append(r['summary'])
+            vortex_records.extend(r['vortex_records'])
+
+        print(f'  Parallel pass complete: {len(results)} successful, '
+              f'{len(tasks) - len(results)} failed')
+
     else:
-        _ssh_eslice = slice(None)
-        _ssh_xslice = slice(None)
-        _ssh_mask = dsg.mask_rho.values
+        # ================================================================
+        # SEQUENTIAL PATH (original code) below
+        # ================================================================
 
-    for _ds in date_list:
-        if local_mode:
-            _dd = roms_dir / f'f{_ds}'
+        # --- Pre-scan: collect SSH time series across all snapshots ---
+        # ROMS stores free-surface height as 'zeta' (eta_rho, xi_rho)
+        print('\nPre-scanning SSH across all snapshots...')
+        ssh_times = []   # datetime objects
+        ssh_values = []  # mean SSH [m] over bbox water points
+        ssh_file_keys = []  # (date_str, fi) tuples for matching
+
+        # Compute bbox index slices once for SSH extraction
+        if bbox is not None:
+            _lon = dsg.lon_rho.values
+            _lat = dsg.lat_rho.values
+            _mask_bb = ((_lon >= bbox[0]) & (_lon <= bbox[1]) &
+                        (_lat >= bbox[2]) & (_lat <= bbox[3]))
+            _eidx, _xidx = np.where(_mask_bb)
+            _e0, _e1 = int(_eidx.min()), int(_eidx.max()) + 1
+            _x0, _x1 = int(_xidx.min()), int(_xidx.max()) + 1
+            _ssh_eslice = slice(_e0, _e1)
+            _ssh_xslice = slice(_x0, _x1)
+            _ssh_mask = dsg.mask_rho.values[_e0:_e1, _x0:_x1]
         else:
-            _dd = find_date_dir(_ds, Ldir, gtagex)
-        if _dd is None or not _dd.exists():
-            continue
-        _ncs = sorted(_dd.glob(file_glob))
-        if file_num is not None:
-            _indices = [file_num] if file_num < len(_ncs) else []
-        else:
-            _indices = list(range(len(_ncs)))
-        for _fi in _indices:
-            try:
-                with xr.open_dataset(_ncs[_fi]) as _dsf:
-                    # Extract time
-                    _t = pd.Timestamp(_dsf.ocean_time.values[0])
-                    # Extract SSH over bbox
-                    _ssh = _dsf.zeta.values[0, _ssh_eslice, _ssh_xslice]
-                    _ssh = np.where(_ssh_mask == 1, _ssh, np.nan)
-                    _mean_ssh = float(np.nanmean(_ssh))
-                    ssh_times.append(_t)
-                    ssh_values.append(_mean_ssh)
-                    ssh_file_keys.append((_ds, _fi))
-            except Exception as _e:
-                print(f'  SSH scan skip {_ds}/{_fi}: {_e}')
+            _ssh_eslice = slice(None)
+            _ssh_xslice = slice(None)
+            _ssh_mask = dsg.mask_rho.values
 
-    ssh_times = np.array(ssh_times)
-    ssh_values = np.array(ssh_values)
-    print(f'  Collected SSH for {len(ssh_times)} snapshots')
-
-    # Counter for tracking current snapshot index into SSH arrays
-    _ssh_counter = 0
-
-    # --- Loop over dates ---
-    for date_str in date_list:
-
-        if local_mode:
-            date_dir = roms_dir / f'f{date_str}'
-            if not date_dir.exists():
-                print(f'\n*** Skipping {date_str}: {date_dir} not found.')
-                continue
-        else:
-            date_dir = find_date_dir(date_str, Ldir, gtagex)
-            if date_dir is None:
-                print(f'\n*** Skipping {date_str}: no date directory found.')
-                continue
-
-        nc_files = sorted(date_dir.glob(file_glob))
-        if len(nc_files) == 0:
-            print(f'\n*** Skipping {date_str}: no ocean_{file_type} files found.')
-            continue
-
-        # Determine which files to process
-        if file_num is not None:
-            if file_num >= len(nc_files):
-                print(f'\n*** Skipping {date_str}: file_num={file_num} '
-                      f'but only {len(nc_files)} files.')
-                continue
-            file_indices = [file_num]
-        else:
-            file_indices = list(range(len(nc_files)))
-
-        for fi in file_indices:
-            nc_fn = nc_files[fi]
-            print(f'\n===== {date_str} {file_label}#{fi:04d} =====')
-            print(f'  File: {nc_fn}')
-
-            # --- Load ROMS file ---
-            ds = xr.open_dataset(nc_fn)
-
-            # --- Extract 2D velocity field ---
-            vx, vy, vel_title = get_velocity_2d(
-                ds, dsg, args.vel_type, args.s_level)
-
-            # --- Spatial subset (if requested) ---
-            if bbox is not None:
-                vx, vy, dsg_plot, _, _ = subset_to_bbox(
-                    vx, vy, dsg, *bbox)
-                dx_m, dy_m = get_grid_spacing(dsg_plot)
-                vel_title += f' [{bbox_label}]'
-                dsg_plot_last = dsg_plot
+        for _ds in date_list:
+            if local_mode:
+                _dd = roms_dir / f'f{_ds}'
             else:
-                dsg_plot = dsg
-
-            max_speed = float(np.sqrt(vx**2 + vy**2).max())
-            print(f'  Velocity field shape: {vx.shape}')
-            print(f'  Max speed: {max_speed:.4f} m/s')
-
-            # --- Detect features ---
-            label_str = f'{date_str}, {file_label}#{fi:04d}'
-
-            if args.method == 'swirl':
-                # --- SWIRL EVC-based detection ---
-                swirl_kwargs = dict(
-                    v=[vx, vy],
-                    grid_dx=[dx_m, dy_m],
-                    verbose=args.verbose,
-                )
-                if args.param_file is not None:
-                    swirl_kwargs['param_file'] = args.param_file
-
-                vortices = swirl.Identification(**swirl_kwargs)
-                vortices.run()
-
-                # Diagnostic output to understand detection
+                _dd = find_date_dir(_ds, Ldir, gtagex)
+            if _dd is None or not _dd.exists():
+                continue
+            _ncs = sorted(_dd.glob(file_glob))
+            if file_num is not None:
+                _indices = [file_num] if file_num < len(_ncs) else []
+            else:
+                _indices = list(range(len(_ncs)))
+            for _fi in _indices:
                 try:
-                    rortex_max = max(
-                        float(np.max(np.abs(r))) for r in vortices.rortex)
-                    n_gevc = vortices.gevc_map.shape[1] \
-                        if vortices.gevc_map.ndim == 2 else 0
-                    print(f'  SWIRL diagnostics:')
-                    print(f'    Max |rortex|: {rortex_max:.2e}')
-                    print(f'    G-EVC points: {n_gevc}')
-                except Exception as e:
-                    print(f'  SWIRL diagnostics unavailable: {e}')
+                    with xr.open_dataset(_ncs[_fi]) as _dsf:
+                        # Extract time
+                        _t = pd.Timestamp(_dsf.ocean_time.values[0])
+                        # Extract SSH over bbox
+                        _ssh = _dsf.zeta.values[0, _ssh_eslice, _ssh_xslice]
+                        _ssh = np.where(_ssh_mask == 1, _ssh, np.nan)
+                        _mean_ssh = float(np.nanmean(_ssh))
+                        ssh_times.append(_t)
+                        ssh_values.append(_mean_ssh)
+                        ssh_file_keys.append((_ds, _fi))
+                except Exception as _e:
+                    print(f'  SSH scan skip {_ds}/{_fi}: {_e}')
 
-                n_vortices = len(vortices)
-                print(f'  Identified {n_vortices} vortices (SWIRL)')
+        ssh_times = np.array(ssh_times)
+        ssh_values = np.array(ssh_values)
+        print(f'  Collected SSH for {len(ssh_times)} snapshots')
 
-                if n_vortices > 0:
-                    print(f'    Radii (grid units): {vortices.radii}')
-                    print(f'    Centers (grid idx): {vortices.centers}')
-                    print(f'    Orientations:       {vortices.orientations}')
+        # Counter for tracking current snapshot index into SSH arrays
+        _ssh_counter = 0
 
-                # Collect summary
-                summary_records.append(dict(
-                    date=date_str,
-                    file_type=file_type,
-                    file_num=fi,
-                    n_vortices=n_vortices,
-                    max_speed=max_speed,
-                    method='swirl',
-                ))
+        # --- Loop over dates ---
+        for date_str in date_list:
 
-                # Extract per-vortex records
-                vortex_records.extend(extract_vortex_records(
-                    vortices, dsg_plot, vx.shape, date_str,
-                    file_type, fi, args.vel_type, args.s_level,
-                    dx_m, dy_m))
-
-                # Plot
-                if not args.no_plot:
-                    if len(date_list) == 1 and len(file_indices) == 1:
-                        print('  SWIRL diagnostic plots...')
-                        plot_swirl_diagnostics(vortices, vx, vy, out_dir=None)
-
-                    plot_name = (f'swirl_map_{date_str}_{args.vel_type}'
-                                 f'_{file_label}{fi:04d}.png')
-                    plot_path = out_dir / plot_name
-                    plot_vortices_on_map(vortices, vx, vy, dsg_plot,
-                                         vel_title, label_str,
-                                         out_path=plot_path,
-                                         ssh_times=ssh_times,
-                                         ssh_values=ssh_values,
-                                         ssh_idx=_ssh_counter)
-
-            elif args.method == 'ow':
-                # --- Okubo-Weiss detection ---
-                features, OW, zeta = detect_ow_features(
-                    vx, vy, dsg_plot, dx_m, dy_m,
-                    ow_thresh=args.ow_thresh,
-                    min_cells=args.min_cells,
-                    smooth_sigma=args.smooth)
-
-                n_vortices = len(features)
-                print(f'  Identified {n_vortices} features (Okubo-Weiss)')
-                for i, f in enumerate(features):
-                    print(f'    V{i}: {f["rotation"]} '
-                          f'r={f["radius_m"]:.0f}m '
-                          f'({f["n_cells"]} cells) '
-                          f'OW={f.get("mean_ow", 0):.2e} '
-                          f'@ ({f["center_lon"]:.3f}, '
-                          f'{f["center_lat"]:.3f})')
-
-                summary_records.append(dict(
-                    date=date_str,
-                    file_type=file_type,
-                    file_num=fi,
-                    n_vortices=n_vortices,
-                    max_speed=max_speed,
-                    method='ow',
-                ))
-
-                vortex_records.extend(extract_vorticity_records(
-                    features, date_str, file_type, fi,
-                    args.vel_type, args.s_level))
-
-                if not args.no_plot:
-                    plot_name = (f'ow_map_{date_str}_{args.vel_type}'
-                                 f'_{file_label}{fi:04d}.png')
-                    plot_path = out_dir / plot_name
-                    plot_ow_features(
-                        features, OW, zeta, vx, vy, dsg_plot,
-                        vel_title, label_str, dx_m, dy_m,
-                        out_path=plot_path,
-                        ssh_times=ssh_times,
-                        ssh_values=ssh_values,
-                        ssh_idx=_ssh_counter)
-
+            if local_mode:
+                date_dir = roms_dir / f'f{date_str}'
+                if not date_dir.exists():
+                    print(f'\n*** Skipping {date_str}: {date_dir} not found.')
+                    continue
             else:
-                # --- Vorticity-based detection ---
-                features, zeta = detect_vorticity_features(
-                    vx, vy, dsg_plot, dx_m, dy_m,
-                    vort_thresh=args.vort_thresh,
-                    min_cells=args.min_cells)
+                date_dir = find_date_dir(date_str, Ldir, gtagex)
+                if date_dir is None:
+                    print(f'\n*** Skipping {date_str}: no date directory found.')
+                    continue
 
-                n_vortices = len(features)
-                print(f'  Identified {n_vortices} features (vorticity)')
-                for i, f in enumerate(features):
-                    print(f'    V{i}: {f["rotation"]} '
-                          f'r={f["radius_m"]:.0f}m '
-                          f'({f["n_cells"]} cells) '
-                          f'ζ_mean={f["mean_vorticity"]:.2e} '
-                          f'@ ({f["center_lon"]:.3f}, '
-                          f'{f["center_lat"]:.3f})')
+            nc_files = sorted(date_dir.glob(file_glob))
+            if len(nc_files) == 0:
+                print(f'\n*** Skipping {date_str}: no ocean_{file_type} files found.')
+                continue
 
-                summary_records.append(dict(
-                    date=date_str,
-                    file_type=file_type,
-                    file_num=fi,
-                    n_vortices=n_vortices,
-                    max_speed=max_speed,
-                    method='vorticity',
-                ))
+            # Determine which files to process
+            if file_num is not None:
+                if file_num >= len(nc_files):
+                    print(f'\n*** Skipping {date_str}: file_num={file_num} '
+                          f'but only {len(nc_files)} files.')
+                    continue
+                file_indices = [file_num]
+            else:
+                file_indices = list(range(len(nc_files)))
 
-                vortex_records.extend(extract_vorticity_records(
-                    features, date_str, file_type, fi,
-                    args.vel_type, args.s_level))
+            for fi in file_indices:
+                nc_fn = nc_files[fi]
+                print(f'\n===== {date_str} {file_label}#{fi:04d} =====')
+                print(f'  File: {nc_fn}')
 
-                if not args.no_plot:
-                    plot_name = (f'vort_map_{date_str}_{args.vel_type}'
-                                 f'_{file_label}{fi:04d}.png')
-                    plot_path = out_dir / plot_name
-                    plot_vorticity_features(
-                        features, zeta, vx, vy, dsg_plot,
-                        vel_title, label_str, dx_m, dy_m,
-                        out_path=plot_path,
-                        ssh_times=ssh_times,
-                        ssh_values=ssh_values,
-                        ssh_idx=_ssh_counter)
+                # --- Load ROMS file ---
+                ds = xr.open_dataset(nc_fn)
 
-            _ssh_counter += 1
-            ds.close()
+                # --- Extract 2D velocity field ---
+                vx, vy, vel_title = get_velocity_2d(
+                    ds, dsg, args.vel_type, args.s_level)
+
+                # --- Spatial subset (if requested) ---
+                if bbox is not None:
+                    vx, vy, dsg_plot, _, _ = subset_to_bbox(
+                        vx, vy, dsg, *bbox)
+                    dx_m, dy_m = get_grid_spacing(dsg_plot)
+                    vel_title += f' [{bbox_label}]'
+                    dsg_plot_last = dsg_plot
+                else:
+                    dsg_plot = dsg
+
+                max_speed = float(np.sqrt(vx**2 + vy**2).max())
+                print(f'  Velocity field shape: {vx.shape}')
+                print(f'  Max speed: {max_speed:.4f} m/s')
+
+                # --- Detect features ---
+                label_str = f'{date_str}, {file_label}#{fi:04d}'
+
+                if args.method == 'swirl':
+                    # --- SWIRL EVC-based detection ---
+                    swirl_kwargs = dict(
+                        v=[vx, vy],
+                        grid_dx=[dx_m, dy_m],
+                        verbose=args.verbose,
+                    )
+                    if args.param_file is not None:
+                        swirl_kwargs['param_file'] = args.param_file
+
+                    vortices = swirl.Identification(**swirl_kwargs)
+                    vortices.run()
+
+                    # Diagnostic output to understand detection
+                    try:
+                        rortex_max = max(
+                            float(np.max(np.abs(r))) for r in vortices.rortex)
+                        n_gevc = vortices.gevc_map.shape[1] \
+                            if vortices.gevc_map.ndim == 2 else 0
+                        print(f'  SWIRL diagnostics:')
+                        print(f'    Max |rortex|: {rortex_max:.2e}')
+                        print(f'    G-EVC points: {n_gevc}')
+                    except Exception as e:
+                        print(f'  SWIRL diagnostics unavailable: {e}')
+
+                    n_vortices = len(vortices)
+                    print(f'  Identified {n_vortices} vortices (SWIRL)')
+
+                    if n_vortices > 0:
+                        print(f'    Radii (grid units): {vortices.radii}')
+                        print(f'    Centers (grid idx): {vortices.centers}')
+                        print(f'    Orientations:       {vortices.orientations}')
+
+                    # Collect summary
+                    summary_records.append(dict(
+                        date=date_str,
+                        file_type=file_type,
+                        file_num=fi,
+                        n_vortices=n_vortices,
+                        max_speed=max_speed,
+                        method='swirl',
+                    ))
+
+                    # Extract per-vortex records
+                    vortex_records.extend(extract_vortex_records(
+                        vortices, dsg_plot, vx.shape, date_str,
+                        file_type, fi, args.vel_type, args.s_level,
+                        dx_m, dy_m))
+
+                    # Plot
+                    if not args.no_plot:
+                        if len(date_list) == 1 and len(file_indices) == 1:
+                            print('  SWIRL diagnostic plots...')
+                            plot_swirl_diagnostics(vortices, vx, vy, out_dir=None)
+
+                        plot_name = (f'swirl_map_{date_str}_{args.vel_type}'
+                                     f'_{file_label}{fi:04d}.png')
+                        plot_path = out_dir / plot_name
+                        plot_vortices_on_map(vortices, vx, vy, dsg_plot,
+                                             vel_title, label_str,
+                                             out_path=plot_path,
+                                             ssh_times=ssh_times,
+                                             ssh_values=ssh_values,
+                                             ssh_idx=_ssh_counter)
+
+                elif args.method == 'ow':
+                    # --- Okubo-Weiss detection ---
+                    features, OW, zeta = detect_ow_features(
+                        vx, vy, dsg_plot, dx_m, dy_m,
+                        ow_thresh=args.ow_thresh,
+                        min_cells=args.min_cells,
+                        smooth_sigma=args.smooth)
+
+                    n_vortices = len(features)
+                    print(f'  Identified {n_vortices} features (Okubo-Weiss)')
+                    for i, f in enumerate(features):
+                        print(f'    V{i}: {f["rotation"]} '
+                              f'r={f["radius_m"]:.0f}m '
+                              f'({f["n_cells"]} cells) '
+                              f'OW={f.get("mean_ow", 0):.2e} '
+                              f'@ ({f["center_lon"]:.3f}, '
+                              f'{f["center_lat"]:.3f})')
+
+                    summary_records.append(dict(
+                        date=date_str,
+                        file_type=file_type,
+                        file_num=fi,
+                        n_vortices=n_vortices,
+                        max_speed=max_speed,
+                        method='ow',
+                    ))
+
+                    vortex_records.extend(extract_vorticity_records(
+                        features, date_str, file_type, fi,
+                        args.vel_type, args.s_level))
+
+                    if not args.no_plot:
+                        plot_name = (f'ow_map_{date_str}_{args.vel_type}'
+                                     f'_{file_label}{fi:04d}.png')
+                        plot_path = out_dir / plot_name
+                        plot_ow_features(
+                            features, OW, zeta, vx, vy, dsg_plot,
+                            vel_title, label_str, dx_m, dy_m,
+                            out_path=plot_path,
+                            ssh_times=ssh_times,
+                            ssh_values=ssh_values,
+                            ssh_idx=_ssh_counter)
+
+                else:
+                    # --- Vorticity-based detection ---
+                    features, zeta = detect_vorticity_features(
+                        vx, vy, dsg_plot, dx_m, dy_m,
+                        vort_thresh=args.vort_thresh,
+                        min_cells=args.min_cells)
+
+                    n_vortices = len(features)
+                    print(f'  Identified {n_vortices} features (vorticity)')
+                    for i, f in enumerate(features):
+                        print(f'    V{i}: {f["rotation"]} '
+                              f'r={f["radius_m"]:.0f}m '
+                              f'({f["n_cells"]} cells) '
+                              f'ζ_mean={f["mean_vorticity"]:.2e} '
+                              f'@ ({f["center_lon"]:.3f}, '
+                              f'{f["center_lat"]:.3f})')
+
+                    summary_records.append(dict(
+                        date=date_str,
+                        file_type=file_type,
+                        file_num=fi,
+                        n_vortices=n_vortices,
+                        max_speed=max_speed,
+                        method='vorticity',
+                    ))
+
+                    vortex_records.extend(extract_vorticity_records(
+                        features, date_str, file_type, fi,
+                        args.vel_type, args.s_level))
+
+                    if not args.no_plot:
+                        plot_name = (f'vort_map_{date_str}_{args.vel_type}'
+                                     f'_{file_label}{fi:04d}.png')
+                        plot_path = out_dir / plot_name
+                        plot_vorticity_features(
+                            features, zeta, vx, vy, dsg_plot,
+                            vel_title, label_str, dx_m, dy_m,
+                            out_path=plot_path,
+                            ssh_times=ssh_times,
+                            ssh_values=ssh_values,
+                            ssh_idx=_ssh_counter)
+
+                _ssh_counter += 1
+                ds.close()
 
     # --- Build vortex DataFrame ---
     df_vortices = pd.DataFrame(vortex_records)
