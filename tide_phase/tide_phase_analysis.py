@@ -73,7 +73,7 @@ def _resolve_units(vn):
 
 # Map zoom: Penn Cove proper plus the entrance
 ZOOM_BOUNDS = {
-    'penn_cove': (-122.77, -122.60, 48.20, 48.255),
+    'penn_cove': (-122.755, -122.60, 48.20, 48.255),
 }
 
 # Sub-region(s) to EXCLUDE when computing color limits (still plotted, just
