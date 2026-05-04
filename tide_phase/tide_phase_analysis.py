@@ -50,9 +50,27 @@ VAR_STYLE = {
     'alkalinity': (cmo.dense, False),
 }
 
-# Map zoom: Penn Cove + northern Saratoga Passage
+# Per-variable display unit conversion (factor, label).
+# Default: factor=1.0, label=variable name.
+VAR_UNITS = {
+    'oxygen':  (32.0 / 1000.0, 'DO [mg L$^{-1}$]'),  # mmol/m^3 -> mg/L
+    'salt':    (1.0,           'salinity [g kg$^{-1}$]'),
+    'temp':    (1.0,           'temperature [°C]'),
+    'u':       (1.0,           'u [m s$^{-1}$]'),
+    'v':       (1.0,           'v [m s$^{-1}$]'),
+}
+
+
+def _resolve_units(vn):
+    """Strip _top/_bot, look up (factor, label)."""
+    base = vn.replace('_top', '').replace('_bot', '')
+    factor, label = VAR_UNITS.get(base, (1.0, base))
+    return factor, label, base
+
+
+# Map zoom: Penn Cove + entrance/Saratoga Passage approach
 ZOOM_BOUNDS = {
-    'penn_cove': (-122.78, -122.40, 48.05, 48.30),
+    'penn_cove': (-122.77, -122.55, 48.20, 48.27),
 }
 
 
@@ -150,9 +168,11 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=None, vlims=None):
     phase_names = ['spring_flood', 'spring_ebb', 'neap_flood', 'neap_ebb']
     titles = ['Spring Flood', 'Spring Ebb', 'Neap Flood', 'Neap Ebb']
 
-    style_cmap, diverging = VAR_STYLE.get(vn, (cmo.haline, False))
+    style_cmap, diverging = VAR_STYLE.get(vn.replace('_top', '').replace('_bot', ''),
+                                          (cmo.haline, False))
     if cmap is None:
         cmap = style_cmap
+    factor, unit_label, base_vn = _resolve_units(vn)
 
     avg_dir = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
                / ('phase_avg_' + Ldir['ds0'] + '_' + Ldir['ds1']
@@ -170,11 +190,11 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=None, vlims=None):
             ds.close()
             panels.append(None)
             continue
-        fld = ds[vn].values
+        fld = ds[vn].values * factor
         n_ts = ds.attrs.get('n_timesteps', '?')
-        if vn == 'u':
+        if base_vn == 'u':
             lon_key, lat_key = 'lon_u', 'lat_u'
-        elif vn == 'v':
+        elif base_vn == 'v':
             lon_key, lat_key = 'lon_v', 'lat_v'
         else:
             lon_key, lat_key = 'lon_rho', 'lat_rho'
@@ -251,13 +271,137 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=None, vlims=None):
     if last_cs is not None:
         cbar = fig.colorbar(last_cs, ax=axes.ravel().tolist(),
                             shrink=0.85, fraction=0.04, pad=0.02)
-        cbar.set_label(vn)
+        cbar.set_label(unit_label)
 
-    fig.suptitle(f'Depth-Averaged {vn} — {Ldir["label"]} '
+    # Pretty title: indicate vertical layer if applicable
+    if vn.endswith('_top'):
+        layer = 'Surface'
+    elif vn.endswith('_bot'):
+        layer = 'Bottom'
+    else:
+        layer = 'Depth-Averaged'
+    fig.suptitle(f'{layer} {base_vn} — {Ldir["label"]} '
                  f'({Ldir["file_type"]}) '
                  f'({Ldir["ds0"]} to {Ldir["ds1"]})', fontsize=14)
 
     out_fn = Ldir['out_dir'] / (f'phase_avg_{vn}_{Ldir["label"]}_{Ldir["file_type"]}_'
+                                 f'{Ldir["ds0"]}_{Ldir["ds1"]}.png')
+    fig.savefig(out_fn, dpi=200, bbox_inches='tight')
+    print(f'Saved: {out_fn}')
+    plt.close(fig)
+
+
+# -----------------------------------------------------------------------
+# Plot 3: 2x2 quiver of (u, v) for each tidal phase
+# -----------------------------------------------------------------------
+def plot_phase_avg_quiver(Ldir, layer='', skip=4, scale=None):
+    """Quiver of velocity for each tidal phase.
+
+    layer : '' (depth-avg), '_top', or '_bot'
+    skip  : grid stride for arrow density
+    """
+    phase_names = ['spring_flood', 'spring_ebb', 'neap_flood', 'neap_ebb']
+    titles = ['Spring Flood', 'Spring Ebb', 'Neap Flood', 'Neap Ebb']
+
+    avg_dir = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
+               / ('phase_avg_' + Ldir['ds0'] + '_' + Ldir['ds1']
+                  + '_' + Ldir['file_type']))
+
+    u_vn = 'u' + layer
+    v_vn = 'v' + layer
+    layer_name = {'': 'Depth-Averaged',
+                  '_top': 'Surface',
+                  '_bot': 'Bottom'}[layer]
+
+    bounds = ZOOM_BOUNDS.get(Ldir['label'])
+
+    panels = []
+    speed_vals = []
+    for pn in phase_names:
+        fn = avg_dir / (Ldir['label'] + '_' + pn + '.nc')
+        if not fn.is_file():
+            panels.append(None)
+            continue
+        ds = xr.open_dataset(fn)
+        if u_vn not in ds or v_vn not in ds:
+            ds.close()
+            panels.append(None)
+            continue
+
+        # Regrid u and v to rho points so they live on the same grid
+        u = ds[u_vn].values
+        v = ds[v_vn].values
+        # u: (eta_rho, xi_rho-1) -> average to xi_rho centers (drop ends)
+        u_rho = 0.5 * (u[:, :-1] + u[:, 1:])      # (eta_rho, xi_rho-2)
+        v_rho = 0.5 * (v[:-1, :] + v[1:, :])      # (eta_rho-2, xi_rho)
+        # Trim to common interior
+        u_int = u_rho[1:-1, :]                    # (eta_rho-2, xi_rho-2)
+        v_int = v_rho[:, 1:-1]                    # (eta_rho-2, xi_rho-2)
+        lon_rho = ds['lon_rho'].values[1:-1, 1:-1]
+        lat_rho = ds['lat_rho'].values[1:-1, 1:-1]
+        n_ts = ds.attrs.get('n_timesteps', '?')
+        ds.close()
+
+        spd = np.sqrt(u_int**2 + v_int**2)
+        # Restrict speed stats to the zoom box
+        if bounds is not None:
+            in_box = ((lon_rho >= bounds[0]) & (lon_rho <= bounds[1])
+                      & (lat_rho >= bounds[2]) & (lat_rho <= bounds[3]))
+            speed_vals.append(spd[in_box & np.isfinite(spd)].ravel())
+        else:
+            speed_vals.append(spd[np.isfinite(spd)].ravel())
+
+        panels.append({'u': u_int, 'v': v_int, 'spd': spd,
+                       'lon': lon_rho, 'lat': lat_rho,
+                       'n': n_ts})
+
+    if not any(p is not None for p in panels):
+        print(f'  no u/v data for layer="{layer}"; skipping quiver.')
+        return
+
+    if speed_vals:
+        all_spd = np.concatenate(speed_vals)
+        smax = float(np.nanpercentile(all_spd, 98)) if all_spd.size else 0.5
+    else:
+        smax = 0.5
+    if scale is None:
+        # Quiver `scale`: data units per axes width. Smaller -> longer arrows.
+        scale = max(smax * 12.0, 0.5)
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    last_cs = None
+    for idx, (p, title) in enumerate(zip(panels, titles)):
+        ax = axes.flat[idx]
+        if p is None:
+            ax.set_title(f'{title}\n(no data)')
+            ax.set_axis_off()
+            continue
+        cs = ax.pcolormesh(p['lon'], p['lat'], p['spd'],
+                           cmap=cmo.speed, vmin=0, vmax=smax,
+                           shading='auto')
+        ax.quiver(p['lon'][::skip, ::skip], p['lat'][::skip, ::skip],
+                  p['u'][::skip, ::skip], p['v'][::skip, ::skip],
+                  scale=scale, color='k', width=0.003)
+        pfun.add_coast(ax)
+        pfun.dar(ax)
+        if bounds is not None:
+            ax.set_xlim(bounds[0], bounds[1])
+            ax.set_ylim(bounds[2], bounds[3])
+        ax.set_title(f'{title}  (n={p["n"]})')
+        last_cs = cs
+
+    if last_cs is not None:
+        cbar = fig.colorbar(last_cs, ax=axes.ravel().tolist(),
+                            shrink=0.85, fraction=0.04, pad=0.02)
+        cbar.set_label('|U| [m s$^{-1}$]')
+
+    fig.suptitle(f'{layer_name} velocity — {Ldir["label"]} '
+                 f'({Ldir["file_type"]}) '
+                 f'({Ldir["ds0"]} to {Ldir["ds1"]})', fontsize=14)
+
+    tag = layer if layer else '_davg'
+    out_fn = Ldir['out_dir'] / (f'phase_quiver{tag}_{Ldir["label"]}_'
+                                 f'{Ldir["file_type"]}_'
                                  f'{Ldir["ds0"]}_{Ldir["ds1"]}.png')
     fig.savefig(out_fn, dpi=200, bbox_inches='tight')
     print(f'Saved: {out_fn}')
@@ -294,15 +438,34 @@ if __name__ == '__main__':
         sample_files = list(avg_dir.glob(label + '_*.nc'))
         if sample_files:
             ds_sample = xr.open_dataset(sample_files[0])
-            available_vns = [vn for vn in ds_sample.data_vars
-                             if vn not in ('lon_rho', 'lat_rho', 'lon_u', 'lat_u',
-                                           'lon_v', 'lat_v', 'h',
-                                           'mask_rho', 'mask_u', 'mask_v')]
+            available = set(ds_sample.data_vars)
             ds_sample.close()
 
-            print('\n--- Plot 2: Phase-averaged fields ---')
-            for vn in available_vns:
+            # Variables to plot at depth-avg / surface / bottom (when present)
+            scalar_vns = ['salt', 'temp', 'oxygen']
+            layered_vns = []
+            for base in scalar_vns + ['u', 'v']:
+                for suffix in ('', '_top', '_bot'):
+                    vn = base + suffix
+                    if vn in available:
+                        layered_vns.append(vn)
+
+            # Anything else (non-grid, non-velocity) the file has
+            grid_keys = {'lon_rho', 'lat_rho', 'lon_u', 'lat_u',
+                         'lon_v', 'lat_v', 'h',
+                         'mask_rho', 'mask_u', 'mask_v'}
+            extras = sorted(v for v in available
+                            if v not in grid_keys and v not in layered_vns)
+
+            print('\n--- Plot 2: Phase-averaged scalar fields ---')
+            for vn in layered_vns + extras:
                 plot_phase_avg_fields(Ldir, vn=vn)
+
+            # Quivers — depth-avg, surface, bottom
+            print('\n--- Plot 3: Phase-averaged velocity quivers ---')
+            for layer in ('', '_top', '_bot'):
+                if ('u' + layer) in available and ('v' + layer) in available:
+                    plot_phase_avg_quiver(Ldir, layer=layer)
     else:
         print(f'No phase_avg directory found: {avg_dir}')
 

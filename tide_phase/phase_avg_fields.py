@@ -59,7 +59,10 @@ def _process_one_file(args):
                 continue
             fld = ds[vn].values.squeeze()
             if fld.ndim == 3:
+                # ROMS s_rho: index 0 = bottom, -1 = surface
                 out_vns[vn] = np.nanmean(fld, axis=0).astype(float)
+                out_vns[vn + '_top'] = fld[-1].astype(float)
+                out_vns[vn + '_bot'] = fld[0].astype(float)
             elif fld.ndim == 2:
                 out_vns[vn] = fld.astype(float)
 
@@ -320,16 +323,25 @@ if __name__ == '__main__':
             'u': ('eta_u', 'xi_u'),
             'v': ('eta_v', 'xi_v'),
         }
-        # Phase-averaged fields
-        for vn in vn_list:
-            if vn in accumulators[pn]:
-                mean_fld = accumulators[pn][vn] / counts[pn]
-                hdims = vn_dims.get(vn, ('eta_rho', 'xi_rho'))
-                if mean_fld.ndim == 2:
-                    ds_out[vn] = (hdims, mean_fld)
-                elif mean_fld.ndim == 1:
-                    ds_out[vn] = ((hdims[0],), mean_fld)
-                ds_out[vn].attrs['long_name'] = f'depth-averaged {vn}, phase={pn}'
+        # Phase-averaged fields (write everything in accumulators, including
+        # *_top and *_bot variants from 3D fields).
+        for out_vn, sum_fld in accumulators[pn].items():
+            mean_fld = sum_fld / counts[pn]
+            base_vn = out_vn.replace('_top', '').replace('_bot', '')
+            hdims = vn_dims.get(base_vn, ('eta_rho', 'xi_rho'))
+            if mean_fld.ndim == 2:
+                ds_out[out_vn] = (hdims, mean_fld)
+            elif mean_fld.ndim == 1:
+                ds_out[out_vn] = ((hdims[0],), mean_fld)
+            if out_vn.endswith('_top'):
+                ds_out[out_vn].attrs['long_name'] = (
+                    f'surface-layer {base_vn}, phase={pn}')
+            elif out_vn.endswith('_bot'):
+                ds_out[out_vn].attrs['long_name'] = (
+                    f'bottom-layer {base_vn}, phase={pn}')
+            else:
+                ds_out[out_vn].attrs['long_name'] = (
+                    f'depth-averaged {base_vn}, phase={pn}')
 
         ds_out.to_netcdf(out_fn)
         ds_out.close()
