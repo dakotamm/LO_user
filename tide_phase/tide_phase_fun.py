@@ -236,6 +236,9 @@ def detect_phases_utide(zeta, time, lat):
 
     # Convert datetime64 to matplotlib datenums for UTide
     time_num = _to_datenum(time)
+    print(f'  detect_phases_utide: time_num[0]={time_num[0]:.3f}, '
+          f'time_num[-1]={time_num[-1]:.3f}, '
+          f'dt_days={time_num[1] - time_num[0]:.6f}')
 
     # UTide doesn't tolerate NaN in input zeta. Mask NaN for solve, but
     # always reconstruct on the full time grid.
@@ -245,9 +248,14 @@ def detect_phases_utide(zeta, time, lat):
         print(f'  detect_phases_utide: {n_nan_in} NaN in input zeta '
               f'(masked for solve).')
     coef = utide.solve(time_num[finite_in], zeta[finite_in], lat=lat,
+                       constit='auto',
+                       trend=False,
+                       nodal=True,
                        method='ols',
-                       conf_int='none',
+                       conf_int='MC',
+                       Rayleigh_min=0.95,
                        verbose=True)
+    print(f'  utide.solve returned {len(coef["name"])} constituents.')
 
     pred = utide.reconstruct(time_num, coef, verbose=False).h
     pred = np.asarray(pred, dtype=float)
