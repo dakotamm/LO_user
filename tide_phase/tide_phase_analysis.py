@@ -55,7 +55,8 @@ def get_args():
             Ldir[k] = v
 
     if Ldir['out_dir'] is None:
-        Ldir['out_dir'] = Ldir['LOo'] / 'tide_phase' / 'plots'
+        Ldir['out_dir'] = (Ldir['LOo'] / 'tide_phase'
+                           / Ldir['gtagex'] / 'plots')
     else:
         Ldir['out_dir'] = Path(Ldir['out_dir'])
     Lfun.make_dir(Ldir['out_dir'])
@@ -170,6 +171,9 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=cmo.balance, vlims=None):
                                vmin=vmin, vmax=vmax)
             pfun.add_coast(ax)
             pfun.dar(ax)
+            # Zoom to data extent (wb1 grid bounds)
+            ax.set_xlim(np.nanmin(plon), np.nanmax(plon))
+            ax.set_ylim(np.nanmin(plat), np.nanmax(plat))
         else:
             cs = ax.pcolormesh(fld, cmap=cmap, vmin=vmin, vmax=vmax)
 
