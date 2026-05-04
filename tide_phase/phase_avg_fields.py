@@ -3,26 +3,17 @@ Average ROMS fields grouped by tidal phase.
 
 Reads tide phase labels from compute_tide_phases.py output, then loops
 through ROMS his or avg files and accumulates phase-grouped averages
-of user-selected variables.
+of user-selected variables (depth-averaged for 3D fields).
 
-Replaces the manual approach in 20260130b.py with automated phase grouping.
+Usage
+-----
+    # From his files (instantaneous, 25/day):
+    python phase_avg_fields.py -gtx wb1_t0_xn11ab -label penn_cove \
+        -0 2024.01.01 -1 2024.06.30 -file_type his -vn_list u,v,salt
 
-Usage examples
---------------
-    # Depth-averaged u,v,salt from avg files for Penn Cove phases:
-    python phase_avg_fields.py -gtx wb1_r0_xn11b -ctag pc0 \
-        -sect_name pc0 -0 2017.09.01 -1 2017.09.30 -file_type avg \
-        -vn_list u,v,salt
-
-    # From his files with a spatial subset (box job):
-    python phase_avg_fields.py -gtx wb1_r0_xn11b -ctag pc0 \
-        -sect_name pc0 -0 2017.09.01 -1 2017.09.30 -file_type his \
-        -vn_list u,v,salt,oxygen
-
-    # Using cas7 grid with c0 collection:
-    python phase_avg_fields.py -gtx cas7_trapsV00_meV00 -ctag c0 \
-        -sect_name ai1 -0 2017.07.04 -1 2017.07.06 -file_type avg \
-        -vn_list salt,temp
+    # From avg files (hourly means, 24/day):
+    python phase_avg_fields.py -gtx wb1_t0_xn11ab -label penn_cove \
+        -0 2024.01.01 -1 2024.06.30 -file_type avg -vn_list u,v,salt
 """
 
 import argparse
@@ -48,16 +39,12 @@ def get_args():
     parser.add_argument('-ro', '--roms_out_num', type=int, default=0)
     parser.add_argument('-0', '--ds0', type=str, required=True)
     parser.add_argument('-1', '--ds1', type=str, required=True)
-    # Phase label source
-    parser.add_argument('-ctag', '--collection_tag', type=str, default=None)
-    parser.add_argument('-sect_name', type=str, default=None,
-                        help='Section name used for phase detection')
-    parser.add_argument('-label', type=str, default=None,
-                        help='Custom label (for point-based phase files)')
-    # File type
-    parser.add_argument('-file_type', type=str, default='avg',
+    # Phase label source (must match extract_zeta_ts/compute_tide_phases label)
+    parser.add_argument('-label', type=str, required=True,
+                        help='Label matching the tide_phases output filename')
+    parser.add_argument('-file_type', type=str, default='his',
                         choices=['avg', 'his'],
-                        help='ROMS file type: avg or his')
+                        help='ROMS file type: avg (24/day means) or his (25/day instantaneous)')
     # Variables to average
     parser.add_argument('-vn_list', type=str, default='u,v,salt',
                         help='Comma-separated variable names, e.g. u,v,salt,temp,oxygen')
@@ -69,12 +56,6 @@ def get_args():
                         default=False)
 
     args = parser.parse_args()
-
-    if args.sect_name is not None:
-        args.label = args.sect_name
-    elif args.label is None:
-        print('ERROR: provide -sect_name or -label')
-        sys.exit(1)
 
     # Build Ldir
     gridname, tag, ex_name = args.gtagex.split('_')
@@ -89,7 +70,7 @@ def get_args():
 
 
 # -----------------------------------------------------------------------
-# File list builders (same as extract_zeta_ts.py)
+# File list builders
 # -----------------------------------------------------------------------
 def get_avg_fn_list(Ldir, ds0, ds1):
     fmt = '%Y.%m.%d'
@@ -102,8 +83,7 @@ def get_avg_fn_list(Ldir, ds0, ds1):
         f_string = 'f' + dt.strftime(fmt)
         for nhis in range(1, 25):
             nhiss = ('0000' + str(nhis))[-4:]
-            fn = dir0 / f_string / ('ocean_avg_' + nhiss + '.nc')
-            fn_list.append(fn)
+            fn_list.append(dir0 / f_string / ('ocean_avg_' + nhiss + '.nc'))
         dt += timedelta(days=1)
     return fn_list
 
@@ -250,7 +230,7 @@ if __name__ == '__main__':
 
     # ----- Compute means and save -----
     out_dir = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
-               / ('phase_avg_' + ds0 + '_' + ds1))
+               / ('phase_avg_' + ds0 + '_' + ds1 + '_' + Ldir['file_type']))
     Lfun.make_dir(out_dir)
 
     for pn in phase_names:

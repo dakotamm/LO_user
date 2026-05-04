@@ -8,8 +8,8 @@ Designed to run locally (after copying results from apogee).
 
 Usage
 -----
-    python tide_phase_analysis.py -gtx wb1_r0_xn11b -sect_name pc0 \
-        -0 2017.09.01 -1 2017.09.30
+    python tide_phase_analysis.py -gtx wb1_t0_xn11ab -label penn_cove \
+        -0 2024.01.01 -1 2024.06.30
 
 """
 
@@ -39,7 +39,10 @@ def get_args():
     parser.add_argument('-gtx', '--gtagex', type=str, required=True)
     parser.add_argument('-0', '--ds0', type=str, required=True)
     parser.add_argument('-1', '--ds1', type=str, required=True)
-    parser.add_argument('-sect_name', type=str, required=True)
+    parser.add_argument('-label', type=str, required=True)
+    parser.add_argument('-file_type', type=str, default='his',
+                        choices=['avg', 'his'],
+                        help='Which phase_avg_fields output to plot')
     parser.add_argument('-out_dir', type=str, default=None,
                         help='Output directory for plots (default: Desktop/pltz)')
 
@@ -90,7 +93,7 @@ def plot_zeta_phases(ds_phase, Ldir):
         ax.legend(loc='upper right', fontsize=8)
 
     ax.set_ylabel('ζ [m]')
-    ax.set_title(f'Sea Surface Height — {Ldir["sect_name"]} '
+    ax.set_title(f'Sea Surface Height — {Ldir["label"]} '
                  f'({Ldir["ds0"]} to {Ldir["ds1"]})')
     ax.legend(handles=[
         Patch(facecolor='tab:red', label='Flood'),
@@ -101,7 +104,7 @@ def plot_zeta_phases(ds_phase, Ldir):
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
 
-    out_fn = Ldir['out_dir'] / (f'zeta_phases_{Ldir["sect_name"]}_'
+    out_fn = Ldir['out_dir'] / (f'zeta_phases_{Ldir["label"]}_'
                                  f'{Ldir["ds0"]}_{Ldir["ds1"]}.png')
     fig.savefig(out_fn, dpi=200, bbox_inches='tight')
     print(f'Saved: {out_fn}')
@@ -117,13 +120,14 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=cmo.balance, vlims=None):
     titles = ['Spring Flood', 'Spring Ebb', 'Neap Flood', 'Neap Ebb']
 
     avg_dir = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
-               / ('phase_avg_' + Ldir['ds0'] + '_' + Ldir['ds1']))
+               / ('phase_avg_' + Ldir['ds0'] + '_' + Ldir['ds1']
+                  + '_' + Ldir['file_type']))
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
     for idx, (pn, title) in enumerate(zip(phase_names, titles)):
         ax = axes.flat[idx]
-        fn = avg_dir / (Ldir['sect_name'] + '_' + pn + '.nc')
+        fn = avg_dir / (Ldir['label'] + '_' + pn + '.nc')
         if not fn.is_file():
             ax.set_title(f'{title}\n(no data)')
             continue
@@ -172,57 +176,11 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=cmo.balance, vlims=None):
         ax.set_title(f'{title}\n(n={n_ts})')
         fig.colorbar(cs, ax=ax, fraction=0.046)
 
-    fig.suptitle(f'Depth-Averaged {vn} — {Ldir["sect_name"]} '
+    fig.suptitle(f'Depth-Averaged {vn} — {Ldir["label"]} ({Ldir["file_type"]}) '
                  f'({Ldir["ds0"]} to {Ldir["ds1"]})', fontsize=14)
     fig.tight_layout()
 
-    out_fn = Ldir['out_dir'] / (f'phase_avg_{vn}_{Ldir["sect_name"]}_'
-                                 f'{Ldir["ds0"]}_{Ldir["ds1"]}.png')
-    fig.savefig(out_fn, dpi=200, bbox_inches='tight')
-    print(f'Saved: {out_fn}')
-    plt.close(fig)
-
-
-# -----------------------------------------------------------------------
-# Plot 3: Phase-resolved transport bar chart
-# -----------------------------------------------------------------------
-def plot_phase_budgets(Ldir):
-    """Bar chart of qnet, Qin, Qout by phase."""
-    budget_dir = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
-                  / ('phase_budget_' + Ldir['ds0'] + '_' + Ldir['ds1']))
-    budget_fn = budget_dir / (Ldir['sect_name'] + '.nc')
-
-    if not budget_fn.is_file():
-        print(f'Budget file not found: {budget_fn} — skipping budget plot.')
-        return
-
-    ds = xr.open_dataset(budget_fn)
-    phases = ds['phase'].values
-    qnet = ds['qnet_mean'].values
-    Qin = ds['Qin_mean'].values
-    Qout = ds['Qout_mean'].values
-    n_ts = ds['n_timesteps'].values
-    ds.close()
-
-    x = np.arange(len(phases))
-    width = 0.25
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(x - width, qnet, width, label='Qnet', color='gray')
-    ax.bar(x, Qin, width, label='Qin', color='tab:red', alpha=0.7)
-    ax.bar(x + width, Qout, width, label='Qout', color='tab:blue', alpha=0.7)
-
-    ax.set_xticks(x)
-    ax.set_xticklabels([f'{p}\n(n={n})' for p, n in zip(phases, n_ts)])
-    ax.set_ylabel('Transport [m³/s]')
-    ax.set_title(f'Phase-Resolved Transport — {Ldir["sect_name"]} '
-                 f'({Ldir["ds0"]} to {Ldir["ds1"]})')
-    ax.legend()
-    ax.axhline(0, color='k', linewidth=0.5)
-    ax.grid(True, axis='y', alpha=0.3)
-    fig.tight_layout()
-
-    out_fn = Ldir['out_dir'] / (f'phase_budget_{Ldir["sect_name"]}_'
+    out_fn = Ldir['out_dir'] / (f'phase_avg_{vn}_{Ldir["label"]}_{Ldir["file_type"]}_'
                                  f'{Ldir["ds0"]}_{Ldir["ds1"]}.png')
     fig.savefig(out_fn, dpi=200, bbox_inches='tight')
     print(f'Saved: {out_fn}')
@@ -235,14 +193,14 @@ def plot_phase_budgets(Ldir):
 if __name__ == '__main__':
     Ldir = get_args()
 
-    sect_name = Ldir['sect_name']
+    label = Ldir['label']
     ds0 = Ldir['ds0']
     ds1 = Ldir['ds1']
 
     # Load phase labels
     phase_fn = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
                 / ('tide_phases_' + ds0 + '_' + ds1)
-                / (sect_name + '.nc'))
+                / (label + '.nc'))
 
     if phase_fn.is_file():
         ds_phase = xr.open_dataset(phase_fn)
@@ -254,10 +212,9 @@ if __name__ == '__main__':
 
     # Phase-averaged fields — try common variables
     avg_dir = (Ldir['LOo'] / 'tide_phase' / Ldir['gtagex']
-               / ('phase_avg_' + ds0 + '_' + ds1))
+               / ('phase_avg_' + ds0 + '_' + ds1 + '_' + Ldir['file_type']))
     if avg_dir.is_dir():
-        # Check which variables are available in any phase file
-        sample_files = list(avg_dir.glob(sect_name + '_*.nc'))
+        sample_files = list(avg_dir.glob(label + '_*.nc'))
         if sample_files:
             ds_sample = xr.open_dataset(sample_files[0])
             available_vns = [vn for vn in ds_sample.data_vars
@@ -272,9 +229,5 @@ if __name__ == '__main__':
                 plot_phase_avg_fields(Ldir, vn=vn, cmap=cmap)
     else:
         print(f'No phase_avg directory found: {avg_dir}')
-
-    # Budget bar chart
-    print('\n--- Plot 3: Phase-resolved transport ---')
-    plot_phase_budgets(Ldir)
 
     print('\nDone.')

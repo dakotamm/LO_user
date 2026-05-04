@@ -36,6 +36,26 @@ from scipy.signal import argrelextrema
 
 
 # ---------------------------------------------------------------------------
+# Named locations (label -> (lon, lat))
+# ---------------------------------------------------------------------------
+
+LOCATIONS = {
+    'penn_cove': (-122.700, 48.230),
+}
+
+
+def get_location(label):
+    """Return (lon, lat) for a known label, or raise KeyError."""
+    if label not in LOCATIONS:
+        raise KeyError(
+            f"Unknown location label '{label}'. "
+            f"Known: {sorted(LOCATIONS.keys())}. "
+            "Add to tide_phase_fun.LOCATIONS or pass -lon/-lat explicitly."
+        )
+    return LOCATIONS[label]
+
+
+# ---------------------------------------------------------------------------
 # Signal-based detection
 # ---------------------------------------------------------------------------
 
@@ -238,8 +258,8 @@ def detect_phases_utide(zeta, time, lat):
     slack_hi[slack_hi_idx] = True
     slack_lo[slack_lo_idx] = True
 
-    # Spring/neap from tidal range envelope
-    is_spring, is_neap = _spring_neap_from_envelope(pred)
+    # Spring/neap from M2+S2 beat envelope
+    is_spring, is_neap, pred_m2s2 = spring_neap_from_m2s2(time, coef)
 
     return {
         'is_flood': is_flood,
@@ -249,8 +269,59 @@ def detect_phases_utide(zeta, time, lat):
         'slack_hi': slack_hi,
         'slack_lo': slack_lo,
         'pred': pred,
+        'pred_m2s2': pred_m2s2,
         'coef': coef,
     }
+
+
+def spring_neap_from_m2s2(time, coef, percentile_thresh=50, window_hours=25):
+    """
+    Classify spring/neap from the M2+S2 beat envelope.
+
+    Reconstructs the tide using only M2 and S2, then computes a running
+    tidal range (max - min over ~25 h window). Splits at the given
+    percentile of the range.
+
+    Parameters
+    ----------
+    time : 1-D array of datetime64
+    coef : UTide coefficient object (from utide.solve)
+    percentile_thresh : float, default 50
+    window_hours : int, default 25
+
+    Returns
+    -------
+    is_spring, is_neap : boolean arrays
+    pred_m2s2 : float array
+        M2+S2-only reconstruction.
+    """
+    import utide
+
+    time_num = _to_datenum(time)
+    # If M2 or S2 missing, fall back to all constituents
+    available = list(coef['name'])
+    constit = [c for c in ('M2', 'S2') if c in available]
+    if len(constit) == 0:
+        # No M2/S2 — use full prediction
+        pred_m2s2 = utide.reconstruct(time_num, coef, verbose=False).h
+    else:
+        pred_m2s2 = utide.reconstruct(time_num, coef,
+                                      constit=constit,
+                                      verbose=False).h
+
+    n = len(pred_m2s2)
+    half = window_hours // 2
+    tidal_range = np.full(n, np.nan)
+    for i in range(n):
+        lo = max(0, i - half)
+        hi = min(n, i + half + 1)
+        tidal_range[i] = np.nanmax(pred_m2s2[lo:hi]) - np.nanmin(pred_m2s2[lo:hi])
+
+    thresh = np.nanpercentile(tidal_range, percentile_thresh)
+    valid = ~np.isnan(tidal_range)
+    is_spring = valid & (tidal_range >= thresh)
+    is_neap = valid & (tidal_range < thresh)
+    return is_spring, is_neap, pred_m2s2
 
 
 # ---------------------------------------------------------------------------
