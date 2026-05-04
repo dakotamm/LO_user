@@ -247,7 +247,7 @@ def detect_phases_utide(zeta, time, lat):
     coef = utide.solve(time_num[finite_in], zeta[finite_in], lat=lat,
                        method='ols',
                        conf_int='none',
-                       verbose=False)
+                       verbose=True)
 
     pred = utide.reconstruct(time_num, coef, verbose=False).h
     pred = np.asarray(pred, dtype=float)
@@ -440,10 +440,22 @@ def _dt_seconds(time):
 
 
 def _to_datenum(time):
-    """Convert datetime64 to matplotlib date numbers (days since 0001-01-01)."""
+    """Convert datetime64 to matplotlib date numbers (days since 0001-01-01).
+
+    UTide expects the classic matplotlib convention (epoch 0000-12-31).
+    Modern matplotlib (>=3.3) changed `date2num` to use a 1970-01-01 epoch,
+    so we add the offset to recover the old convention regardless of the
+    installed matplotlib version.
+    """
     import matplotlib.dates as mdates
     t = pd.DatetimeIndex(np.asarray(time))
-    return mdates.date2num(t.to_pydatetime())
+    dn = mdates.date2num(t.to_pydatetime())
+    # If matplotlib's epoch is 1970-01-01, add days from 0000-12-31 to that.
+    epoch_offset = mdates.date2num(pd.Timestamp('1970-01-01').to_pydatetime())
+    if epoch_offset < 1.0:
+        # Modern matplotlib: date2num('1970-01-01') == 0.0 -> need shift
+        dn = dn + 719163.0
+    return dn
 
 
 def _spring_neap_from_envelope(pred, window_hours=25):
