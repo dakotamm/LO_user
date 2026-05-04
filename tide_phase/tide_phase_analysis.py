@@ -73,7 +73,7 @@ def _resolve_units(vn):
 
 # Map zoom: Penn Cove proper plus the entrance
 ZOOM_BOUNDS = {
-    'penn_cove': (-122.755, -122.60, 48.20, 48.255),
+    'penn_cove': (-122.755, -122.60, 48.215, 48.255),
 }
 
 # Sub-region(s) to EXCLUDE when computing color limits (still plotted, just
@@ -317,7 +317,7 @@ def plot_phase_avg_fields(Ldir, vn='u', cmap=None, vlims=None):
 # -----------------------------------------------------------------------
 # Plot 3: 2x2 quiver of (u, v) for each tidal phase
 # -----------------------------------------------------------------------
-def plot_phase_avg_quiver(Ldir, layer='', skip=4, scale=None):
+def plot_phase_avg_quiver(Ldir, layer='', skip=2, scale=None):
     """Quiver of velocity for each tidal phase.
 
     layer : '' (depth-avg), '_top', or '_bot'
