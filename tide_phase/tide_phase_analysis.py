@@ -548,20 +548,34 @@ def plot_phase_avg_fields_by_season(Ldir, vn='salt'):
         vmin, vmax = -1.0, 1.0
 
     nrow, ncol = len(PHASES4), len(SEASONS)
-    fig, axes = plt.subplots(nrow, ncol, figsize=(2.6 * ncol, 2.6 * nrow),
-                             sharex=True, sharey=True)
+    # Cell aspect ~ width/height of zoom box (Penn Cove is wide & short)
+    if bounds is not None:
+        cw = bounds[1] - bounds[0]
+        ch = (bounds[3] - bounds[2]) / np.cos(np.deg2rad(
+            0.5 * (bounds[2] + bounds[3])))
+        cell_aspect = cw / ch if ch > 0 else 2.0
+    else:
+        cell_aspect = 2.0
+    cell_h = 1.6
+    cell_w = cell_h * cell_aspect
+    fig, axes = plt.subplots(
+        nrow, ncol,
+        figsize=(cell_w * ncol + 1.2, cell_h * nrow + 1.0),
+        sharex=True, sharey=True,
+        gridspec_kw={'wspace': 0.04, 'hspace': 0.04})
     last_cs = None
     for i in range(nrow):
         for j in range(ncol):
             ax = axes[i, j]
             p = grid[i][j]
             if i == 0:
-                ax.set_title(SEASON_NAMES[SEASONS[j]], fontsize=10)
+                ax.set_title(SEASON_NAMES[SEASONS[j]], fontsize=12)
             if j == 0:
-                ax.set_ylabel(PHASE_NAMES4[i], fontsize=10)
+                ax.set_ylabel(PHASE_NAMES4[i], fontsize=12,
+                              labelpad=8)
             if p is None:
                 ax.text(0.5, 0.5, 'no data', ha='center', va='center',
-                        transform=ax.transAxes, fontsize=8, color='gray')
+                        transform=ax.transAxes, fontsize=9, color='gray')
                 ax.set_xticks([]); ax.set_yticks([])
                 continue
             fld_plot = p['fld'].astype(float).copy()
@@ -583,17 +597,22 @@ def plot_phase_avg_fields_by_season(Ldir, vn='salt'):
             if bounds is not None:
                 ax.set_xlim(bounds[0], bounds[1])
                 ax.set_ylim(bounds[2], bounds[3])
-            ax.tick_params(labelsize=7)
-            ax.text(0.97, 0.03, f'n={p["n"]}', transform=ax.transAxes,
-                    ha='right', va='bottom', fontsize=7,
-                    bbox=dict(boxstyle='round,pad=0.15',
-                              facecolor='white', alpha=0.6, lw=0))
+            ax.tick_params(labelsize=8)
+            # Only show tick labels on outer edges
+            if i != nrow - 1:
+                ax.tick_params(labelbottom=False)
+            if j != 0:
+                ax.tick_params(labelleft=False)
+            ax.text(0.97, 0.05, f'n={p["n"]}', transform=ax.transAxes,
+                    ha='right', va='bottom', fontsize=8,
+                    bbox=dict(boxstyle='round,pad=0.2',
+                              facecolor='white', alpha=0.75, lw=0))
             last_cs = cs
 
     if last_cs is not None:
-        cbar = fig.colorbar(last_cs, ax=axes.ravel().tolist(),
-                            shrink=0.85, fraction=0.025, pad=0.02)
-        cbar.set_label(unit_label)
+        cbar = fig.colorbar(last_cs, ax=axes, location='right',
+                            shrink=0.9, fraction=0.02, pad=0.01)
+        cbar.set_label(unit_label, fontsize=11)
 
     if vn.endswith('_top'):
         layer = 'Surface'
@@ -665,20 +684,33 @@ def plot_phase_avg_quiver_by_season(Ldir, layer='', skip=2, scale=None):
         scale = max(smax * 12.0, 0.5)
 
     nrow, ncol = len(PHASES4), len(SEASONS)
-    fig, axes = plt.subplots(nrow, ncol, figsize=(2.6 * ncol, 2.6 * nrow),
-                             sharex=True, sharey=True)
+    if bounds is not None:
+        cw = bounds[1] - bounds[0]
+        ch = (bounds[3] - bounds[2]) / np.cos(np.deg2rad(
+            0.5 * (bounds[2] + bounds[3])))
+        cell_aspect = cw / ch if ch > 0 else 2.0
+    else:
+        cell_aspect = 2.0
+    cell_h = 1.6
+    cell_w = cell_h * cell_aspect
+    fig, axes = plt.subplots(
+        nrow, ncol,
+        figsize=(cell_w * ncol + 1.2, cell_h * nrow + 1.0),
+        sharex=True, sharey=True,
+        gridspec_kw={'wspace': 0.04, 'hspace': 0.04})
     last_cs = None
     for i in range(nrow):
         for j in range(ncol):
             ax = axes[i, j]
             p = grid[i][j]
             if i == 0:
-                ax.set_title(SEASON_NAMES[SEASONS[j]], fontsize=10)
+                ax.set_title(SEASON_NAMES[SEASONS[j]], fontsize=12)
             if j == 0:
-                ax.set_ylabel(PHASE_NAMES4[i], fontsize=10)
+                ax.set_ylabel(PHASE_NAMES4[i], fontsize=12,
+                              labelpad=8)
             if p is None:
                 ax.text(0.5, 0.5, 'no data', ha='center', va='center',
-                        transform=ax.transAxes, fontsize=8, color='gray')
+                        transform=ax.transAxes, fontsize=9, color='gray')
                 ax.set_xticks([]); ax.set_yticks([])
                 continue
             spd_plot = p['spd'].astype(float).copy()
@@ -706,17 +738,21 @@ def plot_phase_avg_quiver_by_season(Ldir, layer='', skip=2, scale=None):
             if bounds is not None:
                 ax.set_xlim(bounds[0], bounds[1])
                 ax.set_ylim(bounds[2], bounds[3])
-            ax.tick_params(labelsize=7)
-            ax.text(0.97, 0.03, f'n={p["n"]}', transform=ax.transAxes,
-                    ha='right', va='bottom', fontsize=7,
-                    bbox=dict(boxstyle='round,pad=0.15',
-                              facecolor='white', alpha=0.6, lw=0))
+            ax.tick_params(labelsize=8)
+            if i != nrow - 1:
+                ax.tick_params(labelbottom=False)
+            if j != 0:
+                ax.tick_params(labelleft=False)
+            ax.text(0.97, 0.05, f'n={p["n"]}', transform=ax.transAxes,
+                    ha='right', va='bottom', fontsize=8,
+                    bbox=dict(boxstyle='round,pad=0.2',
+                              facecolor='white', alpha=0.75, lw=0))
             last_cs = cs
 
     if last_cs is not None:
-        cbar = fig.colorbar(last_cs, ax=axes.ravel().tolist(),
-                            shrink=0.85, fraction=0.025, pad=0.02)
-        cbar.set_label('|U| [m s$^{-1}$]')
+        cbar = fig.colorbar(last_cs, ax=axes, location='right',
+                            shrink=0.9, fraction=0.02, pad=0.01)
+        cbar.set_label('|U| [m s$^{-1}$]', fontsize=11)
 
     fig.suptitle(f'{layer_name} velocity by season — {Ldir["label"]} '
                  f'({Ldir["file_type"]}) '
