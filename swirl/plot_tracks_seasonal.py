@@ -76,7 +76,7 @@ def get_args():
     p.add_argument('-csv', type=str, default=None,
                    help='Explicit *_tracked_with_phase.csv path.')
     p.add_argument('-out_dir', type=str, default=None)
-    p.add_argument('-min_persistence', type=int, default=3)
+    p.add_argument('-min_persistence', type=int, default=10)
     p.add_argument('-penn_cove', type=lambda s: s.lower() == 'true',
                    default=False)
     p.add_argument('-grid_file', type=str, default=None)

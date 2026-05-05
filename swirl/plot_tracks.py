@@ -57,7 +57,7 @@ def get_args():
                    help='Plot output dir (default: same as in_dir)')
     p.add_argument('-top_n', type=int, default=12,
                    help='Number of longest tracks to show in small multiples')
-    p.add_argument('-min_persistence', type=int, default=3,
+    p.add_argument('-min_persistence', type=int, default=10,
                    help='Hide tracks with fewer than this many detections')
     p.add_argument('-penn_cove', type=lambda s: s.lower() == 'true',
                    default=False,
