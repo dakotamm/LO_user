@@ -33,7 +33,7 @@ from lo_tools import Lfun
 from lo_tools import plotting_functions as pfun
 
 
-PENN_COVE_BBOX = (-122.74, -122.56, 48.21, 48.26)
+PENN_COVE_BBOX = (-122.74, -122.625, 48.215, 48.245)
 
 
 # ---------------------------------------------------------------------------

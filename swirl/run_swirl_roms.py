@@ -183,7 +183,7 @@ parser.add_argument('-lon1', type=float, default=None)
 parser.add_argument('-lat0', type=float, default=None)
 parser.add_argument('-lat1', type=float, default=None)
 parser.add_argument('-penn_cove', type=_boolean_string, default=False,
-                    help='Subset to Penn Cove (~-122.74:-122.56, 48.21:48.26).')
+                    help='Subset to Penn Cove (~-122.74:-122.625, 48.215:48.245).')
 
 # --- local mode (bypasses LO framework) ---
 parser.add_argument('-roms_dir', type=str, default=None,
@@ -1052,12 +1052,13 @@ def plot_ow_features(features, OW, zeta, vx, vy, dsg, vel_type_str,
 
 
 def extract_vorticity_records(features, date_str, file_type, file_num,
-                              vel_type, s_level):
+                              vel_type, s_level, time=None):
     """Convert vorticity/OW features to records matching SWIRL output format."""
     records = []
     for i, feat in enumerate(features):
         records.append(dict(
             date=date_str,
+            time=time,
             file_type=file_type,
             file_num=file_num,
             vel_type=vel_type,
@@ -1080,7 +1081,7 @@ def extract_vorticity_records(features, date_str, file_type, file_num,
 
 def extract_vortex_records(vortices_obj, dsg, vx_shape, date_str,
                            file_type, file_num, vel_type, s_level,
-                           dx_m, dy_m):
+                           dx_m, dy_m, time=None):
     """
     Convert SWIRL vortex output to a list of dicts for DataFrame construction.
 
@@ -1111,6 +1112,7 @@ def extract_vortex_records(vortices_obj, dsg, vx_shape, date_str,
 
         records.append(dict(
             date=date_str,
+            time=time,
             file_type=file_type,
             file_num=file_num,
             vel_type=vel_type,
@@ -1290,7 +1292,7 @@ def _worker_one_file(task):
                 smooth_sigma=a['smooth'])
             recs = extract_vorticity_records(
                 features, date_str, file_type, fi,
-                a['vel_type'], a['s_level'])
+                a['vel_type'], a['s_level'], time=t)
             method = 'ow'
         elif a['method'] == 'vorticity':
             features, _ = detect_vorticity_features(
@@ -1299,7 +1301,7 @@ def _worker_one_file(task):
                 min_cells=a['min_cells'])
             recs = extract_vorticity_records(
                 features, date_str, file_type, fi,
-                a['vel_type'], a['s_level'])
+                a['vel_type'], a['s_level'], time=t)
             method = 'vorticity'
         else:
             raise RuntimeError(
@@ -1402,7 +1404,7 @@ if __name__ == '__main__':
 
     # --- Resolve spatial bounding box ---
     if args.penn_cove:
-        bbox = (-122.74, -122.56, 48.21, 48.26)
+        bbox = (-122.74, -122.625, 48.215, 48.245)
         bbox_label = 'Penn Cove'
     elif all(v is not None for v in [args.lon0, args.lon1,
                                       args.lat0, args.lat1]):
@@ -1620,6 +1622,7 @@ if __name__ == '__main__':
 
                 # --- Load ROMS file ---
                 ds = xr.open_dataset(nc_fn)
+                file_time = pd.Timestamp(ds.ocean_time.values[0])
 
                 # --- Extract 2D velocity field ---
                 vx, vy, vel_title = get_velocity_2d(
@@ -1689,7 +1692,7 @@ if __name__ == '__main__':
                     vortex_records.extend(extract_vortex_records(
                         vortices, dsg_plot, vx.shape, date_str,
                         file_type, fi, args.vel_type, args.s_level,
-                        dx_m, dy_m))
+                        dx_m, dy_m, time=file_time))
 
                     # Plot
                     if not args.no_plot:
@@ -1736,7 +1739,7 @@ if __name__ == '__main__':
 
                     vortex_records.extend(extract_vorticity_records(
                         features, date_str, file_type, fi,
-                        args.vel_type, args.s_level))
+                        args.vel_type, args.s_level, time=file_time))
 
                     if not args.no_plot:
                         plot_name = (f'ow_map_{date_str}_{args.vel_type}'
@@ -1778,7 +1781,7 @@ if __name__ == '__main__':
 
                     vortex_records.extend(extract_vorticity_records(
                         features, date_str, file_type, fi,
-                        args.vel_type, args.s_level))
+                        args.vel_type, args.s_level, time=file_time))
 
                     if not args.no_plot:
                         plot_name = (f'vort_map_{date_str}_{args.vel_type}'
