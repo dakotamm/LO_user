@@ -204,6 +204,104 @@ def plot_by_category(df, dsg, bbox, out_path, category_col, order, title):
     plt.close(fig)
 
 
+def plot_tracks_phase_x_season(df, dsg, bbox, out_path, title,
+                               color_by='flood_fraction'):
+    """
+    4 phases (rows) x 6 seasons (cols) grid of track maps.
+    Each cell shows tracks whose dominant (phase, season) falls there.
+    `color_by`:
+      'flood_fraction' -> RdBu by per-track is_flood mean
+      'rotation'       -> blue=CCW, red=CW
+      'track_id'       -> tab20 (no physical meaning)
+    """
+    if 'phase' not in df.columns or 'season' not in df.columns:
+        print('  (need both "phase" and "season" columns)')
+        return
+
+    # Use only the 4 main tidal phases (drop slacks for clarity)
+    phases = ['spring_flood', 'spring_ebb', 'neap_flood', 'neap_ebb']
+    seasons = SEASON_ORDER
+
+    dom_phase = assign_dominant(df, 'phase')
+    dom_season = assign_dominant(df, 'season')
+    rot = df.groupby('track_id')['rotation'].first()
+    flood_frac = (df.groupby('track_id')['is_flood'].mean()
+                  if 'is_flood' in df.columns else None)
+
+    track_meta = pd.DataFrame({
+        'phase': dom_phase, 'season': dom_season, 'rotation': rot,
+    })
+    if flood_frac is not None:
+        track_meta['flood_frac'] = flood_frac
+
+    # Color setup
+    if color_by == 'flood_fraction' and flood_frac is not None:
+        cmap = plt.get_cmap('RdBu')
+        norm = plt.Normalize(0, 1)
+        def color_fn(tid):
+            f = track_meta.loc[tid, 'flood_frac']
+            return cmap(norm(f)) if not np.isnan(f) else '0.5'
+    elif color_by == 'rotation':
+        def color_fn(tid):
+            return '#1f77b4' if track_meta.loc[tid, 'rotation'] == 'CCW' \
+                else '#d62728'
+    else:
+        cmap = mcm.get_cmap('tab20', max(len(track_meta), 1))
+        ids_sorted = sorted(track_meta.index)
+        idx_map = {tid: i for i, tid in enumerate(ids_sorted)}
+        def color_fn(tid):
+            return cmap(idx_map[tid] % cmap.N)
+
+    nrow, ncol = len(phases), len(seasons)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(2.8 * ncol, 2.6 * nrow),
+                             squeeze=False, sharex=True, sharey=True)
+
+    for i, ph in enumerate(phases):
+        for j, sn in enumerate(seasons):
+            ax = axes[i, j]
+            _draw_backdrop(ax, dsg, bbox)
+            sel_ids = track_meta[(track_meta['phase'] == ph) &
+                                 (track_meta['season'] == sn)].index
+            for tid in sel_ids:
+                g = df[df['track_id'] == tid].sort_values('snapshot_idx')
+                rot_str = g['rotation'].iloc[0]
+                ls = '-' if rot_str == 'CCW' else '--'
+                ax.plot(g['center_lon'].values, g['center_lat'].values,
+                        ls, color=color_fn(tid), linewidth=1.0,
+                        alpha=0.85, zorder=2)
+            if i == 0:
+                ax.set_title(sn, fontsize=10)
+            if j == 0:
+                ax.set_ylabel(ph.replace('_', '\n'), fontsize=9)
+            ax.tick_params(labelsize=6)
+            ax.text(0.02, 0.95, f'n={len(sel_ids)}',
+                    transform=ax.transAxes, fontsize=7,
+                    va='top', ha='left',
+                    bbox=dict(facecolor='white', edgecolor='none',
+                              alpha=0.7, pad=1))
+
+    # Colorbar / legend
+    if color_by == 'flood_fraction' and flood_frac is not None:
+        sm = mcm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cb = fig.colorbar(sm, ax=axes, fraction=0.015, pad=0.02,
+                          location='right')
+        cb.set_label('Flood fraction (0=ebb, 1=flood)')
+    elif color_by == 'rotation':
+        handles = [
+            plt.Line2D([], [], color='#1f77b4', linewidth=1.4, label='CCW'),
+            plt.Line2D([], [], color='#d62728', linewidth=1.4, label='CW'),
+        ]
+        fig.legend(handles=handles, loc='lower center', ncol=2,
+                   fontsize=9, frameon=False, bbox_to_anchor=(0.5, -0.01))
+
+    fig.suptitle(f'{title}  —  tracks by dominant phase × season  '
+                 f'(color={color_by})', fontsize=11)
+    fig.savefig(out_path, dpi=200, bbox_inches='tight')
+    print(f'Saved: {out_path}')
+    plt.close(fig)
+
+
 def plot_tracks_phase_colored(df, dsg, bbox, out_path, title,
                               by_season=False):
     """
@@ -401,6 +499,15 @@ def main():
     plot_tracks_flood_fraction(df, dsg, bbox,
                                out_dir / f'{stem}_tracks_flood_fraction.png',
                                title)
+
+    plot_tracks_phase_x_season(
+        df, dsg, bbox,
+        out_dir / f'{stem}_tracks_phase_x_season_flood.png',
+        title, color_by='flood_fraction')
+    plot_tracks_phase_x_season(
+        df, dsg, bbox,
+        out_dir / f'{stem}_tracks_phase_x_season_rotation.png',
+        title, color_by='rotation')
 
     if dsg is not None:
         dsg.close()
