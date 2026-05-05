@@ -137,7 +137,7 @@ def _plot_one_panel(ax, df_panel, dsg, bbox, label, cmap):
         lat = g['center_lat'].values
         rot = g['rotation'].iloc[0]
         color = cmap(k % cmap.N)
-        ls = '-' if rot == 1 else '--'
+        ls = '-' if rot == 'CCW' else '--'
         ax.plot(lon, lat, ls, color=color, linewidth=1.0, alpha=0.85,
                 zorder=2)
         ax.plot(lon[0], lat[0], 'o', color=color, markersize=4,
@@ -182,8 +182,22 @@ def plot_by_category(df, dsg, bbox, out_path, category_col, order, title):
     for k in range(n, nrow * ncol):
         axes[k // ncol, k % ncol].axis('off')
 
-    fig.suptitle(f'{title}  —  by dominant {category_col}\n'
-                 '(solid=CCW, dashed=CW; ○=start, ■=end)', fontsize=11)
+    # Rotation legend
+    handles = [
+        plt.Line2D([], [], color='0.3', linestyle='-', linewidth=1.2,
+                   label='CCW'),
+        plt.Line2D([], [], color='0.3', linestyle='--', linewidth=1.2,
+                   label='CW'),
+        plt.Line2D([], [], marker='o', linestyle='',
+                   markerfacecolor='white', markeredgecolor='0.3',
+                   markersize=6, label='start'),
+        plt.Line2D([], [], marker='s', linestyle='', color='0.3',
+                   markersize=6, label='end'),
+    ]
+    fig.legend(handles=handles, loc='lower center', ncol=4,
+               fontsize=9, frameon=False, bbox_to_anchor=(0.5, -0.02))
+
+    fig.suptitle(f'{title}  —  by dominant {category_col}', fontsize=11)
     fig.tight_layout()
     fig.savefig(out_path, dpi=200, bbox_inches='tight')
     print(f'Saved: {out_path}')
@@ -279,7 +293,7 @@ def plot_tracks_flood_fraction(df, dsg, bbox, out_path, title):
             continue
         color = cmap(norm(f))
         rot = g['rotation'].iloc[0]
-        ls = '-' if rot == 1 else '--'
+        ls = '-' if rot == 'CCW' else '--'
         ax.plot(g['center_lon'].values, g['center_lat'].values,
                 ls, color=color, linewidth=1.4, alpha=0.9, zorder=2)
         ax.plot(g['center_lon'].iloc[0], g['center_lat'].iloc[0], 'o',
@@ -315,10 +329,12 @@ def plot_season_summary(df, out_path, title):
     fig, ax = plt.subplots(figsize=(8, 4.5))
     x = np.arange(len(counts))
     w = 0.4
-    if 1 in counts.columns:
-        ax.bar(x - w / 2, counts[1].values, w, label='CCW', color='#1f77b4')
-    if -1 in counts.columns:
-        ax.bar(x + w / 2, counts[-1].values, w, label='CW', color='#d62728')
+    if 'CCW' in counts.columns:
+        ax.bar(x - w / 2, counts['CCW'].values, w,
+               label='CCW', color='#1f77b4')
+    if 'CW' in counts.columns:
+        ax.bar(x + w / 2, counts['CW'].values, w,
+               label='CW', color='#d62728')
     ax.set_xticks(x)
     ax.set_xticklabels(counts.index)
     ax.set_xlabel('Season (2-month bin)')

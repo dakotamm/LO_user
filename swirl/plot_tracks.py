@@ -136,7 +136,7 @@ def plot_all_tracks(df, dsg, bbox, out_path, title):
         rot = g['rotation'].iloc[0]
 
         color = cmap(k % cmap.N)
-        ls = '-' if rot == 1 else '--'
+        ls = '-' if rot == 'CCW' else '--'
         ax.plot(lon, lat, ls, color=color, linewidth=1.2, alpha=0.85,
                 zorder=2)
         # Start: open circle; End: filled square
@@ -183,7 +183,7 @@ def plot_top_n_tracks(df, dsg, bbox, out_path, top_n, title):
         lon = g['center_lon'].values
         lat = g['center_lat'].values
         sidx = g['snapshot_idx'].values
-        rot_str = 'CCW' if g['rotation'].iloc[0] == 1 else 'CW'
+        rot_str = g['rotation'].iloc[0]
 
         # Color by snapshot order
         sc = ax.scatter(lon, lat, c=sidx, cmap='viridis', s=18,
