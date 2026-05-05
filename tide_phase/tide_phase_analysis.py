@@ -22,6 +22,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from matplotlib.patches import Patch
 from pathlib import Path
 
@@ -598,6 +599,8 @@ def plot_phase_avg_fields_by_season(Ldir, vn='salt'):
                 ax.set_xlim(bounds[0], bounds[1])
                 ax.set_ylim(bounds[2], bounds[3])
             ax.tick_params(labelsize=8)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=3, prune='both'))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=3, prune='both'))
             # Only show tick labels on outer edges
             if i != nrow - 1:
                 ax.tick_params(labelbottom=False)
@@ -739,6 +742,8 @@ def plot_phase_avg_quiver_by_season(Ldir, layer='', skip=2, scale=None):
                 ax.set_xlim(bounds[0], bounds[1])
                 ax.set_ylim(bounds[2], bounds[3])
             ax.tick_params(labelsize=8)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=3, prune='both'))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=3, prune='both'))
             if i != nrow - 1:
                 ax.tick_params(labelbottom=False)
             if j != 0:
