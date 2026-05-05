@@ -81,7 +81,7 @@ def get_args():
         args.tracked_csv = str(in_dir / fname)
 
     if args.out_dir is None:
-        args.out_dir = str(Path(args.tracked_csv).parent)
+        args.out_dir = str(default_dir / 'plots')
 
     if args.grid_file is None:
         args.grid_file = str(Ldir['grid'] / 'grid.nc')
