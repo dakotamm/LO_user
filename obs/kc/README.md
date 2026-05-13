@@ -8,7 +8,7 @@ These files are from King County's marine offshore monitoring water column sampl
 
 Bottle data is publically-accessible and was downloaded with data up to April 2026 by Dakota Mascarenas from https://data.kingcounty.gov/Environment-Waste-Management/Water-Quality/vwmt-pvjw.
 
-CTD data was received by Dakota Mascarenas from Greg Ikeda, King County, via file transfer on 2024/04/05.
+CTD data was received by Dakota Mascarenas from Greg Ikeda, King County, via file transfer on 2024/04/05 and updated in the same way on 2026/05/01.
 
 Station information downloaded in April 2026 by Dakota Mascarenas from: https://data.kingcounty.gov/Environment-Waste-Management/WLRD-Sites/wbhs-bbzf
 
