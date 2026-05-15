@@ -71,6 +71,26 @@ def parse_args():
     p.add_argument('-layers', type=str, default='all',
                    help="Comma list of layers from {surface,depth_avg,bottom}, "
                         "or 'all'.")
+    # Per-tide-half-cycle composites (Phase E)
+    p.add_argument('-composites', type=_bool, default=True,
+                   help='Also run composite_ow_tide_halfcycles.py per event.')
+    p.add_argument('-composite_script', type=str,
+                   default=str(Path(__file__).parent
+                               / 'composite_ow_tide_halfcycles.py'),
+                   help='Path to composite_ow_tide_halfcycles.py')
+    p.add_argument('-leadup_days', type=int, default=7,
+                   help='Composite window: days before event_start.')
+    p.add_argument('-postevent_days', type=int, default=1,
+                   help='Composite window: days after event_end.')
+    p.add_argument('-tide_label', type=str, default='penn_cove',
+                   help='Tide-phase NC label (compute_tide_phases output).')
+    p.add_argument('-tide_ds0', type=str, default=None,
+                   help='Tide-phase NC ds0 (default YYYY.01.01).')
+    p.add_argument('-tide_ds1', type=str, default=None,
+                   help='Tide-phase NC ds1 (default YYYY.12.31).')
+    p.add_argument('-composite_ftype', type=str, default='his',
+                   choices=['his', 'avg'],
+                   help='File type for composite snapshots.')
     return p.parse_args()
 
 
@@ -193,6 +213,39 @@ def main():
             except subprocess.CalledProcessError as e:
                 n_fail += 1
                 print(f'  *** FAILED (exit {e.returncode}) ***')
+
+        # ---- Per-event composites (one call covers all chosen layers) ----
+        if args.composites:
+            layer_names = ','.join(L[2] for L in layers)
+            ccmd = [
+                sys.executable, str(args.composite_script),
+                '-gtx', args.gtagex,
+                '-ro', str(args.roms_out_num),
+                '-mooring', args.mooring,
+                '-year', str(args.year),
+                '-event_id', str(eid),
+                '-leadup_days', str(args.leadup_days),
+                '-postevent_days', str(args.postevent_days),
+                '-ftype', args.composite_ftype,
+                '-layers', layer_names,
+                '-min_cells', str(args.min_cells),
+                '-tide_label', args.tide_label,
+            ]
+            if args.tide_ds0 is not None:
+                ccmd += ['-tide_ds0', args.tide_ds0]
+            if args.tide_ds1 is not None:
+                ccmd += ['-tide_ds1', args.tide_ds1]
+            if args.events_csv is not None:
+                ccmd += ['-events_csv', str(events_csv)]
+            print(f'--- event {eid} / composites ---')
+            print('  ' + ' '.join(ccmd))
+            if not args.dry:
+                try:
+                    subprocess.run(ccmd, check=True)
+                    n_run += 1
+                except subprocess.CalledProcessError as e:
+                    n_fail += 1
+                    print(f'  *** COMPOSITE FAILED (exit {e.returncode}) ***')
 
     if not args.dry:
         print()

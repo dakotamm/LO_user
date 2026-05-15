@@ -207,7 +207,11 @@ parser.add_argument('-mooring_file', type=str, default=None,
 parser.add_argument('-mooring_label', type=str, default='M1',
                     help='Label for the mooring DO panel (default M1).')
 
-args = parser.parse_args()
+# Only parse args when run as a script. This lets other modules import
+# helper functions (get_velocity_2d, detect_ow_features, ...) without
+# argparse swallowing sys.argv from the calling script.
+if __name__ == '__main__':
+    args = parser.parse_args()
 
 # ============================================================================
 # Helper functions
