@@ -199,6 +199,14 @@ parser.add_argument('-nproc', type=int, default=1,
                          '1 = sequential (default). When >1, plotting is '
                          'disabled and -method swirl is not supported.')
 
+# --- mooring overlay (OW plots only, sequential mode) ---
+parser.add_argument('-mooring_file', type=str, default=None,
+                    help='Path to a moor extract .nc; bottom DO is added '
+                         'as an extra panel under the SSH strip on each '
+                         'OW snapshot plot. Sequential mode only.')
+parser.add_argument('-mooring_label', type=str, default='M1',
+                    help='Label for the mooring DO panel (default M1).')
+
 args = parser.parse_args()
 
 # ============================================================================
@@ -407,6 +415,31 @@ def _add_ssh_panel(fig, ax, ssh_times, ssh_values, current_idx):
     ax.set_title('Sea surface height (domain mean)')
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
     ax.tick_params(axis='x', rotation=30)
+    ax.legend(loc='upper right', fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+
+def _add_do_panel(fig, ax, do_times, do_values, current_time,
+                  label='M1', thresh=2.0):
+    """
+    Draw bottom-DO time series with a marker at the current snapshot time.
+    """
+    ax.plot(do_times, do_values, 'k-', linewidth=1.0, alpha=0.7)
+    ax.axhline(thresh, color='red', lw=0.8, ls='--',
+               label=f'{thresh:.1f} mg/L')
+    # Find nearest DO sample to the snapshot time
+    if current_time is not None and len(do_times) > 0:
+        ct = pd.Timestamp(current_time).to_datetime64()
+        dt_arr = np.array(do_times, dtype='datetime64[ns]')
+        idx = int(np.argmin(np.abs(dt_arr - ct)))
+        ax.plot(do_times[idx], do_values[idx], 'ro', markersize=8,
+                zorder=5, label='current')
+    ax.set_ylabel(f'{label} bottom DO [mg/L]')
+    ax.set_xlabel('Time')
+    ax.set_title(f'{label} bottom dissolved oxygen')
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
+    ax.tick_params(axis='x', rotation=30)
+    ax.set_ylim(0, max(8, float(np.nanmax(do_values)) * 1.05))
     ax.legend(loc='upper right', fontsize=8)
     ax.grid(True, alpha=0.3)
 
@@ -943,7 +976,9 @@ def detect_ow_features(vx, vy, dsg, dx_m, dy_m, ow_thresh=None,
 
 def plot_ow_features(features, OW, zeta, vx, vy, dsg, vel_type_str,
                      date_str, dx_m, dy_m, out_path=None,
-                     ssh_times=None, ssh_values=None, ssh_idx=None):
+                     ssh_times=None, ssh_values=None, ssh_idx=None,
+                     do_times=None, do_values=None, do_label='M1',
+                     current_time=None):
     """
     Plot Okubo-Weiss detected features: velocity, OW field, and features.
     """
@@ -963,13 +998,30 @@ def plot_ow_features(features, OW, zeta, vx, vy, dsg, vel_type_str,
 
     has_ssh = (ssh_times is not None and ssh_values is not None
                and ssh_idx is not None)
-    if has_ssh:
+    has_do = (do_times is not None and do_values is not None
+              and len(do_times) > 0)
+    if has_ssh and has_do:
+        fig = plt.figure(figsize=(22, 13))
+        gs = fig.add_gridspec(3, 3, height_ratios=[3, 1, 1])
+        axes = [fig.add_subplot(gs[0, i]) for i in range(3)]
+        ax_ssh = fig.add_subplot(gs[1, :])
+        ax_do = fig.add_subplot(gs[2, :])
+    elif has_ssh:
         fig = plt.figure(figsize=(22, 11))
         gs = fig.add_gridspec(2, 3, height_ratios=[3, 1])
         axes = [fig.add_subplot(gs[0, i]) for i in range(3)]
         ax_ssh = fig.add_subplot(gs[1, :])
+        ax_do = None
+    elif has_do:
+        fig = plt.figure(figsize=(22, 9))
+        gs = fig.add_gridspec(2, 3, height_ratios=[3, 1])
+        axes = [fig.add_subplot(gs[0, i]) for i in range(3)]
+        ax_ssh = None
+        ax_do = fig.add_subplot(gs[1, :])
     else:
         fig, axes = plt.subplots(1, 3, figsize=(22, 7))
+        ax_ssh = None
+        ax_do = None
 
     # --- Left: speed + quiver ---
     ax = axes[0]
@@ -1044,6 +1096,9 @@ def plot_ow_features(features, OW, zeta, vx, vy, dsg, vel_type_str,
 
     if has_ssh:
         _add_ssh_panel(fig, ax_ssh, ssh_times, ssh_values, ssh_idx)
+    if has_do:
+        _add_do_panel(fig, ax_do, do_times, do_values, current_time,
+                      label=do_label)
 
     plt.tight_layout()
     if out_path is not None:
@@ -1438,6 +1493,28 @@ if __name__ == '__main__':
             'and -out_dir not specified.')
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # --- Optional mooring DO time series for OW plot panel ---
+    do_times = None
+    do_values = None
+    if args.mooring_file is not None:
+        moor_path = Path(args.mooring_file)
+        if not moor_path.exists():
+            print(f'WARNING: mooring file not found: {moor_path} '
+                  f'(skipping DO panel)')
+        else:
+            try:
+                with xr.open_dataset(moor_path) as _mds:
+                    _ot = pd.to_datetime(_mds.ocean_time.values)
+                    # oxygen dims (ocean_time, s_rho); s_rho=0 is bottom
+                    _do = _mds.oxygen.values[:, 0] * (32.0 / 1000.0)
+                do_times = _ot
+                do_values = _do
+                print(f'Loaded mooring DO from {moor_path} '
+                      f'({len(do_times)} samples)')
+            except Exception as _e:
+                print(f'WARNING: failed to load mooring file '
+                      f'({_e}); skipping DO panel')
+
     # --- Collectors ---
     summary_records = []   # one row per snapshot (date/file)
     vortex_records = []    # one row per vortex
@@ -1757,7 +1834,11 @@ if __name__ == '__main__':
                             out_path=plot_path,
                             ssh_times=ssh_times,
                             ssh_values=ssh_values,
-                            ssh_idx=_ssh_counter)
+                            ssh_idx=_ssh_counter,
+                            do_times=do_times,
+                            do_values=do_values,
+                            do_label=args.mooring_label,
+                            current_time=file_time)
 
                 else:
                     # --- Vorticity-based detection ---

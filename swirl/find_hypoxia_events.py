@@ -34,6 +34,7 @@ from lo_tools import Lfun
 DO_UM_TO_MGL = 32.0 / 1000.0     # multiply mmol/m^3 (=uM) -> mg/L
 HYPOXIA_THRESHOLD_MGL = 2.0      # standard bottom-water hypoxia cutoff
 LEADUP_DAYS = 14                 # window prefix before each event
+POSTEVENT_DAYS = 3               # window suffix after each event (recovery)
 
 
 def parse_args():
@@ -52,6 +53,8 @@ def parse_args():
     p.add_argument('-thresh', type=float, default=HYPOXIA_THRESHOLD_MGL,
                    help='Bottom DO threshold [mg/L]. Default 2.0.')
     p.add_argument('-leadup_days', type=int, default=LEADUP_DAYS)
+    p.add_argument('-postevent_days', type=int, default=POSTEVENT_DAYS,
+                   help='Days of recovery to include after each event end.')
     p.add_argument('-out_dir', type=str, default=None,
                    help='Override output dir (default LOo/swirl/<gtx>).')
     return p.parse_args()
@@ -94,17 +97,19 @@ def find_event_runs(daily_index, hypoxic_flags):
     return events
 
 
-def build_events_dataframe(events, leadup_days):
+def build_events_dataframe(events, leadup_days, postevent_days):
     rows = []
     for i, (es, ee) in enumerate(events):
         lead = es - pd.Timedelta(days=leadup_days)
+        win_end = ee + pd.Timedelta(days=postevent_days)
         n_event = (ee - es).days + 1
-        n_window = (ee - lead).days + 1
+        n_window = (win_end - lead).days + 1
         rows.append(dict(
             event_id=i + 1,
             event_start=es,
             event_end=ee,
             lead_start=lead,
+            window_end=win_end,
             n_event_days=n_event,
             n_window_days=n_window,
         ))
@@ -118,11 +123,13 @@ def plot_qc(daily_do, events_df, thresh, out_path, title):
     ax.axhline(thresh, color='red', lw=1, ls='--',
                label=f'{thresh:.1f} mg/L threshold')
     for _, row in events_df.iterrows():
-        # Lead-up shaded lighter, event shaded darker
+        # Lead-up shaded tan, event darker firebrick, post-event light blue
         ax.axvspan(row['lead_start'], row['event_start'],
                    color='goldenrod', alpha=0.15)
         ax.axvspan(row['event_start'], row['event_end'],
                    color='firebrick', alpha=0.30)
+        ax.axvspan(row['event_end'], row['window_end'],
+                   color='steelblue', alpha=0.15)
         ax.text(row['event_start'], ax.get_ylim()[1] * 0.95,
                 f"#{row['event_id']}", color='firebrick',
                 fontsize=8, ha='left', va='top')
@@ -159,7 +166,8 @@ def main():
     do_series = load_bottom_do(moor_fn)
     daily_do, hypoxic = daily_hypoxic_flags(do_series, args.thresh)
     events = find_event_runs(daily_do.index, hypoxic)
-    events_df = build_events_dataframe(events, args.leadup_days)
+    events_df = build_events_dataframe(events, args.leadup_days,
+                                       args.postevent_days)
 
     print(f'Found {len(events_df)} hypoxia events at {args.mooring} '
           f'(threshold {args.thresh} mg/L):')
@@ -181,7 +189,8 @@ def main():
                  / f'hypoxia_events_{args.mooring}_{args.year}.png')
     plot_qc(daily_do, events_df, args.thresh, plot_path,
             title=(f'{args.gtagex} {args.mooring} bottom DO {args.year} '
-                   f'(events shaded; {args.leadup_days}-d lead-up in tan)'))
+                   f'(events red, {args.leadup_days}-d lead tan, '
+                   f'{args.postevent_days}-d recovery blue)'))
     print(f'Wrote {plot_path}')
 
 

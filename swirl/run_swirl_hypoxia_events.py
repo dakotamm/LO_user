@@ -46,6 +46,11 @@ def parse_args():
                                 formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument('-gtx', '--gtagex', type=str, default='wb1_r0_xn11b')
     p.add_argument('-mooring', type=str, default='M1')
+    p.add_argument('-job', type=str, default='pc0',
+                   help='Mooring extract job (subdir of moor/).')
+    p.add_argument('-mooring_file', type=str, default=None,
+                   help='Override mooring file path (default: derived from '
+                        'gtagex/job/mooring/year).')
     p.add_argument('-year', type=int, default=2017)
     p.add_argument('-ro', '--roms_out_num', type=int, default=2,
                    help='Which roms_out path to use (passed to run_swirl_roms).')
@@ -81,7 +86,8 @@ def select_layers(spec):
 
 
 def build_command(script, gtx, ro, ds0, ds1, vel, s_lev,
-                  out_dir, nproc, min_cells):
+                  out_dir, nproc, min_cells,
+                  mooring_file=None, mooring_label=None):
     cmd = [
         sys.executable, str(script),
         '-gtx', gtx,
@@ -100,6 +106,10 @@ def build_command(script, gtx, ro, ds0, ds1, vel, s_lev,
     ]
     if s_lev is not None:
         cmd += ['-s_lev', str(s_lev)]
+    if mooring_file is not None:
+        cmd += ['-mooring_file', str(mooring_file)]
+    if mooring_label is not None:
+        cmd += ['-mooring_label', str(mooring_label)]
     return cmd
 
 
@@ -123,7 +133,7 @@ def main():
             f'Run find_hypoxia_events.py first.')
 
     events = pd.read_csv(events_csv, parse_dates=[
-        'event_start', 'event_end', 'lead_start'])
+        'event_start', 'event_end', 'lead_start', 'window_end'])
     if args.event_id is not None:
         events = events[events.event_id == args.event_id]
         if events.empty:
@@ -131,12 +141,28 @@ def main():
 
     layers = select_layers(args.layers)
 
+    # Resolve mooring file (used for the DO panel under each OW plot)
+    if args.mooring_file is not None:
+        mooring_file = Path(args.mooring_file)
+    else:
+        ds0_str = f'{args.year}.01.02'
+        ds1_str = f'{args.year}.12.30'
+        mooring_file = (Ldir['LOo'] / 'extract' / args.gtagex / 'moor'
+                        / args.job
+                        / f'{args.mooring}_{ds0_str}_{ds1_str}.nc')
+    if not mooring_file.exists():
+        print(f'WARNING: mooring file not found ({mooring_file}); '
+              f'OW plots will lack the DO panel.')
+        mooring_file = None
+
     base_out = (Ldir['LOo'] / 'swirl' / args.gtagex / 'hypoxia_events')
     base_out.mkdir(parents=True, exist_ok=True)
 
     print(f'Driver: {len(events)} event(s) x {len(layers)} layer(s) '
           f'= {len(events) * len(layers)} runs.')
     print(f'Base output: {base_out}')
+    if mooring_file is not None:
+        print(f'Mooring DO panel: {mooring_file}')
     print()
 
     n_run = 0
@@ -144,7 +170,7 @@ def main():
     for _, row in events.iterrows():
         eid = int(row['event_id'])
         ds0 = fmt_date(row['lead_start'])
-        ds1 = fmt_date(row['event_end'])
+        ds1 = fmt_date(row['window_end'])
         event_dir = base_out / f'event_{eid:02d}_{ds0}_{ds1}'
 
         for vel, s_lev, layer_name in layers:
@@ -152,7 +178,9 @@ def main():
             out_dir.mkdir(parents=True, exist_ok=True)
             cmd = build_command(args.script, args.gtagex, args.roms_out_num,
                                 ds0, ds1, vel, s_lev,
-                                out_dir, args.nproc, args.min_cells)
+                                out_dir, args.nproc, args.min_cells,
+                                mooring_file=mooring_file,
+                                mooring_label=args.mooring)
 
             print(f'--- event {eid} / {layer_name} ({ds0} -> {ds1}) ---')
             print('  ' + ' '.join(cmd))
