@@ -49,7 +49,10 @@ def parse_args():
     p.add_argument('-year', type=int, default=2017)
     p.add_argument('-ro', '--roms_out_num', type=int, default=2,
                    help='Which roms_out path to use (passed to run_swirl_roms).')
-    p.add_argument('-nproc', type=int, default=8)
+    p.add_argument('-nproc', type=int, default=1,
+                   help='Workers per run_swirl_roms call. Default 1 so '
+                        'per-snapshot OW PNG maps are emitted '
+                        '(parallel mode forces -no_plot True).')
     p.add_argument('-events_csv', type=str, default=None,
                    help='Override events CSV path.')
     p.add_argument('-script', type=str,
