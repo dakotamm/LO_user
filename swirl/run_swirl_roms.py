@@ -138,10 +138,12 @@ parser.add_argument('-s_lev', '--s_level', type=int, default=-1,
 
 # --- file selection ---
 parser.add_argument('-ftype', '--file_type', type=str, default='his',
-                    choices=['his', 'avg'],
-                    help="ROMS output type: 'his' or 'avg'.")
+                    choices=['his', 'avg', 'lowpass'],
+                    help="ROMS output type: 'his', 'avg', or 'lowpass' "
+                         "(tide-averaged daily; one 'lowpassed.nc' per day).")
 parser.add_argument('-fnum', '--file_num', type=int, default=None,
-                    help='File number (0-based). Omit to process all per day.')
+                    help='File number (0-based). Omit to process all per day. '
+                         'Ignored for -ftype lowpass (one file per day).')
 parser.add_argument('-his_num', type=int, default=None,
                     help='Alias for -fnum (backward compat).')
 
@@ -1343,9 +1345,13 @@ if __name__ == '__main__':
     # Resolve file_num (-his_num is alias for -fnum)
     file_num = args.file_num if args.file_num is not None else args.his_num
 
-    file_type = args.file_type  # 'his' or 'avg'
-    file_glob = f'ocean_{file_type}_*.nc'
-    file_label = 'his' if file_type == 'his' else 'avg'
+    file_type = args.file_type  # 'his', 'avg', or 'lowpass'
+    if file_type == 'lowpass':
+        file_glob = 'lowpassed.nc'
+        file_label = 'lowpass'
+    else:
+        file_glob = f'ocean_{file_type}_*.nc'
+        file_label = 'his' if file_type == 'his' else 'avg'
 
     # --- Setup: always use Lfun.Lstart() for paths when available ---
     local_mode = (args.roms_dir is not None or args.grid_file is not None)
@@ -1391,7 +1397,7 @@ if __name__ == '__main__':
 
     print(f'Grid: {gtagex}')
     print(f'Date range: {ds0} to {ds1} ({len(date_list)} days)')
-    print(f'File type: ocean_{file_type}')
+    print(f'File type: {file_glob}')
     print(f'Velocity type: {args.vel_type}')
 
     # --- Load grid (once) ---

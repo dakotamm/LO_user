@@ -93,8 +93,8 @@ def getPolyData(Ldir, poly_list, source_list=['ecology_nc', 'nceiSalish', 'dfo1'
                 try:
                     if ii == 0:
                         odf = pd.read_pickle( odir / (str(year) + '.p'))
-                        if 'ecology' in source_list:
-                            if source == 'ecology' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
+                        if 'ecology_nc' in source_list:
+                            if source == 'ecology_nc' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
                                 odf['DO (uM)'] == np.nan
                         if 'kc_pointJefferson' in source_list:
                             if source == 'kc_pointJefferson' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
@@ -107,8 +107,8 @@ def getPolyData(Ldir, poly_list, source_list=['ecology_nc', 'nceiSalish', 'dfo1'
                         # print(odf.columns)
                     else:
                         this_odf = pd.read_pickle( odir / (str(year) + '.p'))
-                        if 'ecology' in source_list:
-                            if source == 'ecology' and otype == 'bottle':
+                        if 'ecology_nc' in source_list:
+                            if source == 'ecology_nc' and otype == 'bottle':
                                 this_odf['DO (uM)'] == np.nan
                         if 'kc_pointJefferson' in source_list:
                             if source == 'kc_pointJefferson' and otype == 'bottle': #keep an eye on this for calculating confidence intervals!!!
