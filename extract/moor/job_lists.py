@@ -150,7 +150,7 @@ def get_sta_dict(job_name):
             'M1': (-122.63883, 48.23627)}
     
     elif job_name == 'pc_field':
-        # DM defined 4/6/2025 with current Penn Cove mooring locations
+        # DM defined 4/6/2026 with current Penn Cove mooring locations
         sta_dict = {
             'outerN': (-122.625453, 48.229776),
             'longPointS': (-122.6416, 48.241762),
@@ -158,6 +158,12 @@ def get_sta_dict(job_name):
             'lovejoyS': (-122.669771, 48.227576),
             'innerN': (-122.703108, 48.232424), 
             'innerS': (-122.702241, 48.224669)}
+        
+    elif job_name == 'pc3':
+        # DM defined 05/18/2026
+        sta_dict = {
+            'M_inner': (-122.709640, 48.226522),
+            'M_entrance': (-122.652243, 48.236059)}
 
 
     else:
