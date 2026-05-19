@@ -9,7 +9,7 @@ a QC plot of the bottom DO time series with shaded events + lead-ups.
 Usage:
     python find_hypoxia_events.py -gtx wb1_r0_xn11b -mooring M1 -year 2017
 
-Outputs (under Ldir['LOo']/swirl/<gtx>/):
+Outputs (under Ldir['LOo']/wind_flow/<gtx>/):
     hypoxia_events_<mooring>_<year>.csv
     plots/hypoxia_events_<mooring>_<year>.png
 
@@ -41,9 +41,9 @@ def parse_args():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument('-gtx', '--gtagex', type=str, default='wb1_r0_xn11b')
-    p.add_argument('-mooring', type=str, default='M1',
-                   help='Penn Cove mooring station id (M1, M3, M5).')
-    p.add_argument('-job', type=str, default='pc0',
+    p.add_argument('-mooring', type=str, default='M_inner',
+                   help='Penn Cove mooring station id.')
+    p.add_argument('-job', type=str, default='pc3',
                    help='Mooring extract job name (subdir of moor/).')
     p.add_argument('-year', type=int, default=2017)
     p.add_argument('-ds0', type=str, default=None,
@@ -56,7 +56,7 @@ def parse_args():
     p.add_argument('-postevent_days', type=int, default=POSTEVENT_DAYS,
                    help='Days of recovery to include after each event end.')
     p.add_argument('-out_dir', type=str, default=None,
-                   help='Override output dir (default LOo/swirl/<gtx>).')
+                   help='Override output dir (default LOo/wind_flow/<gtx>).')
     return p.parse_args()
 
 
@@ -155,8 +155,8 @@ def main():
     if args.ds0 is not None and args.ds1 is not None:
         ds0_str, ds1_str = args.ds0, args.ds1
     else:
-        ds0_str = f'{args.year}.01.02'
-        ds1_str = f'{args.year}.12.30'
+        ds0_str = f'{args.year}.01.01'
+        ds1_str = f'{args.year}.12.31'
     moor_fn = (Ldir['LOo'] / 'extract' / args.gtagex / 'moor' / args.job
                / f'{args.mooring}_{ds0_str}_{ds1_str}.nc')
     if not moor_fn.exists():
@@ -178,7 +178,7 @@ def main():
     if args.out_dir is not None:
         out_dir = Path(args.out_dir)
     else:
-        out_dir = Ldir['LOo'] / 'swirl' / args.gtagex
+        out_dir = Ldir['LOo'] / 'wind_flow' / args.gtagex
     out_dir.mkdir(parents=True, exist_ok=True)
 
     csv_path = out_dir / f'hypoxia_events_{args.mooring}_{args.year}.csv'

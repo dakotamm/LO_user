@@ -14,15 +14,18 @@ tidal-averaged version (suffix '_lp').
 
 Usage on apogee (after the hourly extraction is finished):
     conda activate loenv
-    python compute_wind_flow_M1.py \
-        -gtx wb1_r0_xn11b -mooring M1 -job pc0 \
+    python compute_wind_flow.py \
+        -gtx wb1_r0_xn11b -mooring M_inner -job pc3 \
+        -ds0 2017.01.01 -ds1 2017.12.31
+    python compute_wind_flow.py \
+        -gtx wb1_r0_xn11b -mooring M_entrance -job pc3 \
         -ds0 2017.01.01 -ds1 2017.12.31
 
-Hourly extraction prerequisite (run once on apogee, takes ~1 hr at Nproc=10):
+Hourly extraction prerequisite (run once on apogee):
     cd ~/LO/extract/moor
     python multi_mooring_driver.py -gtx wb1_r0_xn11b -ro 2 \
-        -0 2017.01.01 -1 2017.12.31 -lt hourly -job pc0 -get_all True \
-        > pc0_hourly.log &
+        -0 2017.01.01 -1 2017.12.31 -lt hourly -job pc3 -get_all True \
+        > pc3_hourly.log &
 
 Output:
     LOo/wind_flow/<gtx>/<mooring>_wind_flow_<ds0>_<ds1>.nc
@@ -47,8 +50,8 @@ def parse_args():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument('-gtx', '--gtagex', type=str, default='wb1_r0_xn11b')
-    p.add_argument('-mooring', type=str, default='M1')
-    p.add_argument('-job', type=str, default='pc0')
+    p.add_argument('-mooring', type=str, default='M_inner')
+    p.add_argument('-job', type=str, default='pc3')
     p.add_argument('-ds0', type=str, default='2017.01.01')
     p.add_argument('-ds1', type=str, default='2017.12.31')
     p.add_argument('-moor_fn', type=str, default=None,
