@@ -117,18 +117,19 @@ def panel_do(ax, df, t0, t1):
     ax.legend(loc='upper right', fontsize=7)
 
 
-def panel_flow(ax, df, t0, t1, direction):
-    """direction = 'along' or 'across'."""
+def panel_flow(ax, df, t0, t1, component):
+    """component = 'u' (east, +E) or 'v' (north, +N)."""
     sub = df.loc[t0:t1]
     layers = [('surface',  'tab:orange'),
               ('depthavg', 'k'),
               ('bottom',   'tab:blue')]
     for layer, color in layers:
-        col = f'{direction}_{layer}_lp'
+        col = f'{component}_{layer}_lp'
         ax.plot(sub.index, sub[col], color=color, lw=1.0,
                 label=layer)
     ax.axhline(0, color='0.4', lw=0.5)
-    ax.set_ylabel(f'{direction} [m/s]\n(Godin)')
+    label = 'east (+E)' if component == 'u' else 'north (+N)'
+    ax.set_ylabel(f'{label} [m/s]\n(Godin)')
     ax.legend(loc='upper right', fontsize=7, ncol=3)
 
 
@@ -152,8 +153,8 @@ def plot_event(df, row, attrs, out_path, mooring, gtx,
     panel_wind(axs[0], df, t0, t1, df_extra=df_extra,
                label=mooring, label_extra=mooring_extra)
     panel_do(axs[1], df, t0, t1)
-    panel_flow(axs[2], df, t0, t1, 'along')
-    panel_flow(axs[3], df, t0, t1, 'across')
+    panel_flow(axs[2], df, t0, t1, 'u')
+    panel_flow(axs[3], df, t0, t1, 'v')
     panel_strat(axs[4], df, t0, t1)
 
     for ax in axs:
@@ -167,7 +168,7 @@ def plot_event(df, row, attrs, out_path, mooring, gtx,
     fig.suptitle(
         f'{gtx} {mooring} hypoxia event #{int(row.event_id)} '
         f'({row.event_start.date()} – {row.event_end.date()})  '
-        f'[along-axis = {th_d:+.0f}° CCW from east]',
+        f'[principal axis = {th_d:+.0f}° CCW from east]',
         fontsize=11,
     )
     fig.autofmt_xdate()
@@ -186,8 +187,8 @@ def plot_overview(df, events_df, attrs, out_path, mooring, gtx,
     panel_wind(axs[0], df, t0, t1, df_extra=df_extra,
                label=mooring, label_extra=mooring_extra)
     panel_do(axs[1], df, t0, t1)
-    panel_flow(axs[2], df, t0, t1, 'along')
-    panel_flow(axs[3], df, t0, t1, 'across')
+    panel_flow(axs[2], df, t0, t1, 'u')
+    panel_flow(axs[3], df, t0, t1, 'v')
     panel_strat(axs[4], df, t0, t1)
     for ax in axs:
         for _, row in events_df.iterrows():

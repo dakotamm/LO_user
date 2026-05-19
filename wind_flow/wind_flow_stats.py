@@ -26,12 +26,16 @@ from lo_tools import Lfun
 
 # Pairs we want to evaluate (x_var, y_var, lag-set-name)
 HOURLY_PAIRS = [
-    ('tau_along', 'along_surface'),
-    ('tau_along', 'along_depthavg'),
-    ('tau_along', 'along_bottom'),
-    ('tau_along', 'bot_DO_mgL'),
-    ('tau_across', 'bot_DO_mgL'),
-    ('along_bottom', 'bot_DO_mgL'),
+    ('tau_x', 'u_surface'),
+    ('tau_y', 'v_surface'),
+    ('tau_x', 'u_depthavg'),
+    ('tau_y', 'v_depthavg'),
+    ('tau_x', 'u_bottom'),
+    ('tau_y', 'v_bottom'),
+    ('tau_x', 'bot_DO_mgL'),
+    ('tau_y', 'bot_DO_mgL'),
+    ('u_bottom', 'bot_DO_mgL'),
+    ('v_bottom', 'bot_DO_mgL'),
 ]
 
 HOURLY_LAGS_H = np.arange(0, 73)             # 0..72 h
@@ -227,10 +231,10 @@ def main():
                   f'full: lag={lag_f}h r={r_f:+.3f}   '
                   f'leadup: lag={lag_e}h r={r_e:+.3f}')
 
-    # --- OLS: bot_DO ~ tau_along_lag + tau_across_lag, lag = best from above ---
-    # Use best lag from full-record primary-wind tau_along -> bot_DO
+    # --- OLS: bot_DO ~ tau_x_lag + tau_y_lag, lag = best from above ---
+    # Use best lag from full-record primary-wind tau_x -> bot_DO
     best = next((r for r in rows
-                 if r['x'] == 'tau_along' and r['y'] == 'bot_DO_mgL'
+                 if r['x'] == 'tau_x' and r['y'] == 'bot_DO_mgL'
                  and r['window'] == 'full_year'
                  and r['wind_source'] == args.mooring), None)
     reg_rows = []
@@ -238,22 +242,22 @@ def main():
         L = int(best['best_lag_h'])
         for wind_source, df_use in wind_sources:
             df2 = df_use.copy()
-            df2['tau_along_lag']  = df2['tau_along'  + suf].shift(L)
-            df2['tau_across_lag'] = df2['tau_across' + suf].shift(L)
+            df2['tau_x_lag'] = df2['tau_x' + suf].shift(L)
+            df2['tau_y_lag'] = df2['tau_y' + suf].shift(L)
             for label, subset in [('full_year', df2),
                                   ('leadup_concat', df2.loc[mask_event])]:
                 res = ols_regression(
-                    subset, ['tau_along_lag', 'tau_across_lag'],
+                    subset, ['tau_x_lag', 'tau_y_lag'],
                     'bot_DO_mgL' + suf)
                 res.update({'wind_source': wind_source, 'window': label,
                             'lag_h': L,
-                            'predictors': 'tau_along_lag+tau_across_lag',
+                            'predictors': 'tau_x_lag+tau_y_lag',
                             'target': 'bot_DO_mgL' + suf})
                 reg_rows.append(res)
                 print(f'  OLS [{wind_source} | {label:14s}] lag={L}h '
                       f'R2={res["R2"]:+.3f} '
-                      f'beta_along={res["tau_along_lag"]:+.3g} '
-                      f'beta_across={res["tau_across_lag"]:+.3g} '
+                      f'beta_x={res["tau_x_lag"]:+.3g} '
+                      f'beta_y={res["tau_y_lag"]:+.3g} '
                       f'(n={res["n"]})')
 
     # --- Save CSV ---
