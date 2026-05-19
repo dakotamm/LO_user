@@ -515,8 +515,9 @@ def main():
             print(f'  [{i:04d}] {d.date()}  ({g["label"]})')
         return
 
-    # --- Per-layer prescan to fix colorbar limits across the whole animation ---
-    vlims = {}
+    # --- Per-layer prescan; then collapse to a single global vlim shared
+    # by every layer so all panels use identical colorbars.
+    per_layer = {}
     for vel_type, s_level, layer_name in layers:
         print(f'  prescanning layer {layer_name} ...')
         spd_p98, ow_p98 = [], []
@@ -539,9 +540,15 @@ def main():
                 ow_p98.append(float(np.nanpercentile(np.abs(ow), 98)))
         spd_max = max(float(np.nanmax(spd_p98)) if spd_p98 else 0.5, 0.05)
         ow_lim = max(float(np.nanmax(ow_p98)) if ow_p98 else 1e-8, 1e-9)
-        vlims[layer_name] = (spd_max, ow_lim)
+        per_layer[layer_name] = (spd_max, ow_lim)
         print(f'    {layer_name}: spd_max={spd_max:.3f} m/s   '
               f'|OW|_max={ow_lim:.2e} 1/s^2')
+
+    spd_global = max(v[0] for v in per_layer.values())
+    ow_global = max(v[1] for v in per_layer.values())
+    vlims = {name: (spd_global, ow_global) for name in per_layer}
+    print(f'  GLOBAL vlim (all layers): spd_max={spd_global:.3f} m/s   '
+          f'|OW|_max={ow_global:.2e} 1/s^2')
 
     # --- Render frames ---
     rendered = 0
