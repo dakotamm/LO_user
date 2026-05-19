@@ -131,13 +131,37 @@ def fmt_date(ts):
     return pd.Timestamp(ts).strftime('%Y.%m.%d')
 
 
-def apply_plot_exclude(arr, lon, lat):
-    """NaN-mask cells inside any PLOT_EXCLUDE box (in place on a copy)."""
+def apply_plot_mask(arr, lon, lat):
+    """NaN-mask cells outside ZOOM_BOUNDS or inside any PLOT_EXCLUDE box."""
     out = arr.astype(float, copy=True)
-    for lo0, lo1, la0, la1 in PLOT_EXCLUDE:
-        mask = (lon >= lo0) & (lon <= lo1) & (lat >= la0) & (lat <= la1)
-        out[mask] = np.nan
+    lo0, lo1, la0, la1 = ZOOM_BOUNDS
+    outside = (lon < lo0) | (lon > lo1) | (lat < la0) | (lat > la1)
+    out[outside] = np.nan
+    for xo0, xo1, yo0, yo1 in PLOT_EXCLUDE:
+        m = (lon >= xo0) & (lon <= xo1) & (lat >= yo0) & (lat <= yo1)
+        out[m] = np.nan
     return out
+
+
+def compute_layer_fields(lowpass_nc, dsg, vel_type, s_level, smooth_sigma):
+    """Return (speed_masked, OW_masked, vx, vy, lon_rho, lat_rho, vel_title)."""
+    with xr.open_dataset(lowpass_nc) as ds:
+        vx, vy, vel_title = get_velocity_2d(ds, dsg, vel_type, s_level)
+    dx_m, dy_m = get_grid_spacing(dsg)
+    ny, nx = vx.shape
+    lon_rho = dsg.lon_rho.values[:ny, :nx]
+    lat_rho = dsg.lat_rho.values[:ny, :nx]
+    mask_rho = dsg.mask_rho.values[:ny, :nx]
+    OW, _ = compute_okubo_weiss(vx, vy, dx_m, dy_m)
+    if smooth_sigma > 0:
+        OW = gaussian_filter(OW, sigma=smooth_sigma)
+    OW = OW.astype(float)
+    OW[mask_rho == 0] = np.nan
+    speed = np.sqrt(vx**2 + vy**2)
+    speed[mask_rho == 0] = np.nan
+    speed = apply_plot_mask(speed, lon_rho, lat_rho)
+    OW = apply_plot_mask(OW, lon_rho, lat_rho)
+    return speed, OW, vx, vy, lon_rho, lat_rho, vel_title
 
 
 def find_lowpassed(date_str, Ldir, gtagex):
@@ -224,42 +248,17 @@ def shade_spring_neap(ax, phase_df, t0, t1, alpha=0.18):
 def render_frame(*, lowpass_nc, dsg, vel_type, s_level, layer_name,
                  date_ts, vortices_today, phase_df, do_times, do_vals,
                  ssh_t0, ssh_t1, do_t0, do_t1,
-                 frame_path, dpi=130, smooth_sigma=2.0, quiver_stride=3):
-    """Render one frame and save to frame_path."""
-    with xr.open_dataset(lowpass_nc) as ds:
-        vx, vy, vel_title = get_velocity_2d(ds, dsg, vel_type, s_level)
-    dx_m, dy_m = get_grid_spacing(dsg)
+                 frame_path, spd_max, ow_lim,
+                 dpi=130, smooth_sigma=2.0, quiver_stride=3):
+    """Render one frame and save to frame_path.
 
-    ny, nx = vx.shape
-    lon_rho = dsg.lon_rho.values[:ny, :nx]
-    lat_rho = dsg.lat_rho.values[:ny, :nx]
-    mask_rho = dsg.mask_rho.values[:ny, :nx]
-
-    OW, zeta = compute_okubo_weiss(vx, vy, dx_m, dy_m)
-    if smooth_sigma > 0:
-        OW = gaussian_filter(OW, sigma=smooth_sigma)
-    OW[mask_rho == 0] = np.nan
-
-    speed = np.sqrt(vx**2 + vy**2)
-    speed[mask_rho == 0] = np.nan
-
-    # Apply PLOT_EXCLUDE corner mask before plotting
-    speed_plot = apply_plot_exclude(speed, lon_rho, lat_rho)
-    OW_plot = apply_plot_exclude(OW, lon_rho, lat_rho)
-
+    spd_max / ow_lim are precomputed fixed color limits for the whole
+    animation (so the colorbars don't change between frames).
+    """
+    speed_plot, OW_plot, vx, vy, lon_rho, lat_rho, vel_title = (
+        compute_layer_fields(lowpass_nc, dsg, vel_type, s_level,
+                             smooth_sigma))
     plon, plat = pfun.get_plon_plat(lon_rho, lat_rho)
-
-    # Color limits
-    spd_max = float(np.nanpercentile(speed_plot, 98)) if np.isfinite(
-        np.nanmax(speed_plot)) else 0.5
-    spd_max = max(spd_max, 0.05)
-
-    ow_water = OW_plot[np.isfinite(OW_plot)]
-    if ow_water.size:
-        ow_lim = float(np.nanpercentile(np.abs(ow_water), 98))
-    else:
-        ow_lim = 1e-8
-    ow_lim = max(ow_lim, 1e-9)
 
     # ----- Build figure -----
     fig = plt.figure(figsize=(13, 9))
@@ -327,13 +326,13 @@ def render_frame(*, lowpass_nc, dsg, vel_type, s_level, layer_name,
         sub = phase_df.loc[(phase_df.index >= ssh_t0) &
                             (phase_df.index <= ssh_t1)]
         shade_spring_neap(ax_ssh, phase_df, ssh_t0, ssh_t1)
-        ax_ssh.plot(sub.index, sub['zeta'].values, color='0.3', lw=0.6,
-                     label='hourly SSH')
+        ax_ssh.plot(sub.index, sub['zeta'].values, color='0.35', lw=0.35,
+                     alpha=0.45, label='hourly SSH')
         # daily lowpass = rolling 25-h mean
         ax_ssh.plot(sub.index,
                      pd.Series(sub['zeta'].values,
                                 index=sub.index).rolling('25h').mean().values,
-                     color='k', lw=1.2, label='daily lowpass')
+                     color='k', lw=1.1, label='daily lowpass')
     # Current-day marker (noon)
     t_mark = pd.Timestamp(date_ts) + pd.Timedelta(hours=12)
     ax_ssh.axvline(t_mark, color='firebrick', lw=1.5, ls='--')
@@ -496,6 +495,32 @@ def main():
                 print(f'  [{i:04d}] {d.date()}  ({g["label"]})')
             continue
 
+        # --- Pre-scan to fix colorbar limits across the whole animation ---
+        print(f'  prescanning {len(date_recs)} days for color limits ...')
+        spd_p98 = []
+        ow_p98 = []
+        for d, g in date_recs:
+            ds_str = d.strftime('%Y.%m.%d')
+            lp = find_lowpassed(ds_str, Ldir, gtagex)
+            if lp is None:
+                continue
+            try:
+                speed_m, OW_m, *_ = compute_layer_fields(
+                    lp, dsg, vel_type, s_level, args.smooth_sigma)
+            except Exception as e:
+                print(f'    {ds_str} prescan failed: {e}')
+                continue
+            sp = speed_m[np.isfinite(speed_m)]
+            ow = OW_m[np.isfinite(OW_m)]
+            if sp.size:
+                spd_p98.append(float(np.nanpercentile(sp, 98)))
+            if ow.size:
+                ow_p98.append(float(np.nanpercentile(np.abs(ow), 98)))
+        spd_max = max(float(np.nanmax(spd_p98)) if spd_p98 else 0.5, 0.05)
+        ow_lim = max(float(np.nanmax(ow_p98)) if ow_p98 else 1e-8, 1e-9)
+        print(f'  fixed vlim: spd_max={spd_max:.3f} m/s   '
+              f'|OW|_max={ow_lim:.2e} 1/s^2')
+
         rendered = 0
         skipped = 0
         missing = 0
@@ -529,6 +554,7 @@ def main():
                     ssh_t0=ssh_t0, ssh_t1=ssh_t1,
                     do_t0=do_t0, do_t1=do_t1,
                     frame_path=frame_path,
+                    spd_max=spd_max, ow_lim=ow_lim,
                     dpi=args.dpi, smooth_sigma=args.smooth_sigma,
                     quiver_stride=args.quiver_stride,
                 )
