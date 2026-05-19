@@ -245,56 +245,38 @@ def shade_spring_neap(ax, phase_df, t0, t1, alpha=0.18):
 # ---------------------------------------------------------------------------
 # Frame rendering
 # ---------------------------------------------------------------------------
-def render_frame(*, lowpass_nc, dsg, vel_type, s_level, layer_name,
-                 date_ts, vortices_today, phase_df, do_times, do_vals,
-                 ssh_t0, ssh_t1, do_t0, do_t1,
-                 frame_path, spd_max, ow_lim,
-                 dpi=130, smooth_sigma=2.0, quiver_stride=3):
-    """Render one frame and save to frame_path.
-
-    spd_max / ow_lim are precomputed fixed color limits for the whole
-    animation (so the colorbars don't change between frames).
-    """
-    speed_plot, OW_plot, vx, vy, lon_rho, lat_rho, vel_title = (
-        compute_layer_fields(lowpass_nc, dsg, vel_type, s_level,
-                             smooth_sigma))
-    plon, plat = pfun.get_plon_plat(lon_rho, lat_rho)
-
-    # ----- Build figure -----
-    fig = plt.figure(figsize=(13, 9))
-    gs = fig.add_gridspec(2, 2, height_ratios=[1.6, 1.0], hspace=0.30,
-                          wspace=0.22)
-    ax_spd = fig.add_subplot(gs[0, 0])
-    ax_ow = fig.add_subplot(gs[0, 1])
-    ax_ssh = fig.add_subplot(gs[1, 0])
-    ax_do = fig.add_subplot(gs[1, 1])
-
-    # --- Speed panel ---
-    cs = ax_spd.pcolormesh(plon, plat, speed_plot, cmap='viridis',
-                            shading='flat', vmin=0, vmax=spd_max)
-    plt.colorbar(cs, ax=ax_spd, label='|u| [m s$^{-1}$]', shrink=0.85)
+def _draw_speed(ax, plon, plat, lon_rho, lat_rho, vx, vy, speed_plot,
+                spd_max, layer_name, vel_title, quiver_stride, show_xlabel):
+    cs = ax.pcolormesh(plon, plat, speed_plot, cmap='viridis',
+                       shading='flat', vmin=0, vmax=spd_max)
+    cb = plt.colorbar(cs, ax=ax, label='|u| [m s$^{-1}$]', shrink=0.85)
+    cb.ax.tick_params(labelsize=8)
     st = quiver_stride
-    ax_spd.quiver(lon_rho[::st, ::st], lat_rho[::st, ::st],
-                  np.where(np.isfinite(speed_plot[::st, ::st]),
-                           vx[::st, ::st], np.nan),
-                  np.where(np.isfinite(speed_plot[::st, ::st]),
-                           vy[::st, ::st], np.nan),
-                  scale=4.0, width=0.0025, color='k', alpha=0.7)
-    ax_spd.set_xlim(ZOOM_BOUNDS[0], ZOOM_BOUNDS[1])
-    ax_spd.set_ylim(ZOOM_BOUNDS[2], ZOOM_BOUNDS[3])
-    pfun.dar(ax_spd)
-    ax_spd.set_title(f'{vel_title} ({layer_name})', fontsize=11)
-    ax_spd.set_xlabel('lon'); ax_spd.set_ylabel('lat')
+    spd_sub = speed_plot[::st, ::st]
+    ax.quiver(lon_rho[::st, ::st], lat_rho[::st, ::st],
+              np.where(np.isfinite(spd_sub), vx[::st, ::st], np.nan),
+              np.where(np.isfinite(spd_sub), vy[::st, ::st], np.nan),
+              scale=4.0, width=0.0025, color='k', alpha=0.7)
+    ax.set_xlim(ZOOM_BOUNDS[0], ZOOM_BOUNDS[1])
+    ax.set_ylim(ZOOM_BOUNDS[2], ZOOM_BOUNDS[3])
+    pfun.dar(ax)
+    ax.set_title(f'{vel_title} ({layer_name})', fontsize=10)
+    ax.set_ylabel('lat', fontsize=9)
+    if show_xlabel:
+        ax.set_xlabel('lon', fontsize=9)
+    else:
+        ax.set_xticklabels([])
+    ax.tick_params(labelsize=8)
 
-    # --- OW panel ---
-    co = ax_ow.pcolormesh(plon, plat, OW_plot, cmap='RdBu_r',
-                           shading='flat', vmin=-ow_lim, vmax=ow_lim)
-    cb = plt.colorbar(co, ax=ax_ow, label='OW [s$^{-2}$]', shrink=0.85)
-    cb.formatter.set_powerlimits((-2, 2))
-    cb.update_ticks()
-    # Vortex feature overlay
+
+def _draw_ow(ax, plon, plat, lon_rho, lat_rho, OW_plot, ow_lim,
+             vortices_today, layer_name, show_xlabel):
+    co = ax.pcolormesh(plon, plat, OW_plot, cmap='RdBu_r',
+                       shading='flat', vmin=-ow_lim, vmax=ow_lim)
+    cb = plt.colorbar(co, ax=ax, label='OW [s$^{-2}$]', shrink=0.85)
+    cb.formatter.set_powerlimits((-2, 2)); cb.update_ticks()
+    cb.ax.tick_params(labelsize=8)
     if not vortices_today.empty:
-        # 1 deg lat ~ 111 km; assume small box near 48N -> use simple conversion
         lat0 = float(np.mean(lat_rho))
         m_per_deg_lat = 111_000.0
         m_per_deg_lon = 111_000.0 * np.cos(np.deg2rad(lat0))
@@ -304,66 +286,105 @@ def render_frame(*, lowpass_nc, dsg, vel_type, s_level, layer_name,
                 continue
             rot = str(v.get('rotation', '')).upper()
             color = 'red' if rot == 'CW' else 'blue'
-            r_deg_lat = r_m / m_per_deg_lat
-            r_deg_lon = r_m / m_per_deg_lon
-            # Use mean radius in degrees for a circle (approx)
-            r_deg = 0.5 * (r_deg_lat + r_deg_lon)
-            ax_ow.add_patch(Circle(
+            r_deg = 0.5 * (r_m / m_per_deg_lat + r_m / m_per_deg_lon)
+            ax.add_patch(Circle(
                 (float(v['center_lon']), float(v['center_lat'])),
-                radius=r_deg, fill=False, edgecolor=color, lw=1.8))
-            ax_ow.plot(float(v['center_lon']), float(v['center_lat']),
-                        marker='+', color=color, ms=8, mew=1.5)
-    ax_ow.set_xlim(ZOOM_BOUNDS[0], ZOOM_BOUNDS[1])
-    ax_ow.set_ylim(ZOOM_BOUNDS[2], ZOOM_BOUNDS[3])
-    pfun.dar(ax_ow)
+                radius=r_deg, fill=False, edgecolor=color, lw=1.6))
+            ax.plot(float(v['center_lon']), float(v['center_lat']),
+                    marker='+', color=color, ms=7, mew=1.3)
+    ax.set_xlim(ZOOM_BOUNDS[0], ZOOM_BOUNDS[1])
+    ax.set_ylim(ZOOM_BOUNDS[2], ZOOM_BOUNDS[3])
+    pfun.dar(ax)
     n_feat = 0 if vortices_today.empty else len(vortices_today)
-    ax_ow.set_title(f'Okubo-Weiss + features  (n={n_feat}; red=CW, blue=CCW)',
-                     fontsize=11)
-    ax_ow.set_xlabel('lon'); ax_ow.set_ylabel('lat')
+    ax.set_title(f'OW ({layer_name})  n={n_feat}  (red=CW, blue=CCW)',
+                 fontsize=10)
+    ax.set_ylabel('lat', fontsize=9)
+    if show_xlabel:
+        ax.set_xlabel('lon', fontsize=9)
+    else:
+        ax.set_xticklabels([])
+    ax.tick_params(labelsize=8)
 
-    # --- SSH panel ---
+
+def render_frame(*, lowpass_nc, dsg, layers,
+                 date_ts, vortices_by_layer, phase_df, do_times, do_vals,
+                 ssh_t0, ssh_t1, do_t0, do_t1,
+                 frame_path, vlims,
+                 dpi=130, smooth_sigma=2.0, quiver_stride=3):
+    """Render one frame with all layers stacked + 2 time series.
+
+    layers : list of (vel_type, s_level, layer_name)
+    vortices_by_layer : dict layer_name -> DataFrame of today's vortices.
+    vlims : dict layer_name -> (spd_max, ow_lim)  (fixed across animation)
+    """
+    n_layers = len(layers)
+    # Figure: n_layers rows of map pairs + 1 row of time series (2 cols)
+    fig = plt.figure(figsize=(13, 3.6 * n_layers + 3.6))
+    heights = [1.4] * n_layers + [1.0]
+    gs = fig.add_gridspec(n_layers + 1, 2, height_ratios=heights,
+                          hspace=0.40, wspace=0.22,
+                          left=0.07, right=0.96, top=0.95, bottom=0.06)
+
+    for i, (vel_type, s_level, layer_name) in enumerate(layers):
+        speed_plot, OW_plot, vx, vy, lon_rho, lat_rho, vel_title = (
+            compute_layer_fields(lowpass_nc, dsg, vel_type, s_level,
+                                 smooth_sigma))
+        plon, plat = pfun.get_plon_plat(lon_rho, lat_rho)
+        spd_max, ow_lim = vlims[layer_name]
+        show_xlabel = (i == n_layers - 1)
+        ax_spd = fig.add_subplot(gs[i, 0])
+        ax_ow = fig.add_subplot(gs[i, 1])
+        _draw_speed(ax_spd, plon, plat, lon_rho, lat_rho, vx, vy,
+                    speed_plot, spd_max, layer_name, vel_title,
+                    quiver_stride, show_xlabel)
+        _draw_ow(ax_ow, plon, plat, lon_rho, lat_rho, OW_plot, ow_lim,
+                 vortices_by_layer.get(layer_name, pd.DataFrame()),
+                 layer_name, show_xlabel)
+
+    # --- Time-series row ---
+    ax_ssh = fig.add_subplot(gs[n_layers, 0])
+    ax_do = fig.add_subplot(gs[n_layers, 1])
+
     if phase_df is not None:
         sub = phase_df.loc[(phase_df.index >= ssh_t0) &
-                            (phase_df.index <= ssh_t1)]
+                           (phase_df.index <= ssh_t1)]
         shade_spring_neap(ax_ssh, phase_df, ssh_t0, ssh_t1)
         ax_ssh.plot(sub.index, sub['zeta'].values, color='0.35', lw=0.35,
-                     alpha=0.45, label='hourly SSH')
-        # daily lowpass = rolling 25-h mean
+                    alpha=0.45, label='hourly')
         ax_ssh.plot(sub.index,
-                     pd.Series(sub['zeta'].values,
-                                index=sub.index).rolling('25h').mean().values,
-                     color='k', lw=1.1, label='daily lowpass')
-    # Current-day marker (noon)
+                    pd.Series(sub['zeta'].values, index=sub.index)
+                      .rolling('25h').mean().values,
+                    color='k', lw=1.1, label='daily lowpass')
     t_mark = pd.Timestamp(date_ts) + pd.Timedelta(hours=12)
-    ax_ssh.axvline(t_mark, color='firebrick', lw=1.5, ls='--')
+    ax_ssh.axvline(t_mark, color='firebrick', lw=1.3, ls='--')
     ax_ssh.set_xlim(ssh_t0, ssh_t1)
     ax_ssh.xaxis.set_major_locator(mdates.MonthLocator())
     ax_ssh.xaxis.set_major_formatter(mdates.DateFormatter('%b'))
-    ax_ssh.set_ylabel('SSH [m]')
+    ax_ssh.set_ylabel('SSH [m]', fontsize=9)
     ax_ssh.set_title('Penn Cove SSH (crimson=spring, royal=neap)',
-                      fontsize=10)
+                     fontsize=10)
     ax_ssh.grid(alpha=0.3)
+    ax_ssh.tick_params(labelsize=8)
+    ax_ssh.legend(loc='upper right', fontsize=8)
 
-    # --- DO panel ---
     ax_do.plot(do_times, do_vals, color='steelblue', lw=1.0)
     ax_do.axhline(2.0, color='firebrick', ls=':', lw=0.9,
-                   label='2 mg L$^{-1}$')
-    # Current marker
+                  label='2 mg L$^{-1}$')
     idx = int(np.argmin(np.abs(np.asarray(do_times) - t_mark.to_numpy())))
     ax_do.plot(do_times[idx], do_vals[idx], marker='o', color='firebrick',
-                ms=7, mec='k', mew=0.5)
-    ax_do.axvline(t_mark, color='firebrick', lw=1.5, ls='--')
+               ms=7, mec='k', mew=0.5)
+    ax_do.axvline(t_mark, color='firebrick', lw=1.3, ls='--')
     ax_do.set_xlim(do_t0, do_t1)
     ax_do.xaxis.set_major_locator(mdates.MonthLocator())
     ax_do.xaxis.set_major_formatter(mdates.DateFormatter('%b'))
-    ax_do.set_ylabel('M1 bottom DO [mg L$^{-1}$]')
+    ax_do.set_ylabel('M1 bottom DO [mg L$^{-1}$]', fontsize=9)
     ax_do.set_title('M1 bottom DO (2017)', fontsize=10)
     ax_do.grid(alpha=0.3)
+    ax_do.tick_params(labelsize=8)
     ax_do.legend(loc='upper right', fontsize=8)
 
-    fig.suptitle(f"{date_ts.strftime('%Y-%m-%d')}    layer: {layer_name}",
-                 fontsize=13, y=0.995)
-    fig.savefig(frame_path, dpi=dpi, bbox_inches='tight')
+    fig.suptitle(date_ts.strftime('%Y-%m-%d'), fontsize=14, y=0.995)
+    fig.savefig(frame_path, dpi=dpi)
     plt.close(fig)
 
 
@@ -461,44 +482,44 @@ def main():
     print(f'grid NC     : {grid_file}')
     print()
 
-    # Build combined date list per layer (union of group windows, deduped)
+    # Build combined date list (union of group windows, deduped)
+    date_recs = []  # list of (date_ts, group)
+    seen = set()
+    for g in groups:
+        d = g['ds0']
+        while d <= g['ds1']:
+            key = d.normalize()
+            if key not in seen:
+                date_recs.append((d.normalize(), g))
+                seen.add(key)
+            d += pd.Timedelta(days=1)
+    date_recs.sort(key=lambda r: r[0])
+
+    # Per-layer vortex CSVs grouped by group label
+    vort_by_layer_group = {}  # vort_by_layer_group[layer_name][group_label] = df
     for vel_type, s_level, layer_name in layers:
-        layer_dir = anim_root / layer_name
-        layer_dir.mkdir(parents=True, exist_ok=True)
-
-        # Date list: per group, every day from ds0..ds1 inclusive.
-        # Also stash a per-date mapping to its group's src_dirs (for the
-        # vortex CSV lookup).
-        date_recs = []  # list of (date_ts, group)
-        seen = set()
-        for g in groups:
-            d = g['ds0']
-            while d <= g['ds1']:
-                key = (d.normalize(),)
-                if key not in seen:
-                    date_recs.append((d.normalize(), g))
-                    seen.add(key)
-                d += pd.Timedelta(days=1)
-        date_recs.sort(key=lambda r: r[0])
-
-        # Pre-load vortex CSVs per group (one DataFrame per group)
-        vort_by_group = {}
+        vort_by_layer_group[layer_name] = {}
         for g in groups:
             src_dirs = [base_out / s for s in g['src_dirs']]
-            vort_by_group[g['label']] = load_event_vortices(
-                src_dirs, layer_name)
+            vort_by_layer_group[layer_name][g['label']] = \
+                load_event_vortices(src_dirs, layer_name)
 
-        print(f'--- layer {layer_name}: {len(date_recs)} frames ---')
+    frames_dir = anim_root / 'frames_all'
+    frames_dir.mkdir(parents=True, exist_ok=True)
 
-        if args.dry:
-            for i, (d, g) in enumerate(date_recs):
-                print(f'  [{i:04d}] {d.date()}  ({g["label"]})')
-            continue
+    print(f'--- combined animation: {len(date_recs)} frames, '
+          f'{len(layers)} layers per frame ---')
 
-        # --- Pre-scan to fix colorbar limits across the whole animation ---
-        print(f'  prescanning {len(date_recs)} days for color limits ...')
-        spd_p98 = []
-        ow_p98 = []
+    if args.dry:
+        for i, (d, g) in enumerate(date_recs):
+            print(f'  [{i:04d}] {d.date()}  ({g["label"]})')
+        return
+
+    # --- Per-layer prescan to fix colorbar limits across the whole animation ---
+    vlims = {}
+    for vel_type, s_level, layer_name in layers:
+        print(f'  prescanning layer {layer_name} ...')
+        spd_p98, ow_p98 = [], []
         for d, g in date_recs:
             ds_str = d.strftime('%Y.%m.%d')
             lp = find_lowpassed(ds_str, Ldir, gtagex)
@@ -518,74 +539,77 @@ def main():
                 ow_p98.append(float(np.nanpercentile(np.abs(ow), 98)))
         spd_max = max(float(np.nanmax(spd_p98)) if spd_p98 else 0.5, 0.05)
         ow_lim = max(float(np.nanmax(ow_p98)) if ow_p98 else 1e-8, 1e-9)
-        print(f'  fixed vlim: spd_max={spd_max:.3f} m/s   '
+        vlims[layer_name] = (spd_max, ow_lim)
+        print(f'    {layer_name}: spd_max={spd_max:.3f} m/s   '
               f'|OW|_max={ow_lim:.2e} 1/s^2')
 
-        rendered = 0
-        skipped = 0
-        missing = 0
-        for i, (d, g) in enumerate(date_recs):
-            ds_str = d.strftime('%Y.%m.%d')
-            frame_path = layer_dir / f'frame_{i:04d}.png'
-            if args.skip_existing and frame_path.exists():
-                skipped += 1
-                continue
+    # --- Render frames ---
+    rendered = 0
+    skipped = 0
+    missing = 0
+    for i, (d, g) in enumerate(date_recs):
+        ds_str = d.strftime('%Y.%m.%d')
+        frame_path = frames_dir / f'frame_{i:04d}.png'
+        if args.skip_existing and frame_path.exists():
+            skipped += 1
+            continue
+        lp = find_lowpassed(ds_str, Ldir, gtagex)
+        if lp is None:
+            print(f'  [{i:04d}] {ds_str}  MISSING lowpassed.nc -- skip')
+            missing += 1
+            continue
 
-            lp = find_lowpassed(ds_str, Ldir, gtagex)
-            if lp is None:
-                print(f'  [{i:04d}] {ds_str}  MISSING lowpassed.nc -- skip')
-                missing += 1
-                continue
-
-            v_all = vort_by_group[g['label']]
+        vortices_by_layer = {}
+        for _, _, layer_name in layers:
+            v_all = vort_by_layer_group[layer_name][g['label']]
             if not v_all.empty and 'date' in v_all.columns:
-                v_today = v_all[v_all['date'] == d.normalize()]
+                vortices_by_layer[layer_name] = \
+                    v_all[v_all['date'] == d.normalize()]
             else:
-                v_today = pd.DataFrame()
+                vortices_by_layer[layer_name] = pd.DataFrame()
 
-            try:
-                render_frame(
-                    lowpass_nc=lp, dsg=dsg,
-                    vel_type=vel_type, s_level=s_level,
-                    layer_name=layer_name, date_ts=d,
-                    vortices_today=v_today,
-                    phase_df=phase_df,
-                    do_times=do_times, do_vals=do_vals,
-                    ssh_t0=ssh_t0, ssh_t1=ssh_t1,
-                    do_t0=do_t0, do_t1=do_t1,
-                    frame_path=frame_path,
-                    spd_max=spd_max, ow_lim=ow_lim,
-                    dpi=args.dpi, smooth_sigma=args.smooth_sigma,
-                    quiver_stride=args.quiver_stride,
-                )
-                rendered += 1
-                print(f'  [{i:04d}] {ds_str}  ({g["label"]})  ok')
-            except Exception as e:
-                print(f'  [{i:04d}] {ds_str}  FAILED: {e}')
-
-        print(f'  rendered={rendered}  skipped={skipped}  missing={missing}')
-
-        # ---- ffmpeg into mp4 ----
-        if rendered + skipped == 0:
-            print(f'  no frames; skipping ffmpeg for {layer_name}')
-            continue
-        mp4_path = anim_root / f'anim_{layer_name}.mp4'
-        if shutil.which('ffmpeg') is None:
-            print('  ffmpeg not on PATH; mp4 not built.')
-            continue
-        cmd = [
-            'ffmpeg', '-y', '-r', str(args.fps),
-            '-i', str(layer_dir / 'frame_%04d.png'),
-            '-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2',
-            '-vcodec', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '23',
-            str(mp4_path),
-        ]
-        print('  ' + ' '.join(cmd))
         try:
-            subprocess.run(cmd, check=True)
-            print(f'  wrote {mp4_path}')
-        except subprocess.CalledProcessError as e:
-            print(f'  ffmpeg FAILED ({e.returncode})')
+            render_frame(
+                lowpass_nc=lp, dsg=dsg, layers=layers,
+                date_ts=d,
+                vortices_by_layer=vortices_by_layer,
+                phase_df=phase_df,
+                do_times=do_times, do_vals=do_vals,
+                ssh_t0=ssh_t0, ssh_t1=ssh_t1,
+                do_t0=do_t0, do_t1=do_t1,
+                frame_path=frame_path,
+                vlims=vlims,
+                dpi=args.dpi, smooth_sigma=args.smooth_sigma,
+                quiver_stride=args.quiver_stride,
+            )
+            rendered += 1
+            print(f'  [{i:04d}] {ds_str}  ({g["label"]})  ok')
+        except Exception as e:
+            print(f'  [{i:04d}] {ds_str}  FAILED: {e}')
+
+    print(f'rendered={rendered}  skipped={skipped}  missing={missing}')
+
+    # ---- ffmpeg into one mp4 ----
+    if rendered + skipped == 0:
+        print('no frames; skipping ffmpeg.')
+    else:
+        mp4_path = anim_root / 'anim_all_layers.mp4'
+        if shutil.which('ffmpeg') is None:
+            print('ffmpeg not on PATH; mp4 not built.')
+        else:
+            cmd = [
+                'ffmpeg', '-y', '-r', str(args.fps),
+                '-i', str(frames_dir / 'frame_%04d.png'),
+                '-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2',
+                '-vcodec', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '23',
+                str(mp4_path),
+            ]
+            print(' '.join(cmd))
+            try:
+                subprocess.run(cmd, check=True)
+                print(f'wrote {mp4_path}')
+            except subprocess.CalledProcessError as e:
+                print(f'ffmpeg FAILED ({e.returncode})')
 
     dsg.close()
     print('done.')
