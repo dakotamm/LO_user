@@ -68,15 +68,15 @@ elif (str(HOME) == '/home/dakotamm') & ('apogee' in HOSTNAME):
 elif (str(HOME) == '/usr/lusers/dakotamm'):
     lo_env = 'dm_mox'
     remote_user = 'dakotamm'
-    remote_machine = 'perigee.ocean.washington.edu'
-    remote_dir0 = '/data1/dakotamm'
+    remote_machine = 'apogee.ocean.washington.edu'
+    remote_dir0 = '/dat2/dakotamm'
     local_user = 'dakotamm'
 
 elif (str(HOME) == '/mmfs1/home/dakotamm'): # or (str(HOME) == '/mmfs1/home/darrd')):
     lo_env = 'dm_klone'
     remote_user = 'dakotamm'
     remote_machine = 'apogee.ocean.washington.edu'
-    remote_dir0 = '/dat1/dakotamm'
+    remote_dir0 = '/dat2/dakotamm'
     local_user = 'dakotamm'
 
 Ldir0 = dict()
