@@ -63,7 +63,7 @@ elif (str(HOME) == '/home/dakotamm') & ('perigee' in HOSTNAME):
 elif (str(HOME) == '/home/dakotamm') & ('apogee' in HOSTNAME):
     lo_env = 'dm_apogee'
     roms_out1 = Path('/dat1/parker/LO_roms') # 20260410 note - for nesting Whidbey nested model in output from cas7_t2_x11b
-    roms_out2 = Path('/dat1/dakotamm/LO_roms')
+    roms_out2 = Path('/dat2/dakotamm/LO_roms')
 
 elif (str(HOME) == '/usr/lusers/dakotamm'):
     lo_env = 'dm_mox'

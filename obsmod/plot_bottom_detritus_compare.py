@@ -25,11 +25,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-gtx0', type=str)
 parser.add_argument('-gtx1', type=str)
 parser.add_argument('-otype', type=str, default='ctd')
-parser.add_argument('-year', type=int)
+parser.add_argument('-year0', type=int)
+parser.add_argument('-year1', type=int, default=0)
 parser.add_argument('-var', type=str, default='detritus')  # detritus or Ldetritus
 parser.add_argument('-stations', type=str, default='')
 parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
 args = parser.parse_args()
+
+if args.year0 is None:
+    print('*** Missing required argument: -year0')
+    sys.exit()
+if args.year1 == 0:
+    args.year1 = args.year0
+year_list = list(range(args.year0, args.year1 + 1))
 
 Ldir = Lfun.Lstart()
 
@@ -41,29 +49,36 @@ else:
 import matplotlib.pyplot as plt
 
 in_dir = Ldir['LOo'] / 'obsmod'
-year = str(args.year)
 gtx0 = args.gtx0
 gtx1 = args.gtx1
 otype = args.otype
 varname = args.var
 
-# Load combined pickle from gtx0 only for obs metadata (cid, station, z, source, time)
-in_fn0 = in_dir / ('combined_' + otype + '_' + year + '_' + gtx0 + '.p')
-if not in_fn0.is_file():
-    print('Missing combined pickle for %s: %s' % (gtx0, in_fn0))
+# Load obs metadata across all years from gtx0 combined pickles
+meta_frames = []
+for yr in year_list:
+    yr_str = str(yr)
+    in_fn0 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx0 + '.p')
+    if not in_fn0.is_file():
+        print('Missing combined pickle for %s %s: %s' % (gtx0, yr_str, in_fn0))
+        continue
+    obs = pickle.load(open(in_fn0, 'rb'))['obs']
+    mf = pd.DataFrame({
+        'cid':     obs['cid'].values,
+        'z':       obs['z'].values,
+        'time':    pd.to_datetime(obs['time'].values),
+        'source':  obs['source'].values if 'source' in obs.columns else '',
+        'station': obs['name'].values if 'name' in obs.columns else (
+                   obs['lon'].round(3).astype(str) + '_' + obs['lat'].round(3).astype(str)),
+        'year':    yr_str,
+    })
+    meta_frames.append(mf)
+
+if len(meta_frames) == 0:
+    print('No combined pickles found for any requested year.')
     sys.exit()
 
-df_dict0 = pickle.load(open(in_fn0, 'rb'))
-obs = df_dict0['obs']
-
-meta = pd.DataFrame({
-    'cid':     obs['cid'].values,
-    'z':       obs['z'].values,
-    'time':    pd.to_datetime(obs['time'].values),
-    'source':  obs['source'].values if 'source' in obs.columns else '',
-    'station': obs['name'].values if 'name' in obs.columns else (
-               obs['lon'].round(3).astype(str) + '_' + obs['lat'].round(3).astype(str)),
-})
+meta = pd.concat(meta_frames, ignore_index=True)
 
 # Keep only the deepest obs per cast (bottom)
 bot_meta = meta.loc[meta.groupby('cid')['z'].idxmin()].copy()
@@ -83,10 +98,11 @@ for _, row in bot_meta.iterrows():
     cid = int(row['cid'])
     source = row['source']
     obs_z = row['z']
+    yr_str = row['year']
 
     vals = {}
     for gtx in [gtx0, gtx1]:
-        mod_dir = Ldir['LOo'] / 'extract' / gtx / 'cast' / (source + '_' + otype + '_' + year)
+        mod_dir = Ldir['LOo'] / 'extract' / gtx / 'cast' / (source + '_' + otype + '_' + yr_str)
         cast_fn = mod_dir / (str(cid) + '.nc')
         val = np.nan
         if cast_fn.is_file():
@@ -154,6 +170,8 @@ def short_gtx(gtx):
 
 lbl0 = short_gtx(gtx0)
 lbl1 = short_gtx(gtx1)
+year_str = ('%d' % args.year0 if args.year0 == args.year1
+            else '%d-%d' % (args.year0, args.year1))
 
 n_per_page = 6
 n_pages = int(np.ceil(n_stn / n_per_page))
@@ -195,13 +213,13 @@ for page in range(n_pages):
     fig.suptitle(
         'Bottom %s Comparison: %s %s\n%s (red) vs %s (blue)  '
         '[page %d/%d, sorted by Δ = %s−%s]' % (
-            varname, otype, year, gtx0, gtx1,
+            varname, otype, year_str, gtx0, gtx1,
             page + 1, n_pages, lbl1, lbl0),
         fontweight='bold', fontsize=12, y=1.01)
     fig.tight_layout()
 
     ff_str = 'bottom_%s_compare_%s_%s_%s_vs_%s_p%02d' % (
-        varname, otype, year, gtx0, gtx1, page + 1)
+        varname, otype, year_str, gtx0, gtx1, page + 1)
     print('Plotting ' + ff_str)
     sys.stdout.flush()
 

@@ -151,44 +151,12 @@ for otype in otype_list:
         print('---Time to combine (%s) = %0.1f sec' % (gtx, time() - tt0))
         sys.stdout.flush()
 
-    # ---- Bottom DO comparison plot ----
-    print('\n' + (' otype=%s %d Bottom DO Comparison Plot ' % (otype, year)).center(60, '*') + '\n')
-    tt0 = time()
-    cmd_list = ['python', str(fn_plot_DO),
-        '-gtx0', args.gtx0,
-        '-gtx1', args.gtx1,
-        '-otype', otype,
-        '-year', str(year)]
-    if args.stations:
-        cmd_list += ['-stations', args.stations]
-    if Ldir['testing']:
-        print(cmd_list)
-    else:
-        proc = Po(cmd_list, stdout=Pi, stderr=Pi)
-        stdout, stderr = proc.communicate()
-        if len(stdout) > 0:
-            print(' stdout '.center(20, '-'))
-            print(stdout.decode())
-        else:
-            print('  no stdout')
-        if len(stderr) > 0:
-            print(' stderr '.center(20, '-'))
-            print(stderr.decode())
-    print('---Time for DO comparison plot = %0.1f sec' % (time() - tt0))
-    sys.stdout.flush()
+# ---- Comparison plots (once per otype, spanning full year range) ----
+for otype in otype_list:
 
-    # ---- Bottom detritus comparison plots (small and large) ----
-    for det_var in ['detritus', 'Ldetritus']:
-        print('\n' + (' otype=%s %d Bottom %s Comparison Plot ' % (otype, year, det_var)).center(60, '*') + '\n')
+    def run_plot(label, cmd_list):
+        print('\n' + (' %s ' % label).center(60, '*') + '\n')
         tt0 = time()
-        cmd_list = ['python', str(fn_plot_det),
-            '-gtx0', args.gtx0,
-            '-gtx1', args.gtx1,
-            '-otype', otype,
-            '-year', str(year),
-            '-var', det_var]
-        if args.stations:
-            cmd_list += ['-stations', args.stations]
         if Ldir['testing']:
             print(cmd_list)
         else:
@@ -202,5 +170,18 @@ for otype in otype_list:
             if len(stderr) > 0:
                 print(' stderr '.center(20, '-'))
                 print(stderr.decode())
-        print('---Time for %s comparison plot = %0.1f sec' % (det_var, time() - tt0))
+        print('---Time = %0.1f sec' % (time() - tt0))
         sys.stdout.flush()
+
+    base_args = ['-gtx0', args.gtx0, '-gtx1', args.gtx1,
+                 '-otype', otype,
+                 '-year0', str(Ldir['year0']), '-year1', str(Ldir['year1'])]
+    if args.stations:
+        base_args += ['-stations', args.stations]
+
+    run_plot('otype=%s Bottom DO Comparison Plot' % otype,
+             ['python', str(fn_plot_DO)] + base_args)
+
+    for det_var in ['detritus', 'Ldetritus']:
+        run_plot('otype=%s Bottom %s Comparison Plot' % (otype, det_var),
+                 ['python', str(fn_plot_det)] + base_args + ['-var', det_var])
