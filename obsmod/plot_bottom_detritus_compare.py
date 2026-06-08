@@ -168,7 +168,8 @@ out_dir = Ldir['LOo'] / 'obsmod_val_plots'
 Lfun.make_dir(out_dir)
 
 def short_gtx(gtx):
-    return gtx.split('_')[-1] if '_' in gtx else gtx
+    parts = gtx.split('_')
+    return '_'.join(parts[-2:]) if len(parts) >= 2 else gtx
 
 lbl0 = short_gtx(gtx0)
 lbl1 = short_gtx(gtx1)

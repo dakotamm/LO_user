@@ -145,7 +145,8 @@ out_dir = Ldir['LOo'] / 'obsmod_val_plots'
 Lfun.make_dir(out_dir)
 
 def short_gtx(gtx):
-    return gtx.split('_')[-1] if '_' in gtx else gtx
+    parts = gtx.split('_')
+    return '_'.join(parts[-2:]) if len(parts) >= 2 else gtx
 
 lbl0 = short_gtx(gtx0)
 lbl1 = short_gtx(gtx1)
@@ -182,18 +183,7 @@ for page in range(n_pages):
         ax.axhline(y=2.0, color='gray', linestyle=':', linewidth=1)
         ax.set_ylabel('DO (mg/L)')
         ax.grid(True, alpha=0.3)
-
-        ax2 = ax.twinx()
-        ax2.plot(sdf['time'], -sdf['z'], 'v-', color='tab:green',
-                 markersize=4, alpha=0.5, label='Depth')
-        ax2.set_ylabel('Depth (m)', color='tab:green')
-        ax2.tick_params(axis='y', labelcolor='tab:green')
-        ax2.invert_yaxis()
-
-        lines1, labels1 = ax.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax.legend(lines1 + lines2, labels1 + labels2,
-                  loc='upper right', fontsize=7, ncol=2)
+        ax.legend(loc='upper right', fontsize=8)
 
         ax.set_title(
             '%s  (n=%d, z=%.0f m | bias %s=%.2f  bias %s=%.2f  Δbias=%.2f mg/L)' % (
