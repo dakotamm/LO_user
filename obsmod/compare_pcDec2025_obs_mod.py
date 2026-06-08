@@ -31,7 +31,7 @@ if 'mac' in Ldir['lo_env']:
 else:
     ROMS_OUT = Ldir['roms_out2'] / GTAGEX
     OBS_DIR  = Ldir['data'] / 'obs' / 'X - pcDec2025Recon '
-    OUT_DIR  = Ldir['LOo'] / 'obs_mod' / 'pcDec2025_obs_mod'
+    OUT_DIR  = Ldir['LOo'] / 'obsmod' / 'pcDec2025_obs_mod'
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -73,7 +73,9 @@ mask_rho = G['mask_rho']         # (M, L)
 h_bathy  = G['h']                # (M, L)
 
 
-# ── Model file lookup ────────────────────────────────────────────────────────
+# ── Model file lookup and cache ──────────────────────────────────────────────
+_mod_cache: dict = {}
+
 def _model_fn(unix_time: float) -> Path:
     """Return path to the model history file nearest in time to unix_time."""
     dt = datetime.fromtimestamp(unix_time, tz=timezone.utc).replace(tzinfo=None)
@@ -88,6 +90,19 @@ def _model_fn(unix_time: float) -> Path:
         return ROMS_OUT / ('f' + dt_prev.strftime('%Y.%m.%d')) / 'ocean_his_0025.nc'
     else:
         return ROMS_OUT / ('f' + dt.strftime('%Y.%m.%d')) / f'ocean_his_{dt.hour + 1:04d}.nc'
+
+
+def get_model_ds(unix_time: float):
+    """Return a cached xarray Dataset for the model file nearest to unix_time."""
+    fn = _model_fn(unix_time)
+    key = str(fn)
+    if key not in _mod_cache:
+        if fn.is_file():
+            _mod_cache[key] = xr.open_dataset(fn)
+        else:
+            print(f'  WARNING: model file not found: {fn}')
+            _mod_cache[key] = None
+    return _mod_cache[key]
 
 
 def extract_mod_column(ds, iy: int, ix: int):
@@ -219,15 +234,8 @@ def build_ctd_section(lap: str, seg: str):
         lon_i, lat_i, time_i = obs['lon'][i], obs['lat'][i], obs['time'][i]
         ix = int(zfun.find_nearest_ind(lon_vec, lon_i))
         iy = int(zfun.find_nearest_ind(lat_vec, lat_i))
-        fn = _model_fn(time_i)
-        if fn.is_file():
-            ds = xr.open_dataset(fn)
-        else:
-            print(f'  WARNING: model file not found: {fn}')
-            ds = None
+        ds = get_model_ds(time_i)
         z_rho, salt_m, temp_m, oxy_m, _, _ = extract_mod_column(ds, iy, ix)
-        if ds is not None:
-            ds.close()
         nz_m = len(z_rho)
         x_mod_list.append(np.full(nz_m, x_km[i]))
         z_mod_list.append(z_rho)
@@ -269,15 +277,8 @@ def build_adcp_section(lap: str, seg: str):
         lon_i, lat_i, time_i = obs['lon'][i], obs['lat'][i], obs['time'][i]
         ix = int(zfun.find_nearest_ind(lon_vec, lon_i))
         iy = int(zfun.find_nearest_ind(lat_vec, lat_i))
-        fn = _model_fn(time_i)
-        if fn.is_file():
-            ds = xr.open_dataset(fn)
-        else:
-            print(f'  WARNING: model file not found: {fn}')
-            ds = None
+        ds = get_model_ds(time_i)
         z_rho, _, _, _, u_m, v_m = extract_mod_column(ds, iy, ix)
-        if ds is not None:
-            ds.close()
         spd_m = np.sqrt(u_m ** 2 + v_m ** 2)
         nz_m = len(z_rho)
         x_mod_list.append(np.full(nz_m, x_km[i]))
@@ -293,7 +294,129 @@ def build_adcp_section(lap: str, seg: str):
     return obs_pts, mod_pts
 
 
+# ── Matched-depth pairs for property-property plots ──────────────────────────
+def build_ctd_matchup(lap: str, seg: str):
+    """
+    For each CTD obs sample, interpolate the model profile to the obs depth.
+    Returns a dict of 1-D matched arrays: obs_salt, mod_salt, obs_temp, mod_temp,
+    obs_do, mod_do, z (negative m).  NaN where model is out of range.
+    """
+    obs = load_ctd(lap, seg)
+    nt = len(obs['time'])
+
+    obs_s, mod_s = [], []
+    obs_t, mod_t = [], []
+    obs_d, mod_d = [], []
+    z_out = []
+
+    for i in range(nt):
+        lon_i, lat_i, time_i = obs['lon'][i], obs['lat'][i], obs['time'][i]
+        ix = int(zfun.find_nearest_ind(lon_vec, lon_i))
+        iy = int(zfun.find_nearest_ind(lat_vec, lat_i))
+        ds = get_model_ds(time_i)
+        z_rho, salt_m, temp_m, oxy_m, _, _ = extract_mod_column(ds, iy, ix)
+
+        # obs depths for this cast (negative convention)
+        z_obs = -obs['depth'][i, :]   # (nz_obs,)
+        valid = np.isfinite(z_obs) & np.isfinite(obs['salt'][i, :])
+
+        # model z_rho is already sorted bottom→surface (increasing); interp needs that
+        for arr_obs, arr_mod, mod_vals in [
+            (obs['salt'][i, :],  mod_s, salt_m),
+            (obs['temp'][i, :],  mod_t, temp_m),
+            (obs['do'][i, :],    mod_d, oxy_m),
+        ]:
+            interped = np.full(z_obs.shape, np.nan)
+            if valid.any() and np.isfinite(z_rho).all():
+                interped[valid] = np.interp(
+                    z_obs[valid], z_rho, mod_vals,
+                    left=np.nan, right=np.nan,
+                )
+            arr_mod.append(interped)
+
+        obs_s.append(obs['salt'][i, :])
+        obs_t.append(obs['temp'][i, :])
+        obs_d.append(obs['do'][i, :])
+        z_out.append(z_obs)
+
+    return {
+        'z':       np.concatenate(z_out),
+        'obs_salt': np.concatenate(obs_s),
+        'mod_salt': np.concatenate(mod_s),
+        'obs_temp': np.concatenate(obs_t),
+        'mod_temp': np.concatenate(mod_t),
+        'obs_do':   np.concatenate(obs_d),
+        'mod_do':   np.concatenate(mod_d),
+    }
+
+
+def build_adcp_matchup(lap: str, seg: str):
+    """
+    For each ADCP depth bin, interpolate the model speed to that depth.
+    Returns matched obs_spd, mod_spd, z arrays.
+    """
+    obs = load_adcp(lap, seg)
+    nt = len(obs['time'])
+    z_bins = -obs['depthBins']   # (nz,) negative
+
+    obs_spd_list, mod_spd_list, z_list = [], [], []
+
+    for i in range(nt):
+        lon_i, lat_i, time_i = obs['lon'][i], obs['lat'][i], obs['time'][i]
+        ix = int(zfun.find_nearest_ind(lon_vec, lon_i))
+        iy = int(zfun.find_nearest_ind(lat_vec, lat_i))
+        ds = get_model_ds(time_i)
+        z_rho, _, _, _, u_m, v_m = extract_mod_column(ds, iy, ix)
+
+        spd_obs_col = np.sqrt(obs['vel_east'][:, i] ** 2 + obs['vel_north'][:, i] ** 2)
+        spd_mod_col = np.sqrt(u_m ** 2 + v_m ** 2)
+
+        mod_interped = np.full(z_bins.shape, np.nan)
+        if np.isfinite(z_rho).all():
+            mod_interped = np.interp(z_bins, z_rho, spd_mod_col,
+                                     left=np.nan, right=np.nan)
+        obs_spd_list.append(spd_obs_col)
+        mod_spd_list.append(mod_interped)
+        z_list.append(z_bins)
+
+    return {
+        'z':       np.concatenate(z_list),
+        'obs_spd': np.concatenate(obs_spd_list),
+        'mod_spd': np.concatenate(mod_spd_list),
+    }
+
+
 # ── Plotting helpers ──────────────────────────────────────────────────────────
+def plot_prop_prop(ax, obs_vals, mod_vals, label, color='steelblue'):
+    """
+    Scatter plot of obs (x) vs model (y) with 1:1 line and summary stats.
+    Only finite pairs are plotted.
+    """
+    mask = np.isfinite(obs_vals) & np.isfinite(mod_vals)
+    if mask.sum() < 2:
+        ax.text(0.5, 0.5, 'no data', transform=ax.transAxes,
+                ha='center', va='center', fontsize=8)
+        return
+    o = obs_vals[mask]
+    m = mod_vals[mask]
+    ax.scatter(o, m, s=6, alpha=0.4, color=color, edgecolors='none')
+    lo, hi = min(o.min(), m.min()), max(o.max(), m.max())
+    pad = (hi - lo) * 0.05
+    ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad], 'k--', lw=1, label='1:1')
+    bias = float(np.mean(m - o))
+    rmse = float(np.sqrt(np.mean((m - o) ** 2)))
+    ax.text(0.05, 0.95,
+            f'N={mask.sum()}\nbias={bias:+.3f}\nRMSE={rmse:.3f}',
+            transform=ax.transAxes, fontsize=7, va='top',
+            bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7))
+    ax.set_xlabel(f'Obs {label}')
+    ax.set_ylabel(f'Model {label}')
+    ax.set_xlim(lo - pad, hi + pad)
+    ax.set_ylim(lo - pad, hi + pad)
+    ax.set_aspect('equal')
+    ax.grid(alpha=0.3)
+
+
 def plot_section_pair(ax_obs, ax_mod, obs_pts, mod_pts,
                       x_key, z_key, v_key,
                       cmap, vmin, vmax, label,
@@ -385,6 +508,185 @@ def main():
     )
     fig.tight_layout()
     out_fn = OUT_DIR / 'pcDec2025_speed_sections.png'
+    fig.savefig(out_fn, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f'  Saved: {out_fn}')
+
+    # ── Property-property plots (CTD) ────────────────────────────────────────
+    print('Building CTD property-property plots...')
+    LAP_COLORS = {'lap1': 'tab:blue', 'lap2': 'tab:orange', 'lap3': 'tab:green'}
+
+    # One figure per variable: all laps/segs combined, colored by lap
+    for var, obs_key, mod_key, label in [
+        ('salt', 'obs_salt', 'mod_salt', LABELS['salt']),
+        ('temp', 'obs_temp', 'mod_temp', LABELS['temp']),
+        ('do',   'obs_do',   'mod_do',   LABELS['do']),
+    ]:
+        fig, ax = plt.subplots(figsize=(5, 5))
+        for lap in LAPS:
+            o_all, m_all = [], []
+            for seg in SEGS:
+                print(f'  prop-prop {var}: {lap}/{seg}')
+                try:
+                    mu = build_ctd_matchup(lap, seg)
+                except Exception as e:
+                    print(f'    ERROR: {e}')
+                    continue
+                o_all.append(mu[obs_key])
+                m_all.append(mu[mod_key])
+            if not o_all:
+                continue
+            o = np.concatenate(o_all)
+            m = np.concatenate(m_all)
+            mask = np.isfinite(o) & np.isfinite(m)
+            if mask.sum() < 2:
+                continue
+            ax.scatter(o[mask], m[mask], s=6, alpha=0.4,
+                       color=LAP_COLORS[lap], edgecolors='none', label=lap)
+        # 1:1 line and stats using all combined data — reuse plot_prop_prop logic
+        handles, labels_leg = ax.get_legend_handles_labels()
+        # collect all plotted points for stats
+        all_o, all_m = [], []
+        for lap in LAPS:
+            for seg in SEGS:
+                try:
+                    mu = build_ctd_matchup(lap, seg)
+                    all_o.append(mu[obs_key])
+                    all_m.append(mu[mod_key])
+                except Exception:
+                    pass
+        if all_o:
+            o_cat = np.concatenate(all_o)
+            m_cat = np.concatenate(all_m)
+            mask2 = np.isfinite(o_cat) & np.isfinite(m_cat)
+            if mask2.sum() >= 2:
+                lo = min(o_cat[mask2].min(), m_cat[mask2].min())
+                hi = max(o_cat[mask2].max(), m_cat[mask2].max())
+                pad = (hi - lo) * 0.05
+                ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad],
+                        'k--', lw=1, label='1:1')
+                bias = float(np.mean(m_cat[mask2] - o_cat[mask2]))
+                rmse = float(np.sqrt(np.mean((m_cat[mask2] - o_cat[mask2]) ** 2)))
+                ax.text(0.05, 0.95,
+                        f'N={mask2.sum()}\nbias={bias:+.3f}\nRMSE={rmse:.3f}',
+                        transform=ax.transAxes, fontsize=8, va='top',
+                        bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7))
+                ax.set_xlim(lo - pad, hi + pad)
+                ax.set_ylim(lo - pad, hi + pad)
+                ax.set_aspect('equal')
+        ax.set_xlabel(f'Obs {label}')
+        ax.set_ylabel(f'Model {label}')
+        ax.legend(fontsize=8, markerscale=2)
+        ax.grid(alpha=0.3)
+        ax.set_title(f'Penn Cove Dec 2025: {label}\n{GTAGEX}', fontsize=9)
+        fig.tight_layout()
+        out_fn = OUT_DIR / f'pcDec2025_{var}_prop_prop.png'
+        fig.savefig(out_fn, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        print(f'  Saved: {out_fn}')
+
+    # ── T-S diagram ──────────────────────────────────────────────────────────
+    print('Building T-S diagrams...')
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+    for lap in LAPS:
+        s_obs_all, t_obs_all = [], []
+        s_mod_all, t_mod_all = [], []
+        for seg in SEGS:
+            try:
+                mu = build_ctd_matchup(lap, seg)
+            except Exception as e:
+                print(f'    ERROR T-S {lap}/{seg}: {e}')
+                continue
+            s_obs_all.append(mu['obs_salt'])
+            t_obs_all.append(mu['obs_temp'])
+            s_mod_all.append(mu['mod_salt'])
+            t_mod_all.append(mu['mod_temp'])
+        if not s_obs_all:
+            continue
+        s_o = np.concatenate(s_obs_all)
+        t_o = np.concatenate(t_obs_all)
+        s_m = np.concatenate(s_mod_all)
+        t_m = np.concatenate(t_mod_all)
+        mask_o = np.isfinite(s_o) & np.isfinite(t_o)
+        mask_m = np.isfinite(s_m) & np.isfinite(t_m)
+        c = LAP_COLORS[lap]
+        axes[0].scatter(s_o[mask_o], t_o[mask_o], s=4, alpha=0.3,
+                        color=c, edgecolors='none', label=lap)
+        axes[1].scatter(s_m[mask_m], t_m[mask_m], s=4, alpha=0.3,
+                        color=c, edgecolors='none', label=lap)
+
+    for ax, title in zip(axes, ['Obs', 'Model']):
+        ax.set_xlabel('Salinity (PSU)')
+        ax.set_ylabel('Temperature (°C)')
+        ax.set_title(f'{title} T-S — Penn Cove Dec 2025', fontsize=9)
+        ax.legend(fontsize=8, markerscale=3)
+        ax.grid(alpha=0.3)
+    fig.suptitle(GTAGEX, fontsize=9)
+    fig.tight_layout()
+    out_fn = OUT_DIR / 'pcDec2025_TS_diagram.png'
+    fig.savefig(out_fn, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f'  Saved: {out_fn}')
+
+    # ── Property-property plot (ADCP speed) ──────────────────────────────────
+    print('Building ADCP property-property plot...')
+    fig, ax = plt.subplots(figsize=(5, 5))
+    for lap in LAPS:
+        o_all, m_all = [], []
+        for seg in SEGS:
+            print(f'  prop-prop spd: {lap}/{seg}')
+            try:
+                mu = build_adcp_matchup(lap, seg)
+            except Exception as e:
+                print(f'    ERROR: {e}')
+                continue
+            o_all.append(mu['obs_spd'])
+            m_all.append(mu['mod_spd'])
+        if not o_all:
+            continue
+        o = np.concatenate(o_all)
+        m = np.concatenate(m_all)
+        mask = np.isfinite(o) & np.isfinite(m)
+        if mask.sum() < 2:
+            continue
+        ax.scatter(o[mask], m[mask], s=6, alpha=0.4,
+                   color=LAP_COLORS[lap], edgecolors='none', label=lap)
+    # 1:1 + stats
+    all_o, all_m = [], []
+    for lap in LAPS:
+        for seg in SEGS:
+            try:
+                mu = build_adcp_matchup(lap, seg)
+                all_o.append(mu['obs_spd'])
+                all_m.append(mu['mod_spd'])
+            except Exception:
+                pass
+    if all_o:
+        o_cat = np.concatenate(all_o)
+        m_cat = np.concatenate(all_m)
+        mask2 = np.isfinite(o_cat) & np.isfinite(m_cat)
+        if mask2.sum() >= 2:
+            lo = min(o_cat[mask2].min(), m_cat[mask2].min())
+            hi = max(o_cat[mask2].max(), m_cat[mask2].max())
+            pad = (hi - lo) * 0.05
+            ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad],
+                    'k--', lw=1, label='1:1')
+            bias = float(np.mean(m_cat[mask2] - o_cat[mask2]))
+            rmse = float(np.sqrt(np.mean((m_cat[mask2] - o_cat[mask2]) ** 2)))
+            ax.text(0.05, 0.95,
+                    f'N={mask2.sum()}\nbias={bias:+.3f}\nRMSE={rmse:.3f}',
+                    transform=ax.transAxes, fontsize=8, va='top',
+                    bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7))
+            ax.set_xlim(lo - pad, hi + pad)
+            ax.set_ylim(lo - pad, hi + pad)
+            ax.set_aspect('equal')
+    ax.set_xlabel(f'Obs {LABELS["spd"]}')
+    ax.set_ylabel(f'Model {LABELS["spd"]}')
+    ax.legend(fontsize=8, markerscale=2)
+    ax.grid(alpha=0.3)
+    ax.set_title(f'Penn Cove Dec 2025: {LABELS["spd"]}\n{GTAGEX}', fontsize=9)
+    fig.tight_layout()
+    out_fn = OUT_DIR / 'pcDec2025_spd_prop_prop.png'
     fig.savefig(out_fn, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f'  Saved: {out_fn}')
