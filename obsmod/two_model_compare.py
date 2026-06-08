@@ -89,9 +89,8 @@ ufn_combine = Ldir['LOu'] / 'obsmod' / 'combine_obs_mod.py'
 if ufn_combine.is_file():
     fn_combine = ufn_combine
 
-# Paths to comparison plot scripts (live in LO_user)
-fn_plot_DO  = Ldir['LOu'] / 'obsmod' / 'plot_bottom_DO_ts_compare.py'
-fn_plot_det = Ldir['LOu'] / 'obsmod' / 'plot_bottom_detritus_compare.py'
+# Path to DO comparison plot script
+fn_plot_DO = Ldir['LOu'] / 'obsmod' / 'plot_bottom_DO_ts_compare.py'
 
 for otype in otype_list:
   for year in year_list:
@@ -181,7 +180,3 @@ for otype in otype_list:
 
     run_plot('otype=%s Bottom DO Comparison Plot' % otype,
              ['python', str(fn_plot_DO)] + base_args)
-
-    for det_var in ['detritus', 'Ldetritus']:
-        run_plot('otype=%s Bottom %s Comparison Plot' % (otype, det_var),
-                 ['python', str(fn_plot_det)] + base_args + ['-var', det_var])

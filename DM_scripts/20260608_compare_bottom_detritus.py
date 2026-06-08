@@ -1,21 +1,20 @@
 """
-Plot bottom detritus time series comparing two model versions.
+Compare bottom detritus between two model versions.
 
-Since detritus is not directly observed, this shows model0 vs model1 only,
-sampled at the same cast locations used for obs/model validation.
-Reads model cast NetCDF files produced by extract_casts_fast.py.
+Pure model/model comparison — no obs values used. Station names and cast
+locations come from the obs info pickle (metadata only). Cast NetCDF files
+produced by extract_casts_fast.py are read for both models.
 
 Available detritus variables: detritus (small), Ldetritus (large)
 
 Testing on mac:
-run plot_bottom_detritus_compare -gtx0 wb1_t0_xn11abbur00 -gtx1 wb1_t1_xn11abbur00 -year 2022 -otype ctd -test True
-run plot_bottom_detritus_compare -gtx0 wb1_t0_xn11abbur00 -gtx1 wb1_t1_xn11abbur00 -year 2022 -otype ctd -var Ldetritus -test True
+run 20260608_compare_bottom_detritus -gtx0 wb1_t0_xn11abbur00 -gtx1 wb1_t1_xn11abbur00 -source kc_whidbeyBasin -year0 2024 -year1 2025 -otype ctd -test True
+run 20260608_compare_bottom_detritus -gtx0 wb1_t0_xn11abbur00 -gtx1 wb1_t1_xn11abbur00 -source kc_whidbeyBasin -year0 2024 -year1 2025 -otype ctd -var Ldetritus -lp 30 -test True
 """
 
 import sys
 import pandas as pd
 import numpy as np
-import pickle
 import xarray as xr
 from lo_tools import plotting_functions as pfun
 from lo_tools import Lfun, zfun
@@ -24,17 +23,20 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-gtx0', type=str)
 parser.add_argument('-gtx1', type=str)
+parser.add_argument('-source', type=str)            # e.g. kc_whidbeyBasin
 parser.add_argument('-otype', type=str, default='ctd')
 parser.add_argument('-year0', type=int)
 parser.add_argument('-year1', type=int, default=0)
 parser.add_argument('-var', type=str, default='detritus')  # detritus or Ldetritus
-parser.add_argument('-stations', type=str, default='')
+parser.add_argument('-stations', type=str, default='')     # comma-separated; empty = all
+parser.add_argument('-lp', type=int, default=0)            # low-pass window in days (0 = off)
 parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
 args = parser.parse_args()
 
-if args.year0 is None:
-    print('*** Missing required argument: -year0')
-    sys.exit()
+for a in ['gtx0', 'gtx1', 'source', 'year0']:
+    if getattr(args, a) is None:
+        print('*** Missing required argument: -%s' % a)
+        sys.exit()
 if args.year1 == 0:
     args.year1 = args.year0
 year_list = list(range(args.year0, args.year1 + 1))
@@ -48,70 +50,69 @@ else:
     mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-in_dir = Ldir['LOo'] / 'obsmod'
-gtx0 = args.gtx0
-gtx1 = args.gtx1
-otype = args.otype
+gtx0    = args.gtx0
+gtx1    = args.gtx1
+source  = args.source
+otype   = args.otype
 varname = args.var
+lp_days = args.lp
 
-# Load obs metadata across all years — use whichever model's pickle is available
+station_filter = ([s.strip() for s in args.stations.split(',')]
+                  if args.stations else None)
+
+# Build cast metadata from info pickles (station names, cids, times — no obs values)
 meta_frames = []
 for yr in year_list:
     yr_str = str(yr)
-    in_fn0 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx0 + '.p')
-    in_fn1 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx1 + '.p')
-    fn_meta = in_fn0 if in_fn0.is_file() else (in_fn1 if in_fn1.is_file() else None)
-    if fn_meta is None:
-        print('No combined pickle for either model in %s — skipping' % yr_str)
+    info_fn = Ldir['LOo'] / 'obs' / source / otype / ('info_' + yr_str + '.p')
+    if not info_fn.is_file():
+        print('No info pickle for %s %s — skipping' % (source, yr_str))
         continue
-    obs = pickle.load(open(fn_meta, 'rb'))['obs']
+    info = pd.read_pickle(info_fn)
     mf = pd.DataFrame({
-        'cid':     obs['cid'].values,
-        'z':       obs['z'].values,
-        'time':    pd.to_datetime(obs['time'].values, utc=True).tz_localize(None),
-        'source':  obs['source'].values if 'source' in obs.columns else '',
-        'station': obs['name'].values if 'name' in obs.columns else (
-                   obs['lon'].round(3).astype(str) + '_' + obs['lat'].round(3).astype(str)),
+        'cid':     info['cid'].values,
+        'z':       info['z'].values,
+        'time':    pd.to_datetime(info['time'].values, utc=True).tz_localize(None),
+        'station': info['name'].values if 'name' in info.columns else (
+                   info['lon'].round(3).astype(str) + '_' + info['lat'].round(3).astype(str)),
         'year':    yr_str,
     })
     meta_frames.append(mf)
 
 if len(meta_frames) == 0:
-    print('No combined pickles found for any requested year.')
+    print('No info pickles found for source "%s".' % source)
     sys.exit()
 
 meta = pd.concat(meta_frames, ignore_index=True)
 
-# Keep only the deepest obs per cast (bottom)
+# Keep only the deepest level per cast (bottom)
 bot_meta = meta.loc[meta.groupby('cid')['z'].idxmin()].copy()
 
-if args.stations:
-    station_filter = [s.strip() for s in args.stations.split(',')]
+if station_filter:
     bot_meta = bot_meta[bot_meta['station'].isin(station_filter)]
     if len(bot_meta) == 0:
         print('No data found for requested stations: %s' % args.stations)
         sys.exit()
 
-# Read bottom detritus from extracted cast files for both model versions
+# Read bottom detritus from model cast NetCDF files
 records = []
 n_missing = {gtx0: 0, gtx1: 0}
 
 for _, row in bot_meta.iterrows():
-    cid = int(row['cid'])
-    source = row['source']
-    obs_z = row['z']
+    cid    = int(row['cid'])
+    obs_z  = row['z']
     yr_str = row['year']
 
     vals = {}
     for gtx in [gtx0, gtx1]:
-        mod_dir = Ldir['LOo'] / 'extract' / gtx / 'cast' / (source + '_' + otype + '_' + yr_str)
-        cast_fn = mod_dir / (str(cid) + '.nc')
+        cast_fn = (Ldir['LOo'] / 'extract' / gtx / 'cast'
+                   / (source + '_' + otype + '_' + yr_str)
+                   / (str(cid) + '.nc'))
         val = np.nan
         if cast_fn.is_file():
             ds = xr.open_dataset(cast_fn)
             if varname in ds.data_vars:
-                mz = ds.z_rho.values
-                iz = zfun.find_nearest_ind(mz, obs_z)
+                iz  = zfun.find_nearest_ind(ds.z_rho.values, obs_z)
                 val = float(ds[varname][iz].values)
             else:
                 n_missing[gtx] += 1
@@ -139,7 +140,7 @@ df = pd.DataFrame(records)
 df = df.dropna(subset=['mod0_val', 'mod1_val'])
 
 if len(df) == 0:
-    print('Variable "%s" not found in any cast files for both models. '
+    print('Variable "%s" not found in any cast files. '
           'Check variable name (available: detritus, Ldetritus).' % varname)
     sys.exit()
 
@@ -164,7 +165,7 @@ if n_stn == 0:
 
 print('%d stations with >= 2 bottom %s casts' % (n_stn, varname))
 
-out_dir = Ldir['LOo'] / 'obsmod_val_plots'
+out_dir = Ldir['LOo'] / 'plots'
 Lfun.make_dir(out_dir)
 
 def short_gtx(gtx):
@@ -192,13 +193,29 @@ for page in range(n_pages):
 
     for j, stn in enumerate(page_stations):
         ax = axes[j]
-        sdf = df[df['station'] == stn].sort_values('time')
+        sdf   = df[df['station'] == stn].sort_values('time').copy()
         stats = stn_stats[stn_stats['station'] == stn].iloc[0]
 
-        ax.plot(sdf['time'], sdf['mod0_val'], 's--', color='tab:red',
-                markersize=5, markerfacecolor='none', label=lbl0)
-        ax.plot(sdf['time'], sdf['mod1_val'], '^--', color='tab:blue',
-                markersize=5, markerfacecolor='none', label=lbl1)
+        if lp_days > 0:
+            sdf = sdf.set_index('time')
+            win = '%dD' % lp_days
+            sdf['mod0_lp'] = sdf['mod0_val'].rolling(win, center=True, min_periods=1).mean()
+            sdf['mod1_lp'] = sdf['mod1_val'].rolling(win, center=True, min_periods=1).mean()
+            sdf = sdf.reset_index()
+
+            ax.plot(sdf['time'], sdf['mod0_val'], 's', color='tab:red',
+                    markersize=4, alpha=0.3, markerfacecolor='none')
+            ax.plot(sdf['time'], sdf['mod1_val'], '^', color='tab:blue',
+                    markersize=4, alpha=0.3, markerfacecolor='none')
+            ax.plot(sdf['time'], sdf['mod0_lp'], '-', color='tab:red',
+                    linewidth=2, label=lbl0)
+            ax.plot(sdf['time'], sdf['mod1_lp'], '-', color='tab:blue',
+                    linewidth=2, label=lbl1)
+        else:
+            ax.plot(sdf['time'], sdf['mod0_val'], 's--', color='tab:red',
+                    markersize=5, markerfacecolor='none', label=lbl0)
+            ax.plot(sdf['time'], sdf['mod1_val'], '^--', color='tab:blue',
+                    markersize=5, markerfacecolor='none', label=lbl1)
 
         ax.set_ylabel('%s (mmol N/m³)' % varname)
         ax.grid(True, alpha=0.3)
@@ -213,16 +230,18 @@ for page in range(n_pages):
             fontweight='bold', fontsize=9, loc='left')
 
     axes[-1].set_xlabel('Date')
+    lp_str = '  [%d-day LP filter]' % lp_days if lp_days > 0 else ''
     fig.suptitle(
-        'Bottom %s Comparison: %s %s\n%s (red) vs %s (blue)  '
+        'Bottom %s: %s %s %s%s\n%s (red) vs %s (blue)  '
         '[page %d/%d, sorted by Δ = %s−%s]' % (
-            varname, otype, year_str, gtx0, gtx1,
+            varname, source, otype, year_str, lp_str, gtx0, gtx1,
             page + 1, n_pages, lbl1, lbl0),
         fontweight='bold', fontsize=12, y=1.01)
     fig.tight_layout()
 
-    ff_str = 'bottom_%s_compare_%s_%s_%s_vs_%s_p%02d' % (
-        varname, otype, year_str, gtx0, gtx1, page + 1)
+    lp_tag = '_lp%dd' % lp_days if lp_days > 0 else ''
+    ff_str = '20260608_bottom_%s_%s_%s_%s_%s_vs_%s%s_p%02d' % (
+        varname, source, otype, year_str, gtx0, gtx1, lp_tag, page + 1)
     print('Plotting ' + ff_str)
     sys.stdout.flush()
 
