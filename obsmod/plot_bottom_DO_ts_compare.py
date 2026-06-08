@@ -107,7 +107,7 @@ if len(frames) == 0:
     sys.exit()
 
 wdf = pd.concat(frames, ignore_index=True)
-wdf['time']  = pd.to_datetime(wdf['time'])
+wdf['time']  = pd.to_datetime(wdf['time'], utc=True).dt.tz_localize(None)
 wdf['bias0'] = wdf['mod0_DO'] - wdf['obs_DO']
 wdf['bias1'] = wdf['mod1_DO'] - wdf['obs_DO']
 

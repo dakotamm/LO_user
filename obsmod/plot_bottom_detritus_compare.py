@@ -68,7 +68,7 @@ for yr in year_list:
     mf = pd.DataFrame({
         'cid':     obs['cid'].values,
         'z':       obs['z'].values,
-        'time':    pd.to_datetime(obs['time'].values),
+        'time':    pd.to_datetime(obs['time'].values, utc=True).tz_localize(None),
         'source':  obs['source'].values if 'source' in obs.columns else '',
         'station': obs['name'].values if 'name' in obs.columns else (
                    obs['lon'].round(3).astype(str) + '_' + obs['lat'].round(3).astype(str)),
