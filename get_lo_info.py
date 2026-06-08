@@ -62,13 +62,6 @@ elif (str(HOME) == '/home/dakotamm') & ('perigee' in HOSTNAME):
 
 elif (str(HOME) == '/home/dakotamm') & ('apogee' in HOSTNAME):
     lo_env = 'dm_apogee'
-    # workaround: explicitly set dat2 paths until sysadmin creates /dat1/dakotamm -> /dat2/dakotamm symlink
-    parent = Path('/dat2/dakotamm')
-    LO = parent / 'LO'
-    LOo = parent / 'LO_output'
-    LOu = parent / 'LO_user'
-    data = parent / 'LO_data'
-    roms_out = parent / 'LO_roms'
     roms_out1 = Path('/dat1/parker/LO_roms') # 20260410 note - for nesting Whidbey nested model in output from cas7_t2_x11b
     roms_out2 = Path('/dat2/dakotamm/LO_roms')
 
