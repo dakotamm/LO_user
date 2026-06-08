@@ -25,7 +25,7 @@ GTAGEX = 'wb1_t0_xn11abbur00'
 Ldir = Lfun.Lstart()
 
 if 'mac' in Ldir['lo_env']:
-    ROMS_OUT = Ldir['roms_out2'] / GTAGEX
+    ROMS_OUT = Path('/dat2/dakotamm/LO_roms') / GTAGEX
     OBS_DIR  = Ldir['data'] / 'obs' / 'X - pcDec2025Recon '
     OUT_DIR  = Ldir['LOo'] / 'obs_mod' / 'pcDec2025_obs_mod'
 else:
