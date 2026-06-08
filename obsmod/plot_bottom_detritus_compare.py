@@ -54,15 +54,17 @@ gtx1 = args.gtx1
 otype = args.otype
 varname = args.var
 
-# Load obs metadata across all years from gtx0 combined pickles
+# Load obs metadata across all years — use whichever model's pickle is available
 meta_frames = []
 for yr in year_list:
     yr_str = str(yr)
     in_fn0 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx0 + '.p')
-    if not in_fn0.is_file():
-        print('Missing combined pickle for %s %s: %s' % (gtx0, yr_str, in_fn0))
+    in_fn1 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx1 + '.p')
+    fn_meta = in_fn0 if in_fn0.is_file() else (in_fn1 if in_fn1.is_file() else None)
+    if fn_meta is None:
+        print('No combined pickle for either model in %s — skipping' % yr_str)
         continue
-    obs = pickle.load(open(in_fn0, 'rb'))['obs']
+    obs = pickle.load(open(fn_meta, 'rb'))['obs']
     mf = pd.DataFrame({
         'cid':     obs['cid'].values,
         'z':       obs['z'].values,

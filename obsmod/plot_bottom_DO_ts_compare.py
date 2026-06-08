@@ -50,59 +50,68 @@ otype = args.otype
 
 DO_UM_TO_MGL = 32.0 / 1000.0
 
-# Load and concatenate data across all years
-frames = []
-for yr in year_list:
-    yr_str = str(yr)
-    in_fn0 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx0 + '.p')
-    in_fn1 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx1 + '.p')
-    missing = False
-    for fn, gtx in [(in_fn0, gtx0), (in_fn1, gtx1)]:
-        if not fn.is_file():
-            print('Missing combined pickle for %s %s: %s' % (gtx, yr_str, fn))
-            missing = True
-    if missing:
-        continue
-
-    df_dict0 = pickle.load(open(in_fn0, 'rb'))
-    df_dict1 = pickle.load(open(in_fn1, 'rb'))
-    obs  = df_dict0['obs']
-    mod0 = df_dict0[gtx0]
-    mod1 = df_dict1[gtx1]
-
-    if 'DO (uM)' not in obs.columns:
-        print('DO (uM) not available in obs for %s — skipping' % yr_str)
-        continue
-
+def pickle_to_bottom_df(in_fn, gtx, do_col):
+    """Load a combined pickle and return one row per cast (deepest z)."""
+    df_dict = pickle.load(open(in_fn, 'rb'))
+    obs = df_dict['obs']
+    mod = df_dict[gtx]
+    if do_col not in obs.columns:
+        return None
     wdf = pd.DataFrame({
-        'lon':     obs['lon'].values,
-        'lat':     obs['lat'].values,
-        'z':       obs['z'].values,
-        'time':    obs['time'].values,
-        'cid':     obs['cid'].values,
-        'obs_DO':  obs['DO (uM)'].values  * DO_UM_TO_MGL,
-        'mod0_DO': mod0['DO (uM)'].values * DO_UM_TO_MGL,
-        'mod1_DO': mod1['DO (uM)'].values * DO_UM_TO_MGL,
+        'cid':    obs['cid'].values,
+        'z':      obs['z'].values,
+        'time':   obs['time'].values,
+        'lon':    obs['lon'].values,
+        'lat':    obs['lat'].values,
+        'obs_DO': obs[do_col].values * DO_UM_TO_MGL,
+        'mod_DO': mod[do_col].values * DO_UM_TO_MGL,
     })
     if 'name' in obs.columns:
         wdf['station'] = obs['name'].values
     else:
         wdf['station'] = (obs['lon'].round(3).astype(str) + '_'
                           + obs['lat'].round(3).astype(str))
-    frames.append(wdf)
+    wdf = wdf.dropna(subset=['obs_DO'])
+    return wdf.loc[wdf.groupby('cid')['z'].idxmin()].copy()
+
+# Load and concatenate data across all years; outer-merge the two models on cid
+# so years covered by only one model still appear (missing model = NaN gap)
+frames = []
+for yr in year_list:
+    yr_str = str(yr)
+    in_fn0 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx0 + '.p')
+    in_fn1 = in_dir / ('combined_' + otype + '_' + yr_str + '_' + gtx1 + '.p')
+
+    bot0 = pickle_to_bottom_df(in_fn0, gtx0, 'DO (uM)') if in_fn0.is_file() else None
+    bot1 = pickle_to_bottom_df(in_fn1, gtx1, 'DO (uM)') if in_fn1.is_file() else None
+
+    if bot0 is None and bot1 is None:
+        print('No data for either model in %s — skipping' % yr_str)
+        continue
+
+    if bot0 is not None and bot1 is not None:
+        merged = bot0.merge(bot1[['cid', 'mod_DO']].rename(columns={'mod_DO': 'mod1_DO'}),
+                            on='cid', how='outer')
+        merged = merged.rename(columns={'mod_DO': 'mod0_DO'})
+    elif bot0 is not None:
+        merged = bot0.rename(columns={'mod_DO': 'mod0_DO'})
+        merged['mod1_DO'] = np.nan
+    else:
+        merged = bot1.rename(columns={'mod_DO': 'mod1_DO'})
+        merged['mod0_DO'] = np.nan
+
+    frames.append(merged)
 
 if len(frames) == 0:
     print('No data found for any requested year.')
     sys.exit()
 
 wdf = pd.concat(frames, ignore_index=True)
-wdf = wdf.dropna(subset=['obs_DO'])
 wdf['time']  = pd.to_datetime(wdf['time'])
 wdf['bias0'] = wdf['mod0_DO'] - wdf['obs_DO']
 wdf['bias1'] = wdf['mod1_DO'] - wdf['obs_DO']
 
-# Keep only deepest obs per cast (bottom)
-bot = wdf.loc[wdf.groupby('cid')['z'].idxmin()].copy()
+bot = wdf.copy()
 
 if args.stations:
     station_filter = [s.strip() for s in args.stations.split(',')]
