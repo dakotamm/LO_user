@@ -3,17 +3,16 @@
 
 Created 2026-06-09 by Dakota Mascarenas.
 
-Map the number of days each water column is hypoxic, for three wb1 model runs:
-    wb1_t0_xn11ab
+Map the number of days each water column is hypoxic, for two wb1 model runs:
     wb1_t0_xn11abbur00
     wb1_t1_xn11abbur00
 
 For every grid cell, a day counts as hypoxic if the MINIMUM dissolved oxygen
 over the full water column (all s_rho levels) that day is below
 HYPOXIA_THRESHOLD_MGL (default 2 mg/L). Counts are accumulated separately per
-calendar year and plotted as a 2 x 3 grid of lat/lon panels: rows = years
-(2024 top, 2025 bottom), columns = models, with a shared colorbar and a
-coastline (pfun.add_coast). Model-years with no lowpassed.nc data are left blank.
+calendar year and plotted as a grid of lat/lon panels (rows = years, 2024 top
+and 2025 bottom; columns = models), with a shared colorbar and a coastline
+(pfun.add_coast). Model-years with no lowpassed.nc data are left blank.
 
 Designed to run on apogee where lowpassed.nc files live:
     /dat2/dakotamm/LO_roms/<gtagex>/f<YYYY.MM.DD>/lowpassed.nc  (checked first)
@@ -21,7 +20,7 @@ Designed to run on apogee where lowpassed.nc files live:
 
 Outputs (all under LO_output/DM_outs/20260609_hypoxic_days_map/):
     hypoxic_days_<gtagex>_<year>.nc  (one per model-year: hypoxic_days + lon/lat)
-    hypoxic_days_map.png             (2 rows [years] x 3 cols [models])
+    hypoxic_days_map.png             (rows = years, cols = models)
 
 Usage (on apogee):
     python 20260609_hypoxic_days_map.py
@@ -42,7 +41,6 @@ from lo_tools import plotting_functions as pfun
 # ---------------------------------------------------------------------------
 
 MODELS = [
-    ('wb1', 't0', 'xn11ab'),
     ('wb1', 't0', 'xn11abbur00'),
     ('wb1', 't1', 'xn11abbur00'),
 ]

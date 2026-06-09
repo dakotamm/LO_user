@@ -27,7 +27,7 @@ Ldir = Lfun.Lstart()
 if 'mac' in Ldir['lo_env']:
     ROMS_OUT = Path('/dat2/dakotamm/LO_roms') / GTAGEX
     OBS_DIR  = Ldir['data'] / 'obs' / 'X - pcDec2025Recon '
-    OUT_DIR  = Ldir['LOo'] / 'obs_mod' / 'pcDec2025_obs_mod'
+    OUT_DIR  = Ldir['LOo'] / 'obsmod_val_plots' / 'pcDec2025_obs_mod'
 else:
     ROMS_OUT = Ldir['roms_out2'] / GTAGEX
     OBS_DIR  = Ldir['data'] / 'obs' / 'X - pcDec2025Recon '
@@ -387,41 +387,15 @@ def build_adcp_matchup(lap: str, seg: str):
 
 
 # ── Plotting helpers ──────────────────────────────────────────────────────────
-def plot_prop_prop(ax, obs_vals, mod_vals, label, color='steelblue'):
-    """
-    Scatter plot of obs (x) vs model (y) with 1:1 line and summary stats.
-    Only finite pairs are plotted.
-    """
-    mask = np.isfinite(obs_vals) & np.isfinite(mod_vals)
-    if mask.sum() < 2:
-        ax.text(0.5, 0.5, 'no data', transform=ax.transAxes,
-                ha='center', va='center', fontsize=8)
-        return
-    o = obs_vals[mask]
-    m = mod_vals[mask]
-    ax.scatter(o, m, s=6, alpha=0.4, color=color, edgecolors='none')
-    lo, hi = min(o.min(), m.min()), max(o.max(), m.max())
-    pad = (hi - lo) * 0.05
-    ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad], 'k--', lw=1, label='1:1')
-    bias = float(np.mean(m - o))
-    rmse = float(np.sqrt(np.mean((m - o) ** 2)))
-    ax.text(0.05, 0.95,
-            f'N={mask.sum()}\nbias={bias:+.3f}\nRMSE={rmse:.3f}',
-            transform=ax.transAxes, fontsize=7, va='top',
-            bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7))
-    ax.set_xlabel(f'Obs {label}')
-    ax.set_ylabel(f'Model {label}')
-    ax.set_xlim(lo - pad, hi + pad)
-    ax.set_ylim(lo - pad, hi + pad)
-    ax.set_aspect('equal')
-    ax.grid(alpha=0.3)
-
 
 def plot_section_pair(ax_obs, ax_mod, obs_pts, mod_pts,
                       x_key, z_key, v_key,
-                      cmap, vmin, vmax, label,
-                      lap_label='', seg_label=''):
-    """Fill ax_obs with obs pcolormesh and ax_mod with model pcolormesh."""
+                      cmap, vmin, vmax, lap_label=''):
+    """
+    Fill ax_obs and ax_mod with pcolormesh sections.
+    Returns the last pcm object (for a shared colorbar), or None.
+    """
+    pcm_out = None
     for ax, pts, title_prefix in [
         (ax_obs, obs_pts, 'Obs'),
         (ax_mod, mod_pts, 'Model'),
@@ -429,264 +403,196 @@ def plot_section_pair(ax_obs, ax_mod, obs_pts, mod_pts,
         xi, zi, Vi = make_section_grid(pts[x_key], pts[z_key], pts[v_key])
         if Vi is None:
             ax.text(0.5, 0.5, 'no data', transform=ax.transAxes,
-                    ha='center', va='center', fontsize=8)
-            ax.set_title(f'{title_prefix} {lap_label} {seg_label}', fontsize=8)
+                    ha='center', va='center', fontsize=9)
+        else:
+            pcm = ax.pcolormesh(xi, zi, Vi, cmap=cmap, vmin=vmin, vmax=vmax,
+                                shading='auto')
+            pcm_out = pcm
+        ax.set_box_aspect(1)
+        ax.set_xlabel('Distance (km)', fontsize=8)
+        ax.set_ylabel('Depth (m)', fontsize=8)
+        ax.tick_params(labelsize=7)
+        ax.set_title(f'{title_prefix} — {lap_label}', fontsize=9)
+    return pcm_out
+
+
+# ── Prop-prop panel helper ────────────────────────────────────────────────────
+LAP_COLORS = {'lap1': 'tab:blue', 'lap2': 'tab:orange', 'lap3': 'tab:green'}
+
+def _draw_prop_panel(ax, pairs, label):
+    """
+    pairs: {lap: (obs_1d, mod_1d)} — pre-collected matched arrays.
+    Draws scatter colored by lap, 1:1 line, and stats box.
+    """
+    all_o, all_m = [], []
+    for lap in LAPS:
+        if lap not in pairs:
             continue
-        pcm = ax.pcolormesh(xi, zi, Vi, cmap=cmap, vmin=vmin, vmax=vmax,
-                            shading='auto')
-        plt.colorbar(pcm, ax=ax, shrink=0.8, label=label)
-        ax.set_xlabel('Along-track dist (km)')
-        ax.set_ylabel('Depth (m)')
-        ax.set_title(f'{title_prefix} — {lap_label} {seg_label}', fontsize=8)
+        o, m = pairs[lap]
+        mask = np.isfinite(o) & np.isfinite(m)
+        if mask.sum() < 2:
+            continue
+        ax.scatter(o[mask], m[mask], s=4, alpha=0.35,
+                   color=LAP_COLORS[lap], edgecolors='none', label=lap)
+        all_o.append(o[mask])
+        all_m.append(m[mask])
+    if not all_o:
+        ax.text(0.5, 0.5, 'no data', transform=ax.transAxes,
+                ha='center', va='center', fontsize=9)
+        return
+    o_cat = np.concatenate(all_o)
+    m_cat = np.concatenate(all_m)
+    lo = min(o_cat.min(), m_cat.min())
+    hi = max(o_cat.max(), m_cat.max())
+    pad = (hi - lo) * 0.05
+    ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad], 'k--', lw=1)
+    bias = float(np.mean(m_cat - o_cat))
+    rmse = float(np.sqrt(np.mean((m_cat - o_cat) ** 2)))
+    ax.text(0.05, 0.95,
+            f'N={len(o_cat)}\nbias={bias:+.3f}\nRMSE={rmse:.3f}',
+            transform=ax.transAxes, fontsize=8, va='top',
+            bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7))
+    ax.set_xlim(lo - pad, hi + pad)
+    ax.set_ylim(lo - pad, hi + pad)
+    ax.set_aspect('equal')
+    ax.set_xlabel(f'Obs {label}', fontsize=9)
+    ax.set_ylabel(f'Model {label}', fontsize=9)
+    ax.tick_params(labelsize=8)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=8, markerscale=2, framealpha=0.8)
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 def main():
-    print('Building CTD section comparisons...')
 
-    for var in ('salt', 'temp', 'do'):
-        fig, axes = plt.subplots(
-            len(LAPS), len(SEGS) * 2,
-            figsize=(5 * len(SEGS) * 2, 4 * len(LAPS)),
-            squeeze=False,
-        )
-        for r, lap in enumerate(LAPS):
-            for c, seg in enumerate(SEGS):
-                print(f'  CTD {var}: {lap}/{seg}')
+    # ── Section plots ────────────────────────────────────────────────────────
+    # One figure per (variable, segment): 3 laps × 2 cols (obs | model)
+    sec_specs = [
+        ('salt', 'salt', False),
+        ('temp', 'temp', False),
+        ('do',   'do',   False),
+        ('spd',  'spd',  True),
+    ]
+    for var, v_key, is_adcp in sec_specs:
+        cmap       = CMAPS[var]
+        vmin, vmax = CLIMS[var]
+        label      = LABELS[var]
+        for seg in SEGS:
+            print(f'  sections {var}/{seg}')
+            fig, axes = plt.subplots(
+                len(LAPS), 2,
+                figsize=(8, 4 * len(LAPS)),
+                squeeze=False,
+            )
+            last_pcm = None
+            for r, lap in enumerate(LAPS):
                 try:
-                    obs_pts, mod_pts = build_ctd_section(lap, seg)
+                    if is_adcp:
+                        obs_pts, mod_pts = build_adcp_section(lap, seg)
+                    else:
+                        obs_pts, mod_pts = build_ctd_section(lap, seg)
                 except Exception as e:
                     print(f'    ERROR: {e}')
                     continue
-                ax_obs = axes[r, c * 2]
-                ax_mod = axes[r, c * 2 + 1]
-                plot_section_pair(
-                    ax_obs, ax_mod, obs_pts, mod_pts,
-                    x_key='x', z_key='z', v_key=var,
-                    cmap=CMAPS[var],
-                    vmin=CLIMS[var][0], vmax=CLIMS[var][1],
-                    label=LABELS[var],
-                    lap_label=lap, seg_label=seg,
+                pcm = plot_section_pair(
+                    axes[r, 0], axes[r, 1],
+                    obs_pts, mod_pts,
+                    x_key='x', z_key='z', v_key=v_key,
+                    cmap=cmap, vmin=vmin, vmax=vmax,
+                    lap_label=lap,
                 )
-        fig.suptitle(
-            f'Penn Cove Dec 2025: {LABELS[var]}\n{GTAGEX}',
-            fontsize=12, y=1.01,
-        )
-        fig.tight_layout()
-        out_fn = OUT_DIR / f'pcDec2025_{var}_sections.png'
-        fig.savefig(out_fn, dpi=150, bbox_inches='tight')
-        plt.close(fig)
-        print(f'  Saved: {out_fn}')
+                if pcm is not None:
+                    last_pcm = pcm
+            if last_pcm is not None:
+                fig.colorbar(last_pcm, ax=axes.ravel().tolist(),
+                             shrink=0.35, pad=0.04, label=label)
+            fig.suptitle(
+                f'Penn Cove Dec 2025 — {seg}\n{label}  |  {GTAGEX}',
+                fontsize=10,
+            )
+            fig.tight_layout()
+            out_fn = OUT_DIR / f'pcDec2025_{var}_{seg}_sections.png'
+            fig.savefig(out_fn, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+            print(f'    Saved: {out_fn}')
 
-    print('Building ADCP section comparisons...')
-    fig, axes = plt.subplots(
-        len(LAPS), len(SEGS) * 2,
-        figsize=(5 * len(SEGS) * 2, 4 * len(LAPS)),
-        squeeze=False,
-    )
-    for r, lap in enumerate(LAPS):
-        for c, seg in enumerate(SEGS):
-            print(f'  ADCP speed: {lap}/{seg}')
+    # ── Collect all matchup data once ────────────────────────────────────────
+    print('Collecting matchup data...')
+    ctd_mu  = {}   # (lap, seg) -> dict
+    adcp_mu = {}   # (lap, seg) -> dict
+    for lap in LAPS:
+        for seg in SEGS:
+            print(f'  matchup CTD  {lap}/{seg}')
             try:
-                obs_pts, mod_pts = build_adcp_section(lap, seg)
+                ctd_mu[(lap, seg)] = build_ctd_matchup(lap, seg)
             except Exception as e:
                 print(f'    ERROR: {e}')
-                continue
-            ax_obs = axes[r, c * 2]
-            ax_mod = axes[r, c * 2 + 1]
-            plot_section_pair(
-                ax_obs, ax_mod, obs_pts, mod_pts,
-                x_key='x', z_key='z', v_key='spd',
-                cmap=CMAPS['spd'],
-                vmin=CLIMS['spd'][0], vmax=CLIMS['spd'][1],
-                label=LABELS['spd'],
-                lap_label=lap, seg_label=seg,
-            )
-    fig.suptitle(
-        f'Penn Cove Dec 2025: Horizontal Speed (m/s)\n{GTAGEX}',
-        fontsize=12, y=1.01,
-    )
+            print(f'  matchup ADCP {lap}/{seg}')
+            try:
+                adcp_mu[(lap, seg)] = build_adcp_matchup(lap, seg)
+            except Exception as e:
+                print(f'    ERROR: {e}')
+
+    def _pairs(data, obs_k, mod_k):
+        """Aggregate matched pairs by lap from the matchup cache."""
+        result = {}
+        for lap in LAPS:
+            os_, ms_ = [], []
+            for seg in SEGS:
+                mu = data.get((lap, seg))
+                if mu is not None:
+                    os_.append(mu[obs_k])
+                    ms_.append(mu[mod_k])
+            if os_:
+                result[lap] = (np.concatenate(os_), np.concatenate(ms_))
+        return result
+
+    # ── 2×2 property-property figure ─────────────────────────────────────────
+    print('Building property-property figure...')
+    fig, axes = plt.subplots(2, 2, figsize=(9, 9), squeeze=False)
+    _draw_prop_panel(axes[0, 0], _pairs(ctd_mu,  'obs_salt', 'mod_salt'), LABELS['salt'])
+    _draw_prop_panel(axes[0, 1], _pairs(ctd_mu,  'obs_temp', 'mod_temp'), LABELS['temp'])
+    _draw_prop_panel(axes[1, 0], _pairs(ctd_mu,  'obs_do',   'mod_do'),   LABELS['do'])
+    _draw_prop_panel(axes[1, 1], _pairs(adcp_mu, 'obs_spd',  'mod_spd'),  LABELS['spd'])
+    fig.suptitle(f'Penn Cove Dec 2025 — obs vs model\n{GTAGEX}', fontsize=10)
     fig.tight_layout()
-    out_fn = OUT_DIR / 'pcDec2025_speed_sections.png'
+    out_fn = OUT_DIR / 'pcDec2025_prop_prop.png'
     fig.savefig(out_fn, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f'  Saved: {out_fn}')
-
-    # ── Property-property plots (CTD) ────────────────────────────────────────
-    print('Building CTD property-property plots...')
-    LAP_COLORS = {'lap1': 'tab:blue', 'lap2': 'tab:orange', 'lap3': 'tab:green'}
-
-    # One figure per variable: all laps/segs combined, colored by lap
-    for var, obs_key, mod_key, label in [
-        ('salt', 'obs_salt', 'mod_salt', LABELS['salt']),
-        ('temp', 'obs_temp', 'mod_temp', LABELS['temp']),
-        ('do',   'obs_do',   'mod_do',   LABELS['do']),
-    ]:
-        fig, ax = plt.subplots(figsize=(5, 5))
-        for lap in LAPS:
-            o_all, m_all = [], []
-            for seg in SEGS:
-                print(f'  prop-prop {var}: {lap}/{seg}')
-                try:
-                    mu = build_ctd_matchup(lap, seg)
-                except Exception as e:
-                    print(f'    ERROR: {e}')
-                    continue
-                o_all.append(mu[obs_key])
-                m_all.append(mu[mod_key])
-            if not o_all:
-                continue
-            o = np.concatenate(o_all)
-            m = np.concatenate(m_all)
-            mask = np.isfinite(o) & np.isfinite(m)
-            if mask.sum() < 2:
-                continue
-            ax.scatter(o[mask], m[mask], s=6, alpha=0.4,
-                       color=LAP_COLORS[lap], edgecolors='none', label=lap)
-        # 1:1 line and stats using all combined data — reuse plot_prop_prop logic
-        handles, labels_leg = ax.get_legend_handles_labels()
-        # collect all plotted points for stats
-        all_o, all_m = [], []
-        for lap in LAPS:
-            for seg in SEGS:
-                try:
-                    mu = build_ctd_matchup(lap, seg)
-                    all_o.append(mu[obs_key])
-                    all_m.append(mu[mod_key])
-                except Exception:
-                    pass
-        if all_o:
-            o_cat = np.concatenate(all_o)
-            m_cat = np.concatenate(all_m)
-            mask2 = np.isfinite(o_cat) & np.isfinite(m_cat)
-            if mask2.sum() >= 2:
-                lo = min(o_cat[mask2].min(), m_cat[mask2].min())
-                hi = max(o_cat[mask2].max(), m_cat[mask2].max())
-                pad = (hi - lo) * 0.05
-                ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad],
-                        'k--', lw=1, label='1:1')
-                bias = float(np.mean(m_cat[mask2] - o_cat[mask2]))
-                rmse = float(np.sqrt(np.mean((m_cat[mask2] - o_cat[mask2]) ** 2)))
-                ax.text(0.05, 0.95,
-                        f'N={mask2.sum()}\nbias={bias:+.3f}\nRMSE={rmse:.3f}',
-                        transform=ax.transAxes, fontsize=8, va='top',
-                        bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7))
-                ax.set_xlim(lo - pad, hi + pad)
-                ax.set_ylim(lo - pad, hi + pad)
-                ax.set_aspect('equal')
-        ax.set_xlabel(f'Obs {label}')
-        ax.set_ylabel(f'Model {label}')
-        ax.legend(fontsize=8, markerscale=2)
-        ax.grid(alpha=0.3)
-        ax.set_title(f'Penn Cove Dec 2025: {label}\n{GTAGEX}', fontsize=9)
-        fig.tight_layout()
-        out_fn = OUT_DIR / f'pcDec2025_{var}_prop_prop.png'
-        fig.savefig(out_fn, dpi=150, bbox_inches='tight')
-        plt.close(fig)
-        print(f'  Saved: {out_fn}')
 
     # ── T-S diagram ──────────────────────────────────────────────────────────
-    print('Building T-S diagrams...')
-    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+    print('Building T-S diagram...')
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4), squeeze=False)
     for lap in LAPS:
-        s_obs_all, t_obs_all = [], []
-        s_mod_all, t_mod_all = [], []
-        for seg in SEGS:
-            try:
-                mu = build_ctd_matchup(lap, seg)
-            except Exception as e:
-                print(f'    ERROR T-S {lap}/{seg}: {e}')
-                continue
-            s_obs_all.append(mu['obs_salt'])
-            t_obs_all.append(mu['obs_temp'])
-            s_mod_all.append(mu['mod_salt'])
-            t_mod_all.append(mu['mod_temp'])
-        if not s_obs_all:
-            continue
-        s_o = np.concatenate(s_obs_all)
-        t_o = np.concatenate(t_obs_all)
-        s_m = np.concatenate(s_mod_all)
-        t_m = np.concatenate(t_mod_all)
-        mask_o = np.isfinite(s_o) & np.isfinite(t_o)
-        mask_m = np.isfinite(s_m) & np.isfinite(t_m)
         c = LAP_COLORS[lap]
-        axes[0].scatter(s_o[mask_o], t_o[mask_o], s=4, alpha=0.3,
-                        color=c, edgecolors='none', label=lap)
-        axes[1].scatter(s_m[mask_m], t_m[mask_m], s=4, alpha=0.3,
-                        color=c, edgecolors='none', label=lap)
-
-    for ax, title in zip(axes, ['Obs', 'Model']):
-        ax.set_xlabel('Salinity (PSU)')
-        ax.set_ylabel('Temperature (°C)')
-        ax.set_title(f'{title} T-S — Penn Cove Dec 2025', fontsize=9)
-        ax.legend(fontsize=8, markerscale=3)
+        so, to, sm, tm = [], [], [], []
+        for seg in SEGS:
+            mu = ctd_mu.get((lap, seg))
+            if mu is None:
+                continue
+            so.append(mu['obs_salt']); to.append(mu['obs_temp'])
+            sm.append(mu['mod_salt']); tm.append(mu['mod_temp'])
+        if not so:
+            continue
+        s_o = np.concatenate(so); t_o = np.concatenate(to)
+        s_m = np.concatenate(sm); t_m = np.concatenate(tm)
+        ok_o = np.isfinite(s_o) & np.isfinite(t_o)
+        ok_m = np.isfinite(s_m) & np.isfinite(t_m)
+        axes[0, 0].scatter(s_o[ok_o], t_o[ok_o], s=4, alpha=0.3,
+                           color=c, edgecolors='none', label=lap)
+        axes[0, 1].scatter(s_m[ok_m], t_m[ok_m], s=4, alpha=0.3,
+                           color=c, edgecolors='none', label=lap)
+    for ax, title in zip(axes[0], ['Obs', 'Model']):
+        ax.set_xlabel('Salinity (PSU)', fontsize=9)
+        ax.set_ylabel('Temperature (°C)', fontsize=9)
+        ax.set_title(f'{title}', fontsize=10)
+        ax.tick_params(labelsize=8)
+        ax.legend(fontsize=8, markerscale=3, framealpha=0.8)
         ax.grid(alpha=0.3)
-    fig.suptitle(GTAGEX, fontsize=9)
+    fig.suptitle(f'T-S diagram — Penn Cove Dec 2025\n{GTAGEX}', fontsize=10)
     fig.tight_layout()
     out_fn = OUT_DIR / 'pcDec2025_TS_diagram.png'
-    fig.savefig(out_fn, dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    print(f'  Saved: {out_fn}')
-
-    # ── Property-property plot (ADCP speed) ──────────────────────────────────
-    print('Building ADCP property-property plot...')
-    fig, ax = plt.subplots(figsize=(5, 5))
-    for lap in LAPS:
-        o_all, m_all = [], []
-        for seg in SEGS:
-            print(f'  prop-prop spd: {lap}/{seg}')
-            try:
-                mu = build_adcp_matchup(lap, seg)
-            except Exception as e:
-                print(f'    ERROR: {e}')
-                continue
-            o_all.append(mu['obs_spd'])
-            m_all.append(mu['mod_spd'])
-        if not o_all:
-            continue
-        o = np.concatenate(o_all)
-        m = np.concatenate(m_all)
-        mask = np.isfinite(o) & np.isfinite(m)
-        if mask.sum() < 2:
-            continue
-        ax.scatter(o[mask], m[mask], s=6, alpha=0.4,
-                   color=LAP_COLORS[lap], edgecolors='none', label=lap)
-    # 1:1 + stats
-    all_o, all_m = [], []
-    for lap in LAPS:
-        for seg in SEGS:
-            try:
-                mu = build_adcp_matchup(lap, seg)
-                all_o.append(mu['obs_spd'])
-                all_m.append(mu['mod_spd'])
-            except Exception:
-                pass
-    if all_o:
-        o_cat = np.concatenate(all_o)
-        m_cat = np.concatenate(all_m)
-        mask2 = np.isfinite(o_cat) & np.isfinite(m_cat)
-        if mask2.sum() >= 2:
-            lo = min(o_cat[mask2].min(), m_cat[mask2].min())
-            hi = max(o_cat[mask2].max(), m_cat[mask2].max())
-            pad = (hi - lo) * 0.05
-            ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad],
-                    'k--', lw=1, label='1:1')
-            bias = float(np.mean(m_cat[mask2] - o_cat[mask2]))
-            rmse = float(np.sqrt(np.mean((m_cat[mask2] - o_cat[mask2]) ** 2)))
-            ax.text(0.05, 0.95,
-                    f'N={mask2.sum()}\nbias={bias:+.3f}\nRMSE={rmse:.3f}',
-                    transform=ax.transAxes, fontsize=8, va='top',
-                    bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.7))
-            ax.set_xlim(lo - pad, hi + pad)
-            ax.set_ylim(lo - pad, hi + pad)
-            ax.set_aspect('equal')
-    ax.set_xlabel(f'Obs {LABELS["spd"]}')
-    ax.set_ylabel(f'Model {LABELS["spd"]}')
-    ax.legend(fontsize=8, markerscale=2)
-    ax.grid(alpha=0.3)
-    ax.set_title(f'Penn Cove Dec 2025: {LABELS["spd"]}\n{GTAGEX}', fontsize=9)
-    fig.tight_layout()
-    out_fn = OUT_DIR / 'pcDec2025_spd_prop_prop.png'
     fig.savefig(out_fn, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f'  Saved: {out_fn}')
