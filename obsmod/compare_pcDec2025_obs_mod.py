@@ -503,14 +503,15 @@ def main():
                 )
                 if pcm is not None:
                     last_pcm = pcm
-            if last_pcm is not None:
-                fig.colorbar(last_pcm, ax=axes.ravel().tolist(),
-                             shrink=0.35, pad=0.04, label=label)
             fig.suptitle(
                 f'Penn Cove Dec 2025 — {seg}\n{label}  |  {GTAGEX}',
                 fontsize=10,
             )
             fig.tight_layout()
+            if last_pcm is not None:
+                fig.subplots_adjust(right=0.82)
+                cax = fig.add_axes([0.85, 0.15, 0.025, 0.68])
+                fig.colorbar(last_pcm, cax=cax, label=label)
             out_fn = OUT_DIR / f'pcDec2025_{var}_{seg}_sections.png'
             fig.savefig(out_fn, dpi=150, bbox_inches='tight')
             plt.close(fig)

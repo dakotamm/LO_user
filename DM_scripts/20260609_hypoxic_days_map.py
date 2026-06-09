@@ -11,8 +11,9 @@ For every grid cell, a day counts as hypoxic if the MINIMUM dissolved oxygen
 over the full water column (all s_rho levels) that day is below
 HYPOXIA_THRESHOLD_MGL (default 2 mg/L). Counts are accumulated separately per
 calendar year and plotted as a grid of lat/lon panels (rows = years, 2024 top
-and 2025 bottom; columns = models), with a shared colorbar and a coastline
-(pfun.add_coast). Model-years with no lowpassed.nc data are left blank.
+and 2025 bottom; columns = models), zoomed to the Penn Cove extent (east of the
+pc0 TEF section) with a shared colorbar (scaled from the Penn Cove cells) and a
+coastline (pfun.add_coast). Model-years with no lowpassed.nc data are left blank.
 
 Designed to run on apogee where lowpassed.nc files live:
     /dat2/dakotamm/LO_roms/<gtagex>/f<YYYY.MM.DD>/lowpassed.nc  (checked first)
@@ -80,6 +81,25 @@ def find_lowpassed_files(gtagex, Ldir):
                 if date_str not in lp_by_date:   # first hit wins (priority order)
                     lp_by_date[date_str] = lp
     return lp_by_date
+
+
+# ---------------------------------------------------------------------------
+# Penn Cove mask (east of the pc0 TEF section) — for zoom + color scaling
+# ---------------------------------------------------------------------------
+
+def penn_cove_mask(Ldir, lon, lat, mask_rho):
+    """Boolean mask of wet cells inside Penn Cove (east of the pc0 section)."""
+    pc0_fn = Ldir['LOo'] / 'extract' / 'tef2' / 'sections_wb1_pc0' / 'pc0.p'
+    if not pc0_fn.exists():
+        raise FileNotFoundError(f'pc0 section file not found: {pc0_fn}')
+    pc0 = pickle.load(open(pc0_fn, 'rb'))
+    sec_lon = float(pc0['x'].mean())
+    sec_lat_min = float(pc0['y'].min())
+    # Same definition as the Penn Cove time-series script: wet cells east of
+    # the section, within the cove's lat span (small southern buffer; northern
+    # cap above the cove's coast).
+    return ((lon > sec_lon) & (lat >= sec_lat_min - 0.005) &
+            (lat <= 48.27) & mask_rho)
 
 
 # ---------------------------------------------------------------------------
@@ -155,11 +175,15 @@ def count_hypoxic_days(gtagex, Ldir, mask_rho):
 # Plot: three horizontal panels with shared colorbar + coastline
 # ---------------------------------------------------------------------------
 
-def make_plot(results, model_list, year_list, plon, plat, aa, out_dir):
+def make_plot(results, model_list, year_list, plon, plat, aa, out_dir,
+              vmax_mask=None):
     """results: dict (gtagex, year) -> (count_2d, n_days).
 
     Grid: rows = year_list (top -> bottom), cols = model_list.
-    Model-years missing from results are drawn blank ('no data').
+    aa : [lon0, lon1, lat0, lat1] axis limits (Penn Cove zoom).
+    vmax_mask : optional bool array; when given, the shared color scale is set
+        from cells inside it (so the zoom isn't washed out by hypoxia elsewhere
+        in the domain). Model-years missing from results are drawn blank.
     """
     import matplotlib.pyplot as plt
     try:
@@ -170,16 +194,26 @@ def make_plot(results, model_list, year_list, plon, plat, aa, out_dir):
     cmap = cmap.copy()
     cmap.set_bad('lightgray')  # land / no data
 
-    # Shared color scale across every populated panel for fair comparison.
-    vmax = max(
-        (np.nanmax(c) for (c, _) in results.values()
-         if np.isfinite(np.nanmax(c))),
-        default=1.0,
-    )
+    # Shared color scale, taken over the region of interest (Penn Cove cells)
+    # rather than the whole domain so the zoomed panels use their full range.
+    def region_max(c):
+        vals = c[vmax_mask] if vmax_mask is not None else c
+        m = np.nanmax(vals)
+        return m if np.isfinite(m) else 0.0
+
+    vmax = max((region_max(c) for (c, _) in results.values()), default=1.0)
     vmax = max(vmax, 1.0)
 
     nrow, ncol = len(year_list), len(model_list)
-    fig, axes = plt.subplots(nrow, ncol, figsize=(6.0 * ncol, 6.6 * nrow),
+    # Size panels to the (zoomed) data aspect so the grid packs tightly.
+    lon_span = aa[1] - aa[0]
+    lat_span = aa[3] - aa[2]
+    dar_aspect = 1.0 / np.cos(np.deg2rad(0.5 * (aa[2] + aa[3])))
+    panel_hw = (lat_span * dar_aspect) / lon_span  # display height / width
+    panel_w = 5.5
+    figsize = (panel_w * ncol + 2.0, panel_w * panel_hw * nrow + 1.8)
+
+    fig, axes = plt.subplots(nrow, ncol, figsize=figsize,
                              sharex=True, sharey=True, squeeze=False)
 
     cs = None
@@ -187,8 +221,8 @@ def make_plot(results, model_list, year_list, plon, plat, aa, out_dir):
         for j, gtagex in enumerate(model_list):
             ax = axes[i, j]
             pfun.add_coast(ax)
-            pfun.dar(ax)
             ax.axis(aa)
+            pfun.dar(ax)
             if i == 0:
                 ax.set_title(gtagex, fontsize=11)
             if i == nrow - 1:
@@ -201,7 +235,7 @@ def make_plot(results, model_list, year_list, plon, plat, aa, out_dir):
                 count, n_days = results[key]
                 cs = ax.pcolormesh(plon, plat, count, cmap=cmap,
                                    vmin=0, vmax=vmax)
-                ax.text(0.03, 0.03, f'n = {n_days} days',
+                ax.text(0.03, 0.05, f'n = {n_days} days',
                         transform=ax.transAxes, fontsize=9,
                         va='bottom', ha='left',
                         bbox=dict(facecolor='white', alpha=0.6, lw=0))
@@ -209,14 +243,11 @@ def make_plot(results, model_list, year_list, plon, plat, aa, out_dir):
                 ax.text(0.5, 0.5, 'no data', transform=ax.transAxes,
                         ha='center', va='center', color='0.5', fontsize=12)
 
-    fig.subplots_adjust(left=0.06, right=0.90, top=0.93, bottom=0.06,
-                        wspace=0.08, hspace=0.12)
-    cax = fig.add_axes([0.92, 0.15, 0.015, 0.7])
-    cb = fig.colorbar(cs, cax=cax)
+    cb = fig.colorbar(cs, ax=list(axes.ravel()), shrink=0.9, pad=0.02)
     cb.set_label(f'Days with water-column DO < {HYPOXIA_THRESHOLD_MGL:g} mg/L')
 
-    fig.suptitle('Hypoxic days per water column (lowpassed)',
-                 fontweight='bold', fontsize=14, y=0.97)
+    fig.suptitle('Penn Cove hypoxic days per water column (lowpassed)',
+                 fontweight='bold', fontsize=14)
 
     fig_fn = out_dir / 'hypoxic_days_map.png'
     fig.savefig(fig_fn, dpi=150, bbox_inches='tight')
@@ -246,8 +277,15 @@ def main():
         mask_rho = dsg.mask_rho.values.astype(bool)
         lon = dsg.lon_rho.values
         lat = dsg.lat_rho.values
-        aa = pfun.get_aa(dsg)
     plon, plat = pfun.get_plon_plat(lon, lat)
+
+    # Zoom view + color scaling focused on Penn Cove (east of pc0 section)
+    pc_mask = penn_cove_mask(Ldir, lon, lat, mask_rho)
+    margin = 0.01  # degrees of padding around the cove
+    aa = [lon[pc_mask].min() - margin, lon[pc_mask].max() + margin,
+          lat[pc_mask].min() - margin, lat[pc_mask].max() + margin]
+    print(f'Penn Cove zoom: lon [{aa[0]:.3f}, {aa[1]:.3f}]  '
+          f'lat [{aa[2]:.3f}, {aa[3]:.3f}]  ({int(pc_mask.sum())} cells)')
 
     out_dir = Ldir['LOo'] / 'DM_outs' / OUT_NAME
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -279,7 +317,8 @@ def main():
             results[(gtagex, year)] = (count, n_days)
 
     if results:
-        make_plot(results, model_list, YEARS, plon, plat, aa, out_dir)
+        make_plot(results, model_list, YEARS, plon, plat, aa, out_dir,
+                  vmax_mask=pc_mask)
     else:
         print('\nNo model produced data — no plot made.')
 
