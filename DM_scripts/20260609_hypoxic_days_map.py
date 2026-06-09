@@ -207,6 +207,7 @@ def make_plot(results, model_list, year_list, plon, plat, aa, out_dir,
         cmap = plt.get_cmap('YlOrRd')
     cmap = cmap.copy()
     cmap.set_bad('lightgray')  # land / no data
+    cmap.set_under('white')    # wet cells with zero hypoxic days
 
     # Shared color scale, taken over the region of interest (Penn Cove cells)
     # rather than the whole domain so the zoomed panels use their full range.
@@ -217,6 +218,9 @@ def make_plot(results, model_list, year_list, plon, plat, aa, out_dir,
 
     vmax = max((region_max(c) for (c, _) in results.values()), default=1.0)
     vmax = max(vmax, 1.0)
+    # Counts are integer days; anything below 0.5 (i.e. exactly 0 days) falls to
+    # the colormap's set_under color (white) rather than the lowest ramp color.
+    vmin = 0.5
 
     nrow, ncol = len(year_list), len(model_list)
     # Size panels to the (zoomed) data aspect so the grid packs tightly.
@@ -248,7 +252,7 @@ def make_plot(results, model_list, year_list, plon, plat, aa, out_dir,
             if key in results:
                 count, n_days = results[key]
                 cs = ax.pcolormesh(plon, plat, count, cmap=cmap,
-                                   vmin=0, vmax=vmax)
+                                   vmin=vmin, vmax=vmax)
                 ax.text(0.03, 0.05, f'n = {n_days} days',
                         transform=ax.transAxes, fontsize=9,
                         va='bottom', ha='left',
