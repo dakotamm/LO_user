@@ -31,7 +31,7 @@ if 'mac' in Ldir['lo_env']:
 else:
     ROMS_OUT = Ldir['roms_out2'] / GTAGEX
     OBS_DIR  = Ldir['data'] / 'obs' / 'X - pcDec2025Recon '
-    OUT_DIR  = Ldir['LOo'] / 'obsmod' / 'pcDec2025_obs_mod'
+    OUT_DIR  = Ldir['LOo'] / 'obsmod_val_plots' / 'pcDec2025_obs_mod'
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
