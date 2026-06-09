@@ -48,19 +48,22 @@ CLIMS = {
     'salt': (18, 30),
     'temp': (8, 12),
     'do':   (3, 10),
-    'spd':  (0, 0.5),  # ADCP speed (m/s)
+    'spd':  (0, 0.5),    # ADCP speed (m/s)
+    'vel_e': (-0.5, 0.5),  # east velocity, +east / -west (m/s)
 }
 CMAPS = {
-    'salt': 'viridis',
-    'temp': 'plasma',
-    'do':   'RdYlBu',
-    'spd':  'YlOrRd',
+    'salt':  'viridis',
+    'temp':  'plasma',
+    'do':    'RdYlBu',
+    'spd':   'YlOrRd',
+    'vel_e': 'RdBu_r',
 }
 LABELS = {
-    'salt': 'Salinity (PSU)',
-    'temp': 'Temperature (°C)',
-    'do':   'DO (mg/L)',
-    'spd':  'Speed (m/s)',
+    'salt':  'Salinity (PSU)',
+    'temp':  'Temperature (°C)',
+    'do':    'DO (mg/L)',
+    'spd':   'Speed (m/s)',
+    'vel_e': 'East velocity (m/s)',
 }
 
 # ── Grid ────────────────────────────────────────────────────────────────────
@@ -266,31 +269,32 @@ def build_adcp_section(lap: str, seg: str):
     z_bins = -obs['depthBins']   # negative convention
 
     # ADCP: vel dims are (nz, nt)
-    spd_obs = np.sqrt(obs['vel_east'] ** 2 + obs['vel_north'] ** 2)
+    spd_obs   = np.sqrt(obs['vel_east'] ** 2 + obs['vel_north'] ** 2)
+    vel_e_obs = obs['vel_east']   # positive = eastward
 
-    x_obs = np.tile(x_km, (nz_obs, 1)).ravel()        # (nz*nt,)
-    z_obs = np.tile(z_bins[:, np.newaxis], (1, nt)).ravel()
-    s_obs = spd_obs.ravel()
+    x_obs  = np.tile(x_km, (nz_obs, 1)).ravel()        # (nz*nt,)
+    z_obs  = np.tile(z_bins[:, np.newaxis], (1, nt)).ravel()
 
-    x_mod_list, z_mod_list, spd_mod_list = [], [], []
+    x_mod_list, z_mod_list, spd_mod_list, vel_e_mod_list = [], [], [], []
     for i in range(nt):
         lon_i, lat_i, time_i = obs['lon'][i], obs['lat'][i], obs['time'][i]
         ix = int(zfun.find_nearest_ind(lon_vec, lon_i))
         iy = int(zfun.find_nearest_ind(lat_vec, lat_i))
         ds = get_model_ds(time_i)
         z_rho, _, _, _, u_m, v_m = extract_mod_column(ds, iy, ix)
-        spd_m = np.sqrt(u_m ** 2 + v_m ** 2)
         nz_m = len(z_rho)
         x_mod_list.append(np.full(nz_m, x_km[i]))
         z_mod_list.append(z_rho)
-        spd_mod_list.append(spd_m)
+        spd_mod_list.append(np.sqrt(u_m ** 2 + v_m ** 2))
+        vel_e_mod_list.append(u_m)   # u is ~eastward on this near-rectilinear grid
 
-    x_mod = np.concatenate(x_mod_list)
-    z_mod = np.concatenate(z_mod_list)
-    spd_mod = np.concatenate(spd_mod_list)
+    x_mod     = np.concatenate(x_mod_list)
+    z_mod     = np.concatenate(z_mod_list)
+    spd_mod   = np.concatenate(spd_mod_list)
+    vel_e_mod = np.concatenate(vel_e_mod_list)
 
-    obs_pts = dict(x=x_obs, z=z_obs, spd=s_obs)
-    mod_pts = dict(x=x_mod, z=z_mod, spd=spd_mod)
+    obs_pts = dict(x=x_obs, z=z_obs, spd=spd_obs.ravel(), vel_e=vel_e_obs.ravel())
+    mod_pts = dict(x=x_mod, z=z_mod, spd=spd_mod,         vel_e=vel_e_mod)
     return obs_pts, mod_pts
 
 
@@ -468,10 +472,11 @@ def main():
     # ── Section plots ────────────────────────────────────────────────────────
     # One figure per (variable, segment): 3 laps × 2 cols (obs | model)
     sec_specs = [
-        ('salt', 'salt', False),
-        ('temp', 'temp', False),
-        ('do',   'do',   False),
-        ('spd',  'spd',  True),
+        ('salt',  'salt',  False),
+        ('temp',  'temp',  False),
+        ('do',    'do',    False),
+        ('spd',   'spd',   True),
+        ('vel_e', 'vel_e', True),
     ]
     for var, v_key, is_adcp in sec_specs:
         cmap       = CMAPS[var]

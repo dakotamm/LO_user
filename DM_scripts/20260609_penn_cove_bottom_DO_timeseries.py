@@ -9,8 +9,9 @@ Penn Cove from lowpassed.nc files for three wb1 model runs:
     wb1_t0_xn11abbur00
     wb1_t1_xn11abbur00
 
-Penn Cove is defined as all wet (mask_rho == 1) grid cells east of the pc0
-TEF section (LO_output/extract/tef2/sections_wb1_pc0/pc0.p).
+Penn Cove is defined as the connected body of wet cells WEST of the pc0 TEF
+section (LO_output/extract/tef2/sections_wb1_pc0/pc0.p): pc0 cuts across the
+cove and the coastline bounds the other three sides.
 
 Designed to run on apogee where lowpassed.nc files live:
     /dat2/dakotamm/LO_roms/<gtagex>/f<YYYY.MM.DD>/lowpassed.nc  (checked first)
@@ -29,6 +30,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from pathlib import Path
+
+from scipy.ndimage import label
 
 from lo_tools import Lfun
 
@@ -62,10 +65,15 @@ MODEL_COLORS = {
 # Penn Cove mask
 # ---------------------------------------------------------------------------
 
-def build_penn_cove_mask(Ldir):
+def build_penn_cove_mask(Ldir, seed_lon=-122.69, seed_lat=48.235):
     """
-    Return a boolean 2D array (eta_rho, xi_rho) marking wet grid cells
-    inside Penn Cove (east of the pc0 TEF section).
+    Return a boolean 2D array (eta_rho, xi_rho) marking the wet grid cells of
+    Penn Cove.
+
+    The pc0 TEF section cuts across the cove; Penn Cove is the enclosed body of
+    water WEST of pc0 (the coastline bounds the other three sides). We take wet
+    cells west of pc0 and keep the connected component that contains a seed
+    point inside the cove — this excludes Saratoga Passage.
     """
     pc0_fn = Ldir['LOo'] / 'extract' / 'tef2' / 'sections_wb1_pc0' / 'pc0.p'
     if not pc0_fn.exists():
@@ -76,8 +84,6 @@ def build_penn_cove_mask(Ldir):
 
     pc0 = pickle.load(open(pc0_fn, 'rb'))
     sec_lon = float(pc0['x'].mean())
-    sec_lat_min = float(pc0['y'].min())
-    sec_lat_max = float(pc0['y'].max())
 
     grid_fn = Ldir['grid'] / 'grid.nc'
     with xr.open_dataset(grid_fn) as dsg:
@@ -85,22 +91,20 @@ def build_penn_cove_mask(Ldir):
         lat = dsg.lat_rho.values
         mask_rho = dsg.mask_rho.values.astype(bool)
 
-    # All wet cells east of the section and within Penn Cove's lat span.
-    # A small southern buffer (0.005 deg) handles edge cells near the section
-    # endpoints; the northern cap (48.27) is well above Penn Cove's coast.
-    pc_mask = (
-        (lon > sec_lon) &
-        (lat >= sec_lat_min - 0.005) &
-        (lat <= 48.27) &
-        mask_rho
-    )
+    # Penn Cove = connected wet component west of pc0 containing the cove seed.
+    wet_west = mask_rho & (lon < sec_lon)
+    lab, _ = label(wet_west)
+    j = np.unravel_index(
+        np.argmin((lon - seed_lon) ** 2 + (lat - seed_lat) ** 2), lon.shape)
+    seed_label = lab[j]
+    if seed_label == 0:
+        raise RuntimeError(
+            'Penn Cove seed did not land on a wet cell west of pc0. '
+            'Check seed_lon/seed_lat and that pc0.p matches the wb1 grid.'
+        )
+    pc_mask = (lab == seed_label)
 
     n = int(pc_mask.sum())
-    if n == 0:
-        raise RuntimeError(
-            'Penn Cove mask is empty. Check that pc0.p and the wb1 grid match.'
-        )
-
     print(f'Penn Cove mask: {n} wet cells  '
           f'lon [{lon[pc_mask].min():.3f}, {lon[pc_mask].max():.3f}]  '
           f'lat [{lat[pc_mask].min():.3f}, {lat[pc_mask].max():.3f}]')

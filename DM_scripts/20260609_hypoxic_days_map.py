@@ -11,9 +11,9 @@ For every grid cell, a day counts as hypoxic if the MINIMUM dissolved oxygen
 over the full water column (all s_rho levels) that day is below
 HYPOXIA_THRESHOLD_MGL (default 2 mg/L). Counts are accumulated separately per
 calendar year and plotted as a grid of lat/lon panels (rows = years, 2024 top
-and 2025 bottom; columns = models), zoomed to the Penn Cove extent (east of the
-pc0 TEF section) with a shared colorbar (scaled from the Penn Cove cells) and a
-coastline (pfun.add_coast). Model-years with no lowpassed.nc data are left blank.
+and 2025 bottom; columns = models), zoomed to the Penn Cove extent (the cove
+west of the pc0 TEF section) with a shared colorbar (scaled from the Penn Cove
+cells) and a coastline (pfun.add_coast). Model-years with no data are left blank.
 
 Designed to run on apogee where lowpassed.nc files live:
     /dat2/dakotamm/LO_roms/<gtagex>/f<YYYY.MM.DD>/lowpassed.nc  (checked first)
@@ -33,6 +33,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from pathlib import Path
+
+from scipy.ndimage import label
 
 from lo_tools import Lfun
 from lo_tools import plotting_functions as pfun
@@ -87,19 +89,31 @@ def find_lowpassed_files(gtagex, Ldir):
 # Penn Cove mask (east of the pc0 TEF section) — for zoom + color scaling
 # ---------------------------------------------------------------------------
 
-def penn_cove_mask(Ldir, lon, lat, mask_rho):
-    """Boolean mask of wet cells inside Penn Cove (east of the pc0 section)."""
+def penn_cove_mask(Ldir, lon, lat, mask_rho,
+                   seed_lon=-122.69, seed_lat=48.235):
+    """Boolean mask of Penn Cove.
+
+    The pc0 TEF section cuts across the cove; Penn Cove is the enclosed body of
+    water WEST of pc0 (the coastline bounds the other three sides). We take wet
+    cells west of pc0 and keep the connected component that contains a seed
+    point inside the cove — this excludes Saratoga Passage, which lies east of
+    pc0 and beyond the cove's land rim to the west/south.
+    """
     pc0_fn = Ldir['LOo'] / 'extract' / 'tef2' / 'sections_wb1_pc0' / 'pc0.p'
     if not pc0_fn.exists():
         raise FileNotFoundError(f'pc0 section file not found: {pc0_fn}')
     pc0 = pickle.load(open(pc0_fn, 'rb'))
     sec_lon = float(pc0['x'].mean())
-    sec_lat_min = float(pc0['y'].min())
-    # Same definition as the Penn Cove time-series script: wet cells east of
-    # the section, within the cove's lat span (small southern buffer; northern
-    # cap above the cove's coast).
-    return ((lon > sec_lon) & (lat >= sec_lat_min - 0.005) &
-            (lat <= 48.27) & mask_rho)
+
+    wet_west = mask_rho & (lon < sec_lon)
+    lab, _ = label(wet_west)
+    j = np.unravel_index(
+        np.argmin((lon - seed_lon) ** 2 + (lat - seed_lat) ** 2), lon.shape)
+    seed_label = lab[j]
+    if seed_label == 0:
+        raise RuntimeError(
+            'Penn Cove seed did not land on a wet cell west of pc0.')
+    return lab == seed_label
 
 
 # ---------------------------------------------------------------------------
