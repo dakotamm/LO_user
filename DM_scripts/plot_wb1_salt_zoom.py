@@ -17,7 +17,21 @@ import xarray as xr
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.path import Path as MplPath
 from cmocean import cm
+
+# Cells inside this polygon (the red-circled western channel + bottom strip)
+# are removed before plotting AND before the color scale is computed.
+# Vertices are (lon, lat); edit to refine the cut. Disable with --keep-west.
+EXCLUDE_POLY = [
+    (-122.79, 48.41),
+    (-122.61, 48.41),
+    (-122.68, 48.33),
+    (-122.72, 48.27),
+    (-122.71, 48.20),
+    (-122.62, 48.155),
+    (-122.79, 48.145),
+]
 
 from lo_tools import Lfun
 from lo_tools import plotting_functions as pfun
@@ -38,12 +52,15 @@ p.add_argument('--lat1', default=48.40,  type=float)
 p.add_argument('--smin', default=None, type=float)
 p.add_argument('--smax', default=None, type=float)
 p.add_argument('--no-movie', dest='movie', action='store_false')
+p.add_argument('--keep-west', dest='exclude', action='store_false',
+               help='do not mask the EXCLUDE_POLY region')
 args = p.parse_args()
 
 gridname, tag, ex_name = args.gtx.split('_')
 Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)
 Ldir['roms_out'] = Ldir['roms_out' + str(args.ro)]
 aa = [args.lon0, args.lon1, args.lat0, args.lat1]
+expath = MplPath(EXCLUDE_POLY) if args.exclude else None
 
 fn_list = Lfun.get_fn_list(args.lt, Ldir, args.ds0, args.ds1)
 fn_list = [fn for fn in fn_list if fn.is_file()]
@@ -60,6 +77,10 @@ def get_surf_salt(fn):
     mask = ds.mask_rho.values
     salt = np.where(mask == 0, np.nan, salt)
     ds.close()
+    if expath is not None:
+        pts = np.column_stack([lon.ravel(), lat.ravel()])
+        inside = expath.contains_points(pts).reshape(lon.shape)
+        salt = np.where(inside, np.nan, salt)
     inbox = (lon >= aa[0]) & (lon <= aa[1]) & (lat >= aa[2]) & (lat <= aa[3])
     return lon, lat, salt, inbox
 
