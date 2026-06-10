@@ -34,8 +34,8 @@ EXCLUDE_POLYS = [
     [(-122.775, 48.188), (-122.708, 48.188), (-122.708, 48.232), (-122.775, 48.232)],
 ]
 INCLUDE_POLYS = [
-    # green neck into Penn Cove to add back (blue circle)
-    [(-122.717, 48.210), (-122.683, 48.210), (-122.683, 48.248), (-122.717, 48.248)],
+    # western edge + neck of Penn Cove to add back (blue circle)
+    [(-122.732, 48.210), (-122.683, 48.210), (-122.683, 48.248), (-122.732, 48.248)],
 ]
 
 from lo_tools import Lfun
@@ -59,6 +59,8 @@ p.add_argument('--smax', default=None, type=float)
 p.add_argument('--no-movie', dest='movie', action='store_false')
 p.add_argument('--keep-west', dest='exclude', action='store_false',
                help='do not mask the EXCLUDE_POLY region')
+p.add_argument('--debug-polys', dest='debug_polys', action='store_true',
+               help='overlay exclude (red) / include (blue) polygons + fine grid')
 args = p.parse_args()
 
 gridname, tag, ex_name = args.gtx.split('_')
@@ -126,6 +128,16 @@ for ii, fn in enumerate(fn_list):
     ax.axis(aa)
     pfun.dar(ax)
     pfun.add_info(ax, fn)
+    if args.debug_polys:
+        for poly in EXCLUDE_POLYS:
+            xs = [v[0] for v in poly] + [poly[0][0]]
+            ys = [v[1] for v in poly] + [poly[0][1]]
+            ax.plot(xs, ys, '-r', lw=1.2)
+        for poly in INCLUDE_POLYS:
+            xs = [v[0] for v in poly] + [poly[0][0]]
+            ys = [v[1] for v in poly] + [poly[0][1]]
+            ax.plot(xs, ys, '-b', lw=1.2)
+        ax.grid(True, lw=0.3, alpha=0.5)
     ax.set_title('Surface Salinity $(g\\ kg^{-1})$')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
