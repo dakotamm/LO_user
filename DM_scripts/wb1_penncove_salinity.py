@@ -22,28 +22,11 @@ import matplotlib.dates as mdates
 from matplotlib.path import Path as MplPath
 from cmocean import cm
 
-# Cells inside any EXCLUDE polygon are removed before plotting AND before the
-# color scale is computed -- UNLESS they also fall inside an INCLUDE polygon,
-# which wins (used to add specific cells back). Vertices are (lon, lat).
-# Disable all of this with --keep-west.
-EXCLUDE_POLYS = [
-    # western channel west of Whidbey
-    [(-122.79, 48.41), (-122.61, 48.41), (-122.68, 48.33),
-     (-122.72, 48.27), (-122.71, 48.20), (-122.62, 48.155), (-122.79, 48.145)],
-    # bottom yellow strip (red circle)
-    [(-122.71, 48.165), (-122.59, 48.165), (-122.59, 48.143), (-122.71, 48.143)],
-    # western tip of Penn Cove (blue circle) -- remove explicitly
-    [(-122.775, 48.188), (-122.708, 48.188), (-122.708, 48.232), (-122.775, 48.232)],
-]
-INCLUDE_POLYS = [
-    # western edge + neck of Penn Cove to add back (blue circle)
-    [(-122.732, 48.210), (-122.683, 48.210), (-122.683, 48.248), (-122.732, 48.248)],
-]
-# Box over which SSH (zeta) is averaged for the tidal-phase timeseries panel.
-PENN_COVE_BOX = [-122.73, -122.60, 48.215, 48.250]   # lon0, lon1, lat0, lat1
-
 from lo_tools import Lfun
 from lo_tools import plotting_functions as pfun
+# Shared zoom box, masking polygons, and Penn Cove SSH box (edit there to keep
+# all Penn Cove plots in sync). --keep-west disables the polygon masking here.
+from wb1_penncove_region import EXCLUDE_POLYS, INCLUDE_POLYS, PENN_COVE_BOX, ZOOM
 
 # ---- arguments / settings -------------------------------------------------
 p = argparse.ArgumentParser()
@@ -52,11 +35,11 @@ p.add_argument('--ro',   default=2, type=int)          # /dat2/dakotamm/LO_roms
 p.add_argument('--ds0',  default='2025.12.03')
 p.add_argument('--ds1',  default='2025.12.06')
 p.add_argument('--lt',   default='hourly0')            # clean hour-0 start on ds0
-# zoom box (Penn Cove / Saratoga Passage); edit to taste
-p.add_argument('--lon0', default=-122.78, type=float)
-p.add_argument('--lon1', default=-122.40, type=float)
-p.add_argument('--lat0', default=48.15,  type=float)
-p.add_argument('--lat1', default=48.40,  type=float)
+# zoom box (defaults from the shared region module)
+p.add_argument('--lon0', default=ZOOM['lon0'], type=float)
+p.add_argument('--lon1', default=ZOOM['lon1'], type=float)
+p.add_argument('--lat0', default=ZOOM['lat0'], type=float)
+p.add_argument('--lat1', default=ZOOM['lat1'], type=float)
 # color limits: leave as None to auto-pick from the data in the box
 p.add_argument('--smin', default=None, type=float)
 p.add_argument('--smax', default=None, type=float)
