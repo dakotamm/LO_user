@@ -1,12 +1,13 @@
 #!/bin/bash
 # Run on apogee. Zoomed Penn Cove BOTTOM salinity movie (+ tidal-phase SSH
-# panel) for wb1_t0_xn11abbur00, Dec 3-6 2025. Color range locked to 15-25,
-# matching the surface plot. Same zoom box / polygons as the surface version.
+# panel) for wb1_t0_xn11abbur00, Dec 3-6 2025. Color range AUTO-scaled from the
+# data (1st-99th pctile over the zoom box). Same zoom box / polygons as surface.
 # Calls the shared engine wb1_penncove_salinity.py with --bottom.
 #
 #   bash wb1_penncove_salinity_bottom.sh
 #
-# Extra args pass through, e.g.:
+# Extra args pass through, e.g. to force a range or overlay polygons:
+#   bash wb1_penncove_salinity_bottom.sh --smin 26 --smax 31
 #   bash wb1_penncove_salinity_bottom.sh --debug-polys
 set -euo pipefail
 
@@ -19,7 +20,7 @@ if command -v conda >/dev/null 2>&1; then
 fi
 conda activate loenv 2>/dev/null || echo "WARN: could not 'conda activate loenv' -- assuming the active env has the LO packages."
 
-python "$SCRIPT_DIR/wb1_penncove_salinity.py" --bottom --smin 15 --smax 25 "$@"
+python "$SCRIPT_DIR/wb1_penncove_salinity.py" --bottom "$@"
 
 OUTDIR="$PARENT/LO_output/plots/penncove_salt_bottom_wb1_t0_xn11abbur00"
 echo ""
