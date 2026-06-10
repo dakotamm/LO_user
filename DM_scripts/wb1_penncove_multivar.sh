@@ -1,7 +1,8 @@
 #!/bin/bash
-# Run on apogee. Three-panel zoomed Penn Cove movie (surface salinity, bottom
-# DO, hypoxic layer depth) + a shared Penn Cove SSH tidal-phase strip, for
-# wb1_t0_xn11abbur00, Sept 1-3 2025. Color ranges auto-scale per field.
+# Run on apogee. Four-panel zoomed Penn Cove movie (surface salinity [15-25],
+# bottom DO [threshold-demarcated colorbar, contours at 2 & 5 mg/L], DO<2 mg/L
+# layer depth, DO<5 mg/L layer depth) + obs station overlay + a shared Penn Cove
+# SSH tidal-phase strip, for wb1_t0_xn11abbur00, Sept 1-3 2025.
 # Output folder includes the date range. Calls wb1_penncove_multivar.py.
 #
 #   bash wb1_penncove_multivar.sh

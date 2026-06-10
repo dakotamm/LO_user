@@ -36,6 +36,7 @@ PENN_COVE_BOX = [-122.73, -122.60, 48.215, 48.250]   # lon0, lon1, lat0, lat1
 # DO / hypoxia conventions (match the obs/model DO scripts)
 DO_MMOL_TO_MGL = 32.0 / 1000.0   # mmol m-3 (uM) -> mg L-1
 HYPOXIC_MGL = 2.0                # hypoxic threshold
+LOWDO_MGL = 5.0                  # low-DO threshold (second layer-thickness panel)
 
 _EXCL = [MplPath(p) for p in EXCLUDE_POLYS]
 _INCL = [MplPath(p) for p in INCLUDE_POLYS]
