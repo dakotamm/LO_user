@@ -54,7 +54,7 @@ p.add_argument('--ds1',  default='2025.12.06')
 p.add_argument('--lt',   default='hourly0')            # clean hour-0 start on ds0
 # zoom box (Penn Cove / Saratoga Passage); edit to taste
 p.add_argument('--lon0', default=-122.78, type=float)
-p.add_argument('--lon1', default=-122.45, type=float)
+p.add_argument('--lon1', default=-122.40, type=float)
 p.add_argument('--lat0', default=48.15,  type=float)
 p.add_argument('--lat1', default=48.40,  type=float)
 # color limits: leave as None to auto-pick from the data in the box
@@ -65,7 +65,13 @@ p.add_argument('--keep-west', dest='exclude', action='store_false',
                help='do not mask the EXCLUDE_POLY region')
 p.add_argument('--debug-polys', dest='debug_polys', action='store_true',
                help='overlay exclude (red) / include (blue) polygons + fine grid')
+p.add_argument('--bottom', dest='bottom', action='store_true',
+               help='plot bottom salinity (s-level 0) instead of surface')
 args = p.parse_args()
+
+SLEV = 0 if args.bottom else -1          # ROMS: 0 = bottom, -1 = surface
+LABEL = 'Bottom' if args.bottom else 'Surface'
+OUTTAG = 'saltbot' if args.bottom else 'saltzoom'
 
 gridname, tag, ex_name = args.gtx.split('_')
 Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)
@@ -85,7 +91,7 @@ def get_surf_salt(fn):
     ds = xr.open_dataset(fn)
     lon = ds.lon_rho.values
     lat = ds.lat_rho.values
-    salt = ds.salt[0, -1, :, :].values            # ocean_time=0, top s-level
+    salt = ds.salt[0, SLEV, :, :].values          # ocean_time=0, SLEV s-level
     mask = ds.mask_rho.values
     salt = np.where(mask == 0, np.nan, salt)
     ds.close()
@@ -135,7 +141,7 @@ ssh_v = np.array(ssh_v)
 print('Penn Cove SSH range: %.2f to %.2f m' % (np.nanmin(ssh_v), np.nanmax(ssh_v)))
 
 # ---- output dir ------------------------------------------------------------
-outdir = Ldir['LOo'] / 'plots' / ('saltzoom_%s' % args.gtx)
+outdir = Ldir['LOo'] / 'plots' / ('%s_%s' % (OUTTAG, args.gtx))
 Lfun.make_dir(outdir, clean=True)
 
 # ---- plot every frame ------------------------------------------------------
@@ -163,7 +169,7 @@ for ii, fn in enumerate(fn_list):
             ys = [v[1] for v in poly] + [poly[0][1]]
             ax.plot(xs, ys, '-b', lw=1.2)
         ax.grid(True, lw=0.3, alpha=0.5)
-    ax.set_title('Surface Salinity $(g\\ kg^{-1})$')
+    ax.set_title('%s Salinity $(g\\ kg^{-1})$' % LABEL)
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     # SSH (tidal phase) panel
