@@ -20,17 +20,20 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path as MplPath
 from cmocean import cm
 
-# Cells inside this polygon (the red-circled western channel + bottom strip)
-# are removed before plotting AND before the color scale is computed.
-# Vertices are (lon, lat); edit to refine the cut. Disable with --keep-west.
-EXCLUDE_POLY = [
-    (-122.79, 48.41),
-    (-122.61, 48.41),
-    (-122.68, 48.33),
-    (-122.72, 48.27),
-    (-122.71, 48.20),
-    (-122.62, 48.155),
-    (-122.79, 48.145),
+# Cells inside any EXCLUDE polygon are removed before plotting AND before the
+# color scale is computed -- UNLESS they also fall inside an INCLUDE polygon,
+# which wins (used to add specific cells back). Vertices are (lon, lat).
+# Disable all of this with --keep-west.
+EXCLUDE_POLYS = [
+    # western channel west of Whidbey
+    [(-122.79, 48.41), (-122.61, 48.41), (-122.68, 48.33),
+     (-122.72, 48.27), (-122.71, 48.20), (-122.62, 48.155), (-122.79, 48.145)],
+    # bottom yellow strip (red circle)
+    [(-122.71, 48.165), (-122.59, 48.165), (-122.59, 48.143), (-122.71, 48.143)],
+]
+INCLUDE_POLYS = [
+    # western tip of Penn Cove to add back (blue circle)
+    [(-122.755, 48.205), (-122.70, 48.205), (-122.70, 48.25), (-122.755, 48.25)],
 ]
 
 from lo_tools import Lfun
@@ -60,7 +63,8 @@ gridname, tag, ex_name = args.gtx.split('_')
 Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)
 Ldir['roms_out'] = Ldir['roms_out' + str(args.ro)]
 aa = [args.lon0, args.lon1, args.lat0, args.lat1]
-expath = MplPath(EXCLUDE_POLY) if args.exclude else None
+excl_paths = [MplPath(p) for p in EXCLUDE_POLYS] if args.exclude else []
+incl_paths = [MplPath(p) for p in INCLUDE_POLYS] if args.exclude else []
 
 fn_list = Lfun.get_fn_list(args.lt, Ldir, args.ds0, args.ds1)
 fn_list = [fn for fn in fn_list if fn.is_file()]
@@ -77,10 +81,14 @@ def get_surf_salt(fn):
     mask = ds.mask_rho.values
     salt = np.where(mask == 0, np.nan, salt)
     ds.close()
-    if expath is not None:
+    if excl_paths:
         pts = np.column_stack([lon.ravel(), lat.ravel()])
-        inside = expath.contains_points(pts).reshape(lon.shape)
-        salt = np.where(inside, np.nan, salt)
+        remove = np.zeros(lon.size, dtype=bool)
+        for ep in excl_paths:
+            remove |= ep.contains_points(pts)
+        for ip in incl_paths:
+            remove &= ~ip.contains_points(pts)
+        salt = np.where(remove.reshape(lon.shape), np.nan, salt)
     inbox = (lon >= aa[0]) & (lon <= aa[1]) & (lat >= aa[2]) & (lat <= aa[3])
     return lon, lat, salt, inbox
 
