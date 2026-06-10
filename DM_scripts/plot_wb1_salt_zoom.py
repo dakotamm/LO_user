@@ -13,10 +13,12 @@ Run on apogee inside loenv, e.g.:
 import argparse
 import subprocess
 import numpy as np
+import pandas as pd
 import xarray as xr
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from matplotlib.path import Path as MplPath
 from cmocean import cm
 
@@ -37,6 +39,8 @@ INCLUDE_POLYS = [
     # western edge + neck of Penn Cove to add back (blue circle)
     [(-122.732, 48.210), (-122.683, 48.210), (-122.683, 48.248), (-122.732, 48.248)],
 ]
+# Box over which SSH (zeta) is averaged for the tidal-phase timeseries panel.
+PENN_COVE_BOX = [-122.73, -122.60, 48.215, 48.250]   # lon0, lon1, lat0, lat1
 
 from lo_tools import Lfun
 from lo_tools import plotting_functions as pfun
@@ -112,6 +116,24 @@ else:
     smax = np.ceil(np.nanpercentile(vals, 99))
 print('salinity color range: %.1f to %.1f' % (smin, smax))
 
+# ---- Penn Cove SSH timeseries (tidal phase) --------------------------------
+pcb = PENN_COVE_BOX
+ssh_t, ssh_v = [], []
+for fn in fn_list:
+    ds = xr.open_dataset(fn)
+    lon = ds.lon_rho.values
+    lat = ds.lat_rho.values
+    zeta = ds.zeta[0, :, :].values
+    mask = ds.mask_rho.values
+    inbox = ((lon >= pcb[0]) & (lon <= pcb[1]) &
+             (lat >= pcb[2]) & (lat <= pcb[3]) & (mask == 1))
+    ssh_v.append(np.nanmean(np.where(inbox, zeta, np.nan)))
+    t_utc = pd.Timestamp(ds.ocean_time.values[0]).to_pydatetime()
+    ssh_t.append(pfun.get_dt_local(t_utc).replace(tzinfo=None))  # naive local (PST)
+    ds.close()
+ssh_v = np.array(ssh_v)
+print('Penn Cove SSH range: %.2f to %.2f m' % (np.nanmin(ssh_v), np.nanmax(ssh_v)))
+
 # ---- output dir ------------------------------------------------------------
 outdir = Ldir['LOo'] / 'plots' / ('saltzoom_%s' % args.gtx)
 Lfun.make_dir(outdir, clean=True)
@@ -120,8 +142,11 @@ Lfun.make_dir(outdir, clean=True)
 for ii, fn in enumerate(fn_list):
     lon, lat, salt, _ = get_surf_salt(fn)
     plon, plat = pfun.get_plon_plat(lon, lat)
-    pfun.start_plot(fs=14, figsize=(9, 10))
-    fig, ax = plt.subplots(1, 1)
+    pfun.start_plot(fs=14, figsize=(9, 11))
+    fig = plt.figure()
+    gs = fig.add_gridspec(5, 1, hspace=0.35)
+    ax = fig.add_subplot(gs[0:4, 0])    # map
+    axt = fig.add_subplot(gs[4, 0])     # SSH timeseries
     cs = ax.pcolormesh(plon, plat, salt, cmap=cm.haline, vmin=smin, vmax=smax)
     fig.colorbar(cs, ax=ax)
     pfun.add_coast(ax)
@@ -141,6 +166,18 @@ for ii, fn in enumerate(fn_list):
     ax.set_title('Surface Salinity $(g\\ kg^{-1})$')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
+    # SSH (tidal phase) panel
+    axt.plot(ssh_t, ssh_v, '-', color='tab:blue', lw=1)
+    axt.plot(ssh_t[ii], ssh_v[ii], 'o', color='red', ms=8, zorder=5)
+    axt.axhline(0, color='gray', lw=0.5)
+    axt.set_xlim(ssh_t[0], ssh_t[-1])
+    axt.set_ylabel('Penn Cove\nSSH (m)')
+    axt.set_title('Tidal phase', fontsize=11)
+    axt.grid(True, lw=0.3, alpha=0.5)
+    axt.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+    for lab in axt.get_xticklabels():
+        lab.set_rotation(30)
+        lab.set_horizontalalignment('right')
     fig.tight_layout()
     fig.savefig(outdir / ('plot_%04d.png' % (ii + 1)), dpi=100)
     plt.close(fig)
