@@ -113,8 +113,11 @@ def load_obs_stations(ds0, ds1, sources, otype='all'):
         obs = pickle.load(open(fn, 'rb'))['obs']
         if len(obs) == 0 or 'DO (uM)' not in obs.columns:
             continue
-        sub = obs[obs['source'].isin(sources)].dropna(subset=['DO (uM)'])
-        sub = sub[(sub['time'] >= t0) & (sub['time'] < t1)]
+        sub = obs[obs['source'].isin(sources)].dropna(subset=['DO (uM)']).copy()
+        tt = pd.to_datetime(sub['time'], errors='coerce')
+        if tt.dt.tz is not None:                 # obs times may be tz-aware
+            tt = tt.dt.tz_localize(None)
+        sub = sub[(tt >= t0) & (tt < t1)]
         if len(sub):
             recs.append(sub[['cid', 'lon', 'lat', 'name', 'DO (uM)']])
     if not recs:
