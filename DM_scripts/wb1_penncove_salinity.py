@@ -1,14 +1,14 @@
 """
-Zoomed surface-salinity frames + movie for the wb1_t0_xn11abbur00 run.
+Shared engine: zoomed Penn Cove salinity frames + movie (+ Penn Cove SSH
+tidal-phase panel) for the wb1_t0_xn11abbur00 run.
 
-Standalone (does not use pan_plot) so we can set a custom map extent and a
-fixed, data-appropriate salinity color scale. Defaults target the Penn Cove /
-Saratoga Passage region; override on the command line as needed.
-
-Run on apogee inside loenv, e.g.:
-    python plot_wb1_salt_zoom.py
-    python plot_wb1_salt_zoom.py --lon0 -122.78 --lon1 -122.45 --lat0 48.15 --lat1 48.40
-    python plot_wb1_salt_zoom.py --smin 20 --smax 30   # force the color range
+Surface by default; pass --bottom for bottom salinity. Standalone (does not use
+pan_plot) so we can set a custom map extent and a fixed color scale. Usually run
+via the wrappers wb1_penncove_salinity_surface.sh / _bottom.sh, but callable
+directly, e.g.:
+    python wb1_penncove_salinity.py --smin 15 --smax 25
+    python wb1_penncove_salinity.py --bottom --smin 15 --smax 25
+    python wb1_penncove_salinity.py --lon0 -122.78 --lon1 -122.40 --lat0 48.15 --lat1 48.40
 """
 import argparse
 import subprocess
@@ -71,7 +71,7 @@ args = p.parse_args()
 
 SLEV = 0 if args.bottom else -1          # ROMS: 0 = bottom, -1 = surface
 LABEL = 'Bottom' if args.bottom else 'Surface'
-OUTTAG = 'saltbot' if args.bottom else 'saltzoom'
+OUTTAG = 'penncove_salt_bottom' if args.bottom else 'penncove_salt_surface'
 
 gridname, tag, ex_name = args.gtx.split('_')
 Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)

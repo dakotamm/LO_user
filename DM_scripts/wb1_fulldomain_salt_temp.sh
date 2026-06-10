@@ -1,8 +1,9 @@
 #!/bin/bash
-# Run on apogee. Makes an hourly surface salt+temp movie for the
-# wb1_t0_xn11abbur00 run, Dec 3-6 2025, then prints where it landed.
+# Run on apogee. Full wb1 DOMAIN hourly surface salt+temp movie (via pan_plot)
+# for the wb1_t0_xn11abbur00 run, Dec 3-6 2025, then prints where it landed.
+# (The Penn Cove zoomed salinity plots are the separate wb1_penncove_* scripts.)
 #
-#   bash plot_wb1_surface_salt.sh
+#   bash wb1_fulldomain_salt_temp.sh
 #
 set -euo pipefail
 
