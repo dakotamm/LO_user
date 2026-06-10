@@ -34,7 +34,8 @@ EXCLUDE_POLYS = [
     [(-122.775, 48.188), (-122.708, 48.188), (-122.708, 48.232), (-122.775, 48.232)],
 ]
 INCLUDE_POLYS = [
-    # (none) -- western tip of Penn Cove removed again
+    # green neck into Penn Cove to add back (blue circle)
+    [(-122.717, 48.210), (-122.683, 48.210), (-122.683, 48.248), (-122.717, 48.248)],
 ]
 
 from lo_tools import Lfun
