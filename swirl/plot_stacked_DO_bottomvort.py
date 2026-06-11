@@ -1,20 +1,20 @@
-"""Stacked time series of bottom DO and per-layer max |zeta_vort| about
-event_start for each (merged) hypoxia event at M1.
+"""Stacked time series of bottom DO and BOTTOM max |zeta_vort| about
+event_start, for hypoxia events 12 (merged 1+2) and 3 at M1.
 
-Panels:
+A trimmed version of plot_stacked_DO_vort_layers.py keeping only:
   1. M1 bottom DO  [mg/L]
-  2. Daily max |zeta_vort| at SURFACE       [1e-5 s^-1]
-  3. Daily max |zeta_vort| at DEPTH-AVG     [1e-5 s^-1]
-  4. Daily max |zeta_vort| at BOTTOM        [1e-5 s^-1]
+  2. Daily max |zeta_vort| at BOTTOM  [1e-5 s^-1]
 
-x-axis = days from event_start (day 0).  One curve per event, color-coded.
-Events 1 and 2 are merged.
+x-axis = days from event_start (day 0).  One curve per event. No panel
+letters. Styling follows Mascarenas et al. 2026 R1 (transparent, lightgray
+dashed grid, frameless legend, dpi=500).
 """
 import os, glob
 import numpy as np
 import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 # --- paper styling (Mascarenas et al. 2026 R1) ---
 RED = '#e04256'
@@ -25,7 +25,7 @@ ROOT = os.path.expanduser('~/LO_output/swirl/wb1_r0_xn11b')
 HE = f'{ROOT}/hypoxia_events'
 MOOR = os.path.expanduser(
     '~/LO_output/extract/wb1_r0_xn11b/moor/pc0/M1_2017.01.02_2017.12.30.nc')
-OUT = f'{HE}/_analysis_stacked_DO_vort_layers.png'
+OUT = f'{HE}/_analysis_stacked_DO_bottomvort.png'
 
 # --- Events (merge 1+2) ---
 raw = pd.read_csv(f'{ROOT}/hypoxia_events_M1_2017.csv',
@@ -52,7 +52,7 @@ do = pd.Series(ds.oxygen.values[:,0] * 32.0/1000.0,
                name='do')
 ds.close()
 
-# --- Per-layer daily max |zeta_vort| for an event ---
+# --- Daily max |zeta_vort| at BOTTOM for an event ---
 def daily_max_vort(ev, layer):
     parts = []
     for d in ev['src_dirs']:
@@ -67,27 +67,20 @@ def daily_max_vort(ev, layer):
         lambda s: np.abs(s).max()).sort_index()
 
 # --- Build stacked dataframe ---
-LAYERS = ['surface','depth_avg','bottom']
 rows = []
 for ev in events:
     idx = pd.date_range(ev['lead_start'], ev['window_end'], freq='D')
-    per_layer = {L: daily_max_vort(ev, L).reindex(idx).fillna(0.0)
-                 for L in LAYERS}
+    bottom = daily_max_vort(ev, 'bottom').reindex(idx).fillna(0.0)
     for d in idx:
-        r = (d - ev['event_start']).days
-        rec = dict(event=int(ev['event_id']), day=d, rel_day=r,
-                   do=do.get(d, np.nan))
-        for L in LAYERS:
-            rec[L] = per_layer[L].loc[d]
-        rows.append(rec)
+        rows.append(dict(event=int(ev['event_id']), day=d,
+                         rel_day=(d - ev['event_start']).days,
+                         do=do.get(d, np.nan), bottom=bottom.loc[d]))
 stk = pd.DataFrame(rows)
 
 # --- Plot ---
-fig, axes = plt.subplots(4, 1, figsize=(11, 10), sharex=True,
+fig, axes = plt.subplots(2, 1, figsize=(11, 5.5), sharex=True,
                          gridspec_kw=dict(hspace=0.18))
 colors = {12: RED, 3: BLUE}
-
-# relative-day position of each event's end
 event_end_rel = {int(ev['event_id']):
                  (ev['event_end'] - ev['event_start']).days
                  for ev in events}
@@ -104,38 +97,23 @@ for eid, rd in event_end_rel.items():
     ax.axvline(rd, color=colors[eid], ls=':', lw=1.2, alpha=0.8)
 ax.set_ylabel('M1 bottom DO  [mg L$^{-1}$]')
 ax.legend(loc='upper right', fontsize=9, ncol=3, frameon=False)
-ax.set_axisbelow(True)
-ax.grid(**GRID_KW)
-ax.text(0.01, 0.95, 'a', transform=ax.transAxes, fontsize=14,
-        fontweight='bold', color='k', va='top', ha='left')
-ax.set_title('Stacked: bottom DO and per-layer max |$\\zeta_{vort}$| about event_start')
+ax.set_axisbelow(True); ax.grid(**GRID_KW)
+ax.set_title('Stacked: bottom DO and BOTTOM max |$\\zeta_{vort}$| about event_start')
 
-# Panels 2-4: per-layer max |zeta_vort|
-panel_labels = {
-    'surface':   'SURFACE\nmax |$\\zeta_{vort}$|\n[10$^{-5}$ s$^{-1}$]',
-    'depth_avg': 'DEPTH-AVG\nmax |$\\zeta_{vort}$|\n[10$^{-5}$ s$^{-1}$]',
-    'bottom':    'BOTTOM\nmax |$\\zeta_{vort}$|\n[10$^{-5}$ s$^{-1}$]',
-}
-for ax, L, letter in zip(axes[1:], LAYERS, ['b', 'c', 'd']):
-    for eid, sub in stk.groupby('event'):
-        sub = sub.sort_values('rel_day')
-        ax.plot(sub.rel_day, sub[L].values * 1e5, '-o', ms=4,
-                color=colors[eid], label=f'event {eid}')
-    ax.axvline(0, color='gray', ls='--', lw=1)
-    for eid, rd in event_end_rel.items():
-        ax.axvline(rd, color=colors[eid], ls=':', lw=1.2, alpha=0.8)
-    ax.set_ylabel(panel_labels[L])
-    ax.set_axisbelow(True)
-    ax.grid(**GRID_KW)
-    ax.text(0.01, 0.95, letter, transform=ax.transAxes, fontsize=14,
-            fontweight='bold', color='k', va='top', ha='left')
+# Panel 2: BOTTOM max |zeta_vort|
+ax = axes[1]
+for eid, sub in stk.groupby('event'):
+    sub = sub.sort_values('rel_day')
+    ax.plot(sub.rel_day, sub['bottom'].values * 1e5, '-o', ms=4,
+            color=colors[eid], label=f'event {eid}')
+ax.axvline(0, color='gray', ls='--', lw=1)
+for eid, rd in event_end_rel.items():
+    ax.axvline(rd, color=colors[eid], ls=':', lw=1.2, alpha=0.8)
+ax.set_ylabel('BOTTOM\nmax |$\\zeta_{vort}$|\n[10$^{-5}$ s$^{-1}$]')
+ax.set_axisbelow(True); ax.grid(**GRID_KW)
 
 axes[-1].set_xlabel('days from event_start (dashed=start, dotted=end per event)')
 fig.align_ylabels(axes)
-
-# prune top/bottom tick labels on shared-x stack so adjacent panels' y-tick
-# labels don't crowd at the panel boundaries.
-from matplotlib.ticker import MaxNLocator
 for ax in axes:
     ax.yaxis.set_major_locator(MaxNLocator(nbins=5, prune='both'))
 

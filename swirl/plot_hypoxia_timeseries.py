@@ -18,6 +18,11 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+# --- paper styling (Mascarenas et al. 2026 R1) ---
+RED = '#e04256'
+BLUE = '#4565e8'
+GRID_KW = dict(color='lightgray', linestyle='--', alpha=0.5)
+
 ROOT = os.path.expanduser('~/LO_output/swirl/wb1_r0_xn11b')
 HE = f'{ROOT}/hypoxia_events'
 MOOR = os.path.expanduser(
@@ -136,21 +141,23 @@ ax.set_title('M1 stratification, DO, SSH, and vortex strength '
 ax = axes[1]
 drho_S = beta  * rho0 * dsalt   # bot-top salinity contribution
 drho_T = alpha * rho0 * dtemp   # top-bot temperature contribution (warm top = stable)
-ax.plot(mt, drho_S, 'b-', lw=1.2, label=r'$\beta\rho_0\Delta S$ (salinity)')
-ax.plot(mt, drho_T, 'r-', lw=1.2, label=r'$\alpha\rho_0\Delta T$ (temperature)')
+ax.plot(mt, drho_S, '-', color=BLUE, lw=1.2,
+        label=r'$\beta\rho_0\Delta S$ (salinity)')
+ax.plot(mt, drho_T, '-', color=RED, lw=1.2,
+        label=r'$\alpha\rho_0\Delta T$ (temperature)')
 ax.plot(mt, drho_S + drho_T, 'k--', lw=0.8, alpha=0.7,
         label='sum (= Δρ, panel 1)')
 ax.axhline(0, color='gray', lw=0.5)
 ax.set_ylabel(r'contribution to $\Delta\rho$  [kg m$^{-3}$]')
-ax.legend(loc='upper right', fontsize=9, ncol=3)
+ax.legend(loc='upper right', fontsize=9, ncol=3, frameon=False)
 
 # Panel 3: DO
 ax = axes[2]
-ax.plot(mt, do_top, color='tab:orange', lw=1.2, label='top')
-ax.plot(mt, do_bot, color='tab:blue',   lw=1.2, label='bottom')
+ax.plot(mt, do_top, color=RED,  lw=1.2, label='top')
+ax.plot(mt, do_bot, color=BLUE, lw=1.2, label='bottom')
 ax.axhline(2.0, color='k', ls=':', lw=1, label='2 mg/L')
 ax.set_ylabel('DO  [mg L$^{-1}$]')
-ax.legend(loc='upper right', fontsize=9, ncol=3)
+ax.legend(loc='upper right', fontsize=9, ncol=3, frameon=False)
 
 # Panel 4: SSH with tide-phase markers
 ax = axes[3]
@@ -172,7 +179,8 @@ handles = [
     Patch(facecolor='tan', alpha=0.9, label='hypoxia lead-up (ribbon)'),
     Patch(facecolor='firebrick', alpha=0.9, label='hypoxia event (ribbon)'),
 ]
-ax.legend(handles=handles, loc='upper right', fontsize=8, ncol=3)
+ax.legend(handles=handles, loc='upper right', fontsize=8, ncol=3,
+          frameon=False)
 
 # Panel 5: per-layer max |zeta_vort|
 ax = axes[4]
@@ -183,7 +191,7 @@ for L, s in vort_layers.items():
             color=colors[L], label=L)
 ax.set_ylabel(r'daily max $|\zeta_{vort}|$ [$10^{-5}$ s$^{-1}$]')
 ax.set_xlabel('2017')
-ax.legend(loc='upper right', fontsize=9, ncol=3)
+ax.legend(loc='upper right', fontsize=9, ncol=3, frameon=False)
 
 # Mark events on every panel: thin ribbon at TOP edge of each axes
 # (tan = lead-up, dark-red = event), plus vertical dotted lines at
@@ -191,7 +199,11 @@ ax.legend(loc='upper right', fontsize=9, ncol=3)
 # Background event fill is omitted so it doesn't collide with spring/neap
 # shading on the SSH panel.
 from matplotlib.transforms import blended_transform_factory
-for ax in axes:
+for i, ax in enumerate(axes):
+    ax.set_axisbelow(True)
+    ax.grid(**GRID_KW)
+    ax.text(0.005, 0.95, 'abcde'[i], transform=ax.transAxes, fontsize=14,
+            fontweight='bold', color='k', va='top', ha='left')
     tr = blended_transform_factory(ax.transData, ax.transAxes)
     for ev in events:
         ax.axvline(ev['event_start'], color='k', ls=':', lw=0.8, alpha=0.6)
@@ -208,5 +220,5 @@ axes[-1].xaxis.set_major_locator(mdates.MonthLocator())
 axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%b'))
 axes[-1].set_xlim(TMIN, TMAX)
 
-fig.savefig(OUT, dpi=150, bbox_inches='tight')
+fig.savefig(OUT, dpi=500, bbox_inches='tight', transparent=True)
 print(f'Wrote {OUT}')
