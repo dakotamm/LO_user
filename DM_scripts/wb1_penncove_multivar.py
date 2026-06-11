@@ -268,10 +268,11 @@ def render_frame(item):
         if jj == 0:
             ax.set_ylabel('Latitude')
             pfun.add_info(ax, fn)
-            if obs_stn is not None and len(obs_stn):
-                ax.legend(loc='lower left', fontsize=7, framealpha=0.7)
         else:
             ax.set_yticklabels([])
+        # legend on the 4th panel (its lower-left is empty), away from panel 1 labels
+        if jj == 3 and obs_stn is not None and len(obs_stn):
+            ax.legend(loc='lower left', fontsize=7, framealpha=0.7)
     # SSH (tidal phase) strip spanning all four panels
     axt = fig.add_subplot(gs[1, :])
     axt.plot(ssh_t, ssh_v, '-', color='tab:blue', lw=1)
