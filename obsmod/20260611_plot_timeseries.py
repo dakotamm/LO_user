@@ -75,9 +75,13 @@ def load_model():
         lon = float(np.atleast_1d(ds['lon_rho'].values)[0])
         lat = float(np.atleast_1d(ds['lat_rho'].values)[0])
         SA, CT = vf.model_SA_CT(ds, lon, lat)        # (time, s_rho)
+        zr = ds['z_rho'].values                      # (time, s_rho), ascending
         levels = {'bottom': 0, 'surface': -1}
         rec = {'time': pd.to_datetime(ds['ocean_time'].values),
-               'bottom': {}, 'surface': {}}
+               'bottom': {}, 'surface': {},
+               # mean depth of the sampled sigma layer (m, negative)
+               'mdepth': {lev: float(np.nanmean(zr[:, k]))
+                          for lev, k in levels.items()}}
         for vn in vf.VARS:
             arr = vf.model_var(ds, vn, SA=SA, CT=CT)
             if arr is None:
@@ -115,18 +119,19 @@ def load_obs():
 
 def obs_points(obs, station, vn, level):
     """Bottom/surface obs points for one station/variable: per cast take the
-    deepest (bottom) or shallowest (surface) finite sample. Returns (time, val)."""
+    deepest (bottom) or shallowest (surface) finite sample.
+    Returns (time, val, z) arrays."""
     if vn not in obs.columns:
-        return np.array([]), np.array([])
+        return np.array([]), np.array([]), np.array([])
     sdf = obs[(obs['station'] == station) & np.isfinite(obs[vn])]
     if len(sdf) == 0:
-        return np.array([]), np.array([])
-    times, vals = [], []
+        return np.array([]), np.array([]), np.array([])
+    times, vals, zs = [], [], []
     for _, g in sdf.groupby('cast'):
         row = g.loc[g['z'].idxmin()] if level == 'bottom' else g.loc[g['z'].idxmax()]
-        times.append(row['time']); vals.append(row[vn])
+        times.append(row['time']); vals.append(row[vn]); zs.append(row['z'])
     order = np.argsort(times)
-    return np.array(times)[order], np.array(vals)[order]
+    return np.array(times)[order], np.array(vals)[order], np.array(zs)[order]
 
 
 # ---- main --------------------------------------------------------------------
@@ -157,9 +162,18 @@ for level in ['bottom', 'surface']:
                 rec = model[station]
                 ax.plot(rec['time'], rec[level][vn], '-', color='tab:red',
                         lw=1.2, label='model (lowpass)')
-                ot, ov = obs_points(obs, station, vn, level)
+                ot, ov, oz = obs_points(obs, station, vn, level)
                 if len(ot) > 0:
                     ax.plot(ot, ov, 'o', color='k', ms=5, label='obs')
+                # depth annotation: mean model layer depth vs mean obs sample depth
+                mdz = rec['mdepth'][level]
+                odz = np.nanmean(oz) if len(oz) > 0 else np.nan
+                dz_str = 'model z=%.1f m' % mdz
+                if np.isfinite(odz):
+                    dz_str += ', obs z=%.1f m' % odz
+                ax.text(.99, .04, dz_str, transform=ax.transAxes,
+                        ha='right', va='bottom', fontsize=7, style='italic',
+                        color='dimgray')
                 ax.set_ylabel(vn, fontsize=8)
                 ax.grid(True, alpha=0.3)
                 ax.text(.01, .85, station, transform=ax.transAxes,

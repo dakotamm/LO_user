@@ -20,8 +20,7 @@ SOURCES = {
 # Variables to plot.  For each: display name, obs column, and how to pull the
 # model value out of a cast/mooring xarray Dataset (function of the Dataset).
 # Model 'salt'/'temp' are handled specially (converted to SA/CT with gsw).
-VARS = ['SA', 'CT', 'DO (uM)', 'NO3 (uM)', 'NH4 (uM)', 'DIN (uM)',
-        'Chl (mg m-3)', 'TA (uM)', 'DIC (uM)']
+VARS = ['SA', 'CT', 'DO (uM)']
 
 # model data_var name for each display variable (None => derived / special)
 MOD_VARNAME = {
