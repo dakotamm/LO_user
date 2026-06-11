@@ -241,9 +241,9 @@ def render_frame(item):
     lon, lat, ss, dd, hh, ll, _ = get_fields(fn)
     plon, plat = pfun.get_plon_plat(lon, lat)
     fields = {'salt': ss, 'do': dd, 'hyp': hh, 'low': ll}
-    pfun.start_plot(fs=12, figsize=(18, 6.5))
+    pfun.start_plot(fs=12, figsize=(18, 5.6))
     fig = plt.figure()
-    gs = fig.add_gridspec(2, 4, height_ratios=[3.6, 1])
+    gs = fig.add_gridspec(2, 4, height_ratios=[3.3, 1])
     for jj, P in enumerate(panels):
         ax = fig.add_subplot(gs[0, jj])
         fld = fields[P['key']]
@@ -253,7 +253,7 @@ def render_frame(item):
             cs = ax.pcolormesh(plon, plat, fld, cmap=P['cmap'],
                                vmin=P['vmin'], vmax=P['vmax'])
         # colorbar appended to the map's right edge so it hugs the (dar) map
-        cax = make_axes_locatable(ax).append_axes('right', size='4%', pad=0.08)
+        cax = make_axes_locatable(ax).append_axes('right', size='4%', pad=0.05)
         fig.colorbar(cs, cax=cax, ticks=P.get('ticks'))
         if P.get('contours'):
             cc = ax.contour(lon, lat, fld, levels=P['contours'],
@@ -286,8 +286,8 @@ def render_frame(item):
         lab.set_rotation(30)
         lab.set_horizontalalignment('right')
     # manual margins (make_axes_locatable colorbars don't mix with layout engines)
-    fig.subplots_adjust(left=0.04, right=0.995, top=0.94, bottom=0.12,
-                        wspace=0.10, hspace=0.22)
+    fig.subplots_adjust(left=0.04, right=0.995, top=0.95, bottom=0.13,
+                        wspace=0.10, hspace=0.28)
     fig.savefig(outdir / ('plot_%04d.png' % (ii + 1)), dpi=100)
     plt.close(fig)
     pfun.end_plot()
