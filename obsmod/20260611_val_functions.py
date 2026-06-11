@@ -6,8 +6,8 @@ Shared helpers for the 2026.06.11 KC + Ecology obs-model validation scripts
 import numpy as np
 import gsw
 
-# date string used for the output folder and for matching mooring extractions
-DATE_STR = '2026.06.11'
+# name of the dated figure output folder
+OUT_FOLDER = '20260611_kcecology_compare'
 DEFAULT_GTX = 'wb1_t0_xn11abbur00'
 MOOR_JOB = 'KCEcology_2024_2025'
 
@@ -41,7 +41,7 @@ LIMS = {
 
 def out_dir(Ldir):
     """Dated output folder for figures."""
-    return Ldir['LOo'] / 'obsmod_val_plots' / DATE_STR
+    return Ldir['LOo'] / 'obsmod_val_plots' / OUT_FOLDER
 
 
 def model_SA_CT(ds, lon, lat):
