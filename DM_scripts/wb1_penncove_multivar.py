@@ -25,6 +25,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.colors import BoundaryNorm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from cmocean import cm
 
 from lo_tools import Lfun, zrfun
@@ -238,10 +239,8 @@ def render_frame(item):
     lon, lat, ss, dd, hh, ll, _ = get_fields(fn)
     plon, plat = pfun.get_plon_plat(lon, lat)
     fields = {'salt': ss, 'do': dd, 'hyp': hh, 'low': ll}
-    pfun.start_plot(fs=12, figsize=(19, 6.5))
-    # 'compressed' packs the fixed-aspect (dar) maps together so colorbars hug
-    # them, instead of constrained_layout's big map-to-colorbar gaps.
-    fig = plt.figure(layout='compressed')
+    pfun.start_plot(fs=12, figsize=(19, 7))
+    fig = plt.figure()
     gs = fig.add_gridspec(2, 4, height_ratios=[4, 1])
     for jj, P in enumerate(panels):
         ax = fig.add_subplot(gs[0, jj])
@@ -251,7 +250,9 @@ def render_frame(item):
         else:
             cs = ax.pcolormesh(plon, plat, fld, cmap=P['cmap'],
                                vmin=P['vmin'], vmax=P['vmax'])
-        fig.colorbar(cs, ax=ax, ticks=P.get('ticks'), aspect=30, pad=0.02)
+        # colorbar appended to the map's right edge so it hugs the (dar) map
+        cax = make_axes_locatable(ax).append_axes('right', size='4%', pad=0.08)
+        fig.colorbar(cs, cax=cax, ticks=P.get('ticks'))
         if P.get('contours'):
             cc = ax.contour(lon, lat, fld, levels=P['contours'],
                             colors=['red', 'gold'], linewidths=1.3, zorder=4)
@@ -282,7 +283,9 @@ def render_frame(item):
     for lab in axt.get_xticklabels():
         lab.set_rotation(30)
         lab.set_horizontalalignment('right')
-    # constrained_layout (set on the figure) handles spacing; no tight_layout
+    # manual margins (make_axes_locatable colorbars don't mix with layout engines)
+    fig.subplots_adjust(left=0.05, right=0.99, top=0.92, bottom=0.13,
+                        wspace=0.22, hspace=0.32)
     fig.savefig(outdir / ('plot_%04d.png' % (ii + 1)), dpi=100)
     plt.close(fig)
     pfun.end_plot()
