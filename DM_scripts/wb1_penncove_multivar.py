@@ -239,7 +239,9 @@ def render_frame(item):
     plon, plat = pfun.get_plon_plat(lon, lat)
     fields = {'salt': ss, 'do': dd, 'hyp': hh, 'low': ll}
     pfun.start_plot(fs=12, figsize=(19, 6.5))
-    fig = plt.figure(constrained_layout=True)
+    # 'compressed' packs the fixed-aspect (dar) maps together so colorbars hug
+    # them, instead of constrained_layout's big map-to-colorbar gaps.
+    fig = plt.figure(layout='compressed')
     gs = fig.add_gridspec(2, 4, height_ratios=[4, 1])
     for jj, P in enumerate(panels):
         ax = fig.add_subplot(gs[0, jj])
@@ -249,8 +251,7 @@ def render_frame(item):
         else:
             cs = ax.pcolormesh(plon, plat, fld, cmap=P['cmap'],
                                vmin=P['vmin'], vmax=P['vmax'])
-        fig.colorbar(cs, ax=ax, ticks=P.get('ticks'),
-                     shrink=0.8, aspect=25, pad=0.02)
+        fig.colorbar(cs, ax=ax, ticks=P.get('ticks'), aspect=30, pad=0.02)
         if P.get('contours'):
             cc = ax.contour(lon, lat, fld, levels=P['contours'],
                             colors=['red', 'gold'], linewidths=1.3, zorder=4)
