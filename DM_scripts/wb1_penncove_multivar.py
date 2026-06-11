@@ -112,8 +112,10 @@ def load_obs_stations(ds0, ds1, sources, otype='all'):
     ds0-ds1 window and the zoom box. A cast is hypoxic if any depth < 2 mg/L.
     Returns a DataFrame [station, lon, lat, hyp(bool), n_casts] or None."""
     hyp_uM = HYPOXIC_MGL / DO_MMOL_TO_MGL          # 2 mg/L = 62.5 uM
-    t0 = datetime.strptime(ds0, '%Y.%m.%d')
-    t1 = datetime.strptime(ds1, '%Y.%m.%d') + timedelta(days=1)   # inclusive end day
+    # UTC bounds: the combined 'time' column is mixed tz (ecology tz-naive,
+    # kc tz-aware UTC), so we coerce everything to UTC with to_datetime(utc=True).
+    t0 = pd.Timestamp(datetime.strptime(ds0, '%Y.%m.%d'), tz='UTC')
+    t1 = pd.Timestamp(datetime.strptime(ds1, '%Y.%m.%d'), tz='UTC') + timedelta(days=1)
     year = t0.year
     otypes = ['bottle', 'ctd'] if otype == 'all' else [otype]
     recs = []
@@ -128,10 +130,8 @@ def load_obs_stations(ds0, ds1, sources, otype='all'):
         if len(obs) == 0 or 'DO (uM)' not in obs.columns:
             continue
         s = obs[obs['source'].isin(sources)].dropna(subset=['DO (uM)']).copy()
-        tt = pd.to_datetime(s['time'], errors='coerce')
-        if tt.dt.tz is not None:                 # obs times may be tz-aware
-            tt = tt.dt.tz_localize(None)
-        s = s[(tt >= t0) & (tt < t1)]
+        tt = pd.to_datetime(s['time'], errors='coerce', utc=True)
+        s = s[((tt >= t0) & (tt < t1)).to_numpy()]
         print('     %d rows after source %s + DO + %s..%s window'
               % (len(s), sources, ds0, ds1))
         if len(s):
