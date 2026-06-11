@@ -286,7 +286,7 @@ def render_frame(item):
         lab.set_rotation(30)
         lab.set_horizontalalignment('right')
     # manual margins (make_axes_locatable colorbars don't mix with layout engines)
-    fig.subplots_adjust(left=0.04, right=0.995, top=0.95, bottom=0.13,
+    fig.subplots_adjust(left=0.04, right=0.95, top=0.95, bottom=0.13,
                         wspace=0.10, hspace=0.28)
     fig.savefig(outdir / ('plot_%04d.png' % (ii + 1)), dpi=100)
     plt.close(fig)
