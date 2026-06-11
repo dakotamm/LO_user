@@ -62,6 +62,13 @@ Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)
 Ldir['roms_out'] = Ldir['roms_out' + str(args.ro)]
 aa = [args.lon0, args.lon1, args.lat0, args.lat1]
 
+for label, dsx in [('--ds0', args.ds0), ('--ds1', args.ds1)]:
+    try:
+        datetime.strptime(dsx, '%Y.%m.%d')
+    except ValueError:
+        raise SystemExit('Invalid %s value %r -- use YYYY.MM.DD with a real '
+                         'calendar day (e.g. Sept has 30 days).' % (label, dsx))
+
 fn_list = Lfun.get_fn_list(args.lt, Ldir, args.ds0, args.ds1)
 fn_list = [fn for fn in fn_list if fn.is_file()]
 if len(fn_list) == 0:
@@ -115,28 +122,38 @@ def load_obs_stations(ds0, ds1, sources, otype='all'):
         if not fn.is_file():
             print('  obs: missing %s' % fn.name); continue
         obs = pickle.load(open(fn, 'rb'))['obs']
+        avail = (sorted(obs['source'].dropna().unique().tolist())
+                 if 'source' in obs.columns else [])
+        print('  obs[%s]: %d rows; sources present: %s' % (ot, len(obs), avail))
         if len(obs) == 0 or 'DO (uM)' not in obs.columns:
             continue
-        sub = obs[obs['source'].isin(sources)].dropna(subset=['DO (uM)']).copy()
-        tt = pd.to_datetime(sub['time'], errors='coerce')
+        s = obs[obs['source'].isin(sources)].dropna(subset=['DO (uM)']).copy()
+        tt = pd.to_datetime(s['time'], errors='coerce')
         if tt.dt.tz is not None:                 # obs times may be tz-aware
             tt = tt.dt.tz_localize(None)
-        sub = sub[(tt >= t0) & (tt < t1)]
-        if len(sub):
-            recs.append(sub[['cid', 'lon', 'lat', 'name', 'DO (uM)']])
+        s = s[(tt >= t0) & (tt < t1)]
+        print('     %d rows after source %s + DO + %s..%s window'
+              % (len(s), sources, ds0, ds1))
+        if len(s):
+            recs.append(s[['cid', 'lon', 'lat', 'name', 'DO (uM)']])
     if not recs:
         return None
     allobs = pd.concat(recs, ignore_index=True)
+    # per-cast hypoxic flag + representative location
     cast = allobs.groupby('cid').agg(
         hyp=('DO (uM)', lambda x: bool(np.any(x < hyp_uM))),
-        lon=('lon', 'mean'), lat=('lat', 'mean'), name=('name', 'first')).reset_index()
-    cast['station'] = cast['name'].astype(str)
-    stn = cast.groupby('station').agg(
-        hyp=('hyp', 'max'), n_casts=('hyp', 'count'),
         lon=('lon', 'mean'), lat=('lat', 'mean')).reset_index()
-    # keep stations inside the zoom box
+    # group casts into stations by rounded location -- names are blank/NaN in the
+    # combined pickles, so grouping on name would merge every cast into one point.
+    cast['lon_r'] = cast['lon'].round(3)
+    cast['lat_r'] = cast['lat'].round(3)
+    stn = cast.groupby(['lon_r', 'lat_r']).agg(
+        hyp=('hyp', 'max'), n_casts=('hyp', 'count'),
+        lon=('lon', 'mean'), lat=('lat', 'mean')).reset_index(drop=True)
+    n_all = len(stn)
     stn = stn[(stn.lon >= aa[0]) & (stn.lon <= aa[1]) &
               (stn.lat >= aa[2]) & (stn.lat <= aa[3])].reset_index(drop=True)
+    print('  obs: %d unique stations, %d inside the zoom box' % (n_all, len(stn)))
     return stn if len(stn) else None
 
 
