@@ -17,6 +17,7 @@ Stations are paged (<=6 per figure), produced per level x variable.
 """
 
 import sys
+import re
 import argparse
 import numpy as np
 import pandas as pd
@@ -70,7 +71,9 @@ def load_model():
         print('*** no mooring folder: %s' % moor_dir)
         return model
     for fn in sorted(moor_dir.glob('*.nc')):
-        station = fn.name.split('_2024.')[0]  # strip _<ds0>_<ds1>.nc
+        # strip the trailing _<ds0>_<ds1> (each YYYY.MM.DD) from the stem;
+        # station names may themselves contain underscores (e.g. Poss_DO-2)
+        station = re.sub(r'_\d{4}\.\d{2}\.\d{2}_\d{4}\.\d{2}\.\d{2}$', '', fn.stem)
         ds = xr.open_dataset(fn)
         lon = float(np.atleast_1d(ds['lon_rho'].values)[0])
         lat = float(np.atleast_1d(ds['lat_rho'].values)[0])
