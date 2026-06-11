@@ -56,6 +56,8 @@ p.add_argument('--no-obs', dest='obs', action='store_false')
 p.add_argument('--no-movie', dest='movie', action='store_false')
 p.add_argument('--nproc', default=min(8, os.cpu_count() or 1), type=int,
                help='parallel worker processes for rendering frames (1 = serial)')
+p.add_argument('--test', dest='test', action='store_true',
+               help='render only the first frame and skip the movie (fast layout check)')
 args = p.parse_args()
 
 gridname, tag, ex_name = args.gtx.split('_')
@@ -239,9 +241,9 @@ def render_frame(item):
     lon, lat, ss, dd, hh, ll, _ = get_fields(fn)
     plon, plat = pfun.get_plon_plat(lon, lat)
     fields = {'salt': ss, 'do': dd, 'hyp': hh, 'low': ll}
-    pfun.start_plot(fs=12, figsize=(19, 7))
+    pfun.start_plot(fs=12, figsize=(18, 6.5))
     fig = plt.figure()
-    gs = fig.add_gridspec(2, 4, height_ratios=[4, 1])
+    gs = fig.add_gridspec(2, 4, height_ratios=[3.6, 1])
     for jj, P in enumerate(panels):
         ax = fig.add_subplot(gs[0, jj])
         fld = fields[P['key']]
@@ -284,8 +286,8 @@ def render_frame(item):
         lab.set_rotation(30)
         lab.set_horizontalalignment('right')
     # manual margins (make_axes_locatable colorbars don't mix with layout engines)
-    fig.subplots_adjust(left=0.05, right=0.99, top=0.92, bottom=0.13,
-                        wspace=0.22, hspace=0.32)
+    fig.subplots_adjust(left=0.04, right=0.995, top=0.94, bottom=0.12,
+                        wspace=0.10, hspace=0.22)
     fig.savefig(outdir / ('plot_%04d.png' % (ii + 1)), dpi=100)
     plt.close(fig)
     pfun.end_plot()
@@ -294,6 +296,9 @@ def render_frame(item):
 
 # ---- render all frames (parallel across frames) ----------------------------
 items = list(enumerate(fn_list))
+if args.test:
+    items = items[:1]
+    print('TEST mode: rendering only frame 1')
 nproc = max(1, min(args.nproc, len(items)))
 if nproc > 1:
     print('rendering %d frames on %d processes...' % (len(items), nproc))
@@ -309,7 +314,7 @@ else:
 print('Saved %d frames to %s' % (len(fn_list), outdir))
 
 # ---- movie -----------------------------------------------------------------
-if args.movie:
+if args.movie and not args.test:
     cmd = ['ffmpeg', '-y', '-r', '8', '-i', str(outdir / 'plot_%04d.png'),
            '-vcodec', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '25',
            str(outdir / 'movie.mp4')]
