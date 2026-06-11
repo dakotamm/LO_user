@@ -13,7 +13,9 @@ but callable directly, e.g.:
 """
 import argparse
 import subprocess
+import os
 import pickle
+import multiprocessing as mp
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
@@ -51,6 +53,8 @@ p.add_argument('--obs-sources', default='ecology_nc,kc,kc_whidbeyBasin')
 p.add_argument('--obs-otype', default='all')   # bottle, ctd, or all
 p.add_argument('--no-obs', dest='obs', action='store_false')
 p.add_argument('--no-movie', dest='movie', action='store_false')
+p.add_argument('--nproc', default=min(8, os.cpu_count() or 1), type=int,
+               help='parallel worker processes for rendering frames (1 = serial)')
 args = p.parse_args()
 
 gridname, tag, ex_name = args.gtx.split('_')
@@ -211,8 +215,9 @@ panels = [
          vmin=low_lims[0], vmax=low_lims[1]),
 ]
 
-# ---- plot every frame ------------------------------------------------------
-for ii, fn in enumerate(fn_list):
+# ---- render one frame (one worker = one frame) -----------------------------
+def render_frame(item):
+    ii, fn = item
     lon, lat, ss, dd, hh, ll, _ = get_fields(fn)
     plon, plat = pfun.get_plon_plat(lon, lat)
     fields = {'salt': ss, 'do': dd, 'hyp': hh, 'low': ll}
@@ -245,7 +250,7 @@ for ii, fn in enumerate(fn_list):
                 ax.legend(loc='lower left', fontsize=7, framealpha=0.7)
         else:
             ax.set_yticklabels([])
-    # SSH (tidal phase) strip spanning all three panels
+    # SSH (tidal phase) strip spanning all four panels
     axt = fig.add_subplot(gs[4, :])
     axt.plot(ssh_t, ssh_v, '-', color='tab:blue', lw=1)
     axt.plot(ssh_t[ii], ssh_v[ii], 'o', color='red', ms=8, zorder=5)
@@ -262,6 +267,22 @@ for ii, fn in enumerate(fn_list):
     fig.savefig(outdir / ('plot_%04d.png' % (ii + 1)), dpi=100)
     plt.close(fig)
     pfun.end_plot()
+    return ii
+
+
+# ---- render all frames (parallel across frames) ----------------------------
+items = list(enumerate(fn_list))
+nproc = max(1, min(args.nproc, len(items)))
+if nproc > 1:
+    print('rendering %d frames on %d processes...' % (len(items), nproc))
+    # fork so workers inherit the already-computed globals (limits, obs, ssh, S)
+    ctx = mp.get_context('fork')
+    with ctx.Pool(nproc) as pool:
+        for _ in pool.imap_unordered(render_frame, items):
+            pass
+else:
+    for item in items:
+        render_frame(item)
 
 print('Saved %d frames to %s' % (len(fn_list), outdir))
 
