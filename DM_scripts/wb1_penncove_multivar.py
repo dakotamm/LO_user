@@ -209,9 +209,9 @@ panels = [
          vmin=salt_lims[0], vmax=salt_lims[1]),
     dict(title='Bottom DO $(mg\\ L^{-1})$', key='do', cmap=cm.oxy,
          norm=do_norm, ticks=DO_BOUNDS, contours=[HYPOXIC_MGL, LOWDO_MGL]),
-    dict(title='DO < 2 mg/L layer depth (m)', key='hyp', cmap=cm.deep,
+    dict(title='DO < 2 mg/L layer thickness (m)', key='hyp', cmap=cm.deep,
          vmin=hyp_lims[0], vmax=hyp_lims[1]),
-    dict(title='DO < 5 mg/L layer depth (m)', key='low', cmap=cm.matter,
+    dict(title='DO < 5 mg/L layer thickness (m)', key='low', cmap=cm.matter,
          vmin=low_lims[0], vmax=low_lims[1]),
 ]
 
@@ -221,18 +221,19 @@ def render_frame(item):
     lon, lat, ss, dd, hh, ll, _ = get_fields(fn)
     plon, plat = pfun.get_plon_plat(lon, lat)
     fields = {'salt': ss, 'do': dd, 'hyp': hh, 'low': ll}
-    pfun.start_plot(fs=12, figsize=(22, 9))
-    fig = plt.figure()
-    gs = fig.add_gridspec(5, 4, hspace=0.4, wspace=0.28)
+    pfun.start_plot(fs=12, figsize=(19, 6.5))
+    fig = plt.figure(constrained_layout=True)
+    gs = fig.add_gridspec(2, 4, height_ratios=[4, 1])
     for jj, P in enumerate(panels):
-        ax = fig.add_subplot(gs[0:4, jj])
+        ax = fig.add_subplot(gs[0, jj])
         fld = fields[P['key']]
         if 'norm' in P:
             cs = ax.pcolormesh(plon, plat, fld, cmap=P['cmap'], norm=P['norm'])
         else:
             cs = ax.pcolormesh(plon, plat, fld, cmap=P['cmap'],
                                vmin=P['vmin'], vmax=P['vmax'])
-        fig.colorbar(cs, ax=ax, ticks=P.get('ticks'))
+        fig.colorbar(cs, ax=ax, ticks=P.get('ticks'),
+                     shrink=0.8, aspect=25, pad=0.02)
         if P.get('contours'):
             cc = ax.contour(lon, lat, fld, levels=P['contours'],
                             colors=['red', 'gold'], linewidths=1.3, zorder=4)
@@ -251,7 +252,7 @@ def render_frame(item):
         else:
             ax.set_yticklabels([])
     # SSH (tidal phase) strip spanning all four panels
-    axt = fig.add_subplot(gs[4, :])
+    axt = fig.add_subplot(gs[1, :])
     axt.plot(ssh_t, ssh_v, '-', color='tab:blue', lw=1)
     axt.plot(ssh_t[ii], ssh_v[ii], 'o', color='red', ms=8, zorder=5)
     axt.axhline(0, color='gray', lw=0.5)
@@ -263,7 +264,7 @@ def render_frame(item):
     for lab in axt.get_xticklabels():
         lab.set_rotation(30)
         lab.set_horizontalalignment('right')
-    fig.tight_layout()
+    # constrained_layout (set on the figure) handles spacing; no tight_layout
     fig.savefig(outdir / ('plot_%04d.png' % (ii + 1)), dpi=100)
     plt.close(fig)
     pfun.end_plot()
