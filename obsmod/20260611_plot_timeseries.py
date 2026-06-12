@@ -111,8 +111,12 @@ def load_model():
 
 # ---- load obs (all sources/otypes/years) into one frame ----------------------
 def load_obs():
+    """Return (obs DataFrame, {station -> source label}). The group map lets us
+    split the figures into King County vs Ecology."""
     frames = []
+    stn_group = {}
     for source in vf.SOURCES:
+        label = vf.SOURCES[source]
         for otype in otypes:
             base = Ldir['LOo'] / 'obs' / source / otype
             for year in years:
@@ -126,12 +130,14 @@ def load_obs():
                 df['cast'] = source + '_' + otype + '_' + year + '_' + df['cid'].astype(str)
                 if 'DIN (uM)' not in df and {'NO3 (uM)', 'NH4 (uM)'} <= set(df.columns):
                     df['DIN (uM)'] = df['NO3 (uM)'] + df['NH4 (uM)']
+                for s in df['station'].unique():
+                    stn_group[s] = label
                 frames.append(df)
     if not frames:
-        return pd.DataFrame()
+        return pd.DataFrame(), stn_group
     obs = pd.concat(frames, ignore_index=True)
     obs['time'] = pd.to_datetime(obs['time'], utc=True).dt.tz_localize(None)
-    return obs
+    return obs, stn_group
 
 
 def obs_points(obs, station, vn, level, otype):
