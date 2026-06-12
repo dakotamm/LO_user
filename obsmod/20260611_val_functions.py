@@ -17,10 +17,14 @@ SOURCES = {
     'ecology_nc': 'Ecology',
 }
 
+# umol/L (uM) -> mg/L for dissolved oxygen
+DO_UM_TO_MGL = 32.0 / 1000.0
+
 # Variables to plot.  For each: display name, obs column, and how to pull the
 # model value out of a cast/mooring xarray Dataset (function of the Dataset).
-# Model 'salt'/'temp' are handled specially (converted to SA/CT with gsw).
-VARS = ['CT', 'SA', 'DO (uM)']
+# Model 'salt'/'temp' are handled specially (converted to SA/CT with gsw); DO is
+# converted from uM to mg/L.
+VARS = ['CT', 'SA', 'DO (mg L-1)']
 
 # model data_var name for each display variable (None => derived / special)
 MOD_VARNAME = {
@@ -33,7 +37,7 @@ MOD_VARNAME = {
 }
 
 LIMS = {
-    'SA': (14, 34), 'CT': (4, 20), 'DO (uM)': (0, 450),
+    'SA': (14, 34), 'CT': (4, 20), 'DO (uM)': (0, 450), 'DO (mg L-1)': (0, 15),
     'NO3 (uM)': (0, 45), 'NH4 (uM)': (0, 10), 'DIN (uM)': (0, 50),
     'Chl (mg m-3)': (0, 30), 'TA (uM)': (1500, 2400), 'DIC (uM)': (1500, 2400),
 }
@@ -63,6 +67,8 @@ def model_var(ds, vn, SA=None, CT=None):
         return SA
     if vn == 'CT':
         return CT
+    if vn == 'DO (mg L-1)':
+        return ds['oxygen'].values * DO_UM_TO_MGL if 'oxygen' in ds else None
     if vn == 'DIN (uM)':
         if 'NO3' in ds and 'NH4' in ds:
             return ds['NO3'].values + ds['NH4'].values
@@ -74,7 +80,11 @@ def model_var(ds, vn, SA=None, CT=None):
 
 
 def obs_var(df, vn):
-    """Return the obs column for display variable vn (deriving DIN), or NaNs."""
+    """Return the obs column for display variable vn (deriving DIN / DO), or NaNs."""
+    if vn == 'DO (mg L-1)':
+        if 'DO (uM)' in df:
+            return (df['DO (uM)'] * DO_UM_TO_MGL).to_numpy()
+        return np.full(len(df), np.nan)
     if vn == 'DIN (uM)':
         if 'NO3 (uM)' in df and 'NH4 (uM)' in df:
             return (df['NO3 (uM)'] + df['NH4 (uM)']).to_numpy()

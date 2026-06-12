@@ -137,6 +137,8 @@ def load_obs():
         return pd.DataFrame(), stn_group
     obs = pd.concat(frames, ignore_index=True)
     obs['time'] = pd.to_datetime(obs['time'], utc=True).dt.tz_localize(None)
+    if 'DO (uM)' in obs.columns:
+        obs['DO (mg L-1)'] = obs['DO (uM)'] * vf.DO_UM_TO_MGL
     return obs, stn_group
 
 
