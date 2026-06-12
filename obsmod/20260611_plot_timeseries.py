@@ -171,52 +171,58 @@ model = load_model()
 if not model:
     print('No mooring data found; run 20260611_extract_moorings.py first.')
     sys.exit()
-obs = load_obs()
+obs, stn_group = load_obs()
 
 stations = sorted(model.keys())
 n_per_page = 6
 
-for level in ['bottom', 'surface']:
-    # variables that any station has at this level
-    vns = [vn for vn in vf.VARS
-           if any(vn in model[s][level] for s in stations)]
-    for vn in vns:
-        st_with = [s for s in stations if vn in model[s][level]]
-        n_pages = int(np.ceil(len(st_with) / n_per_page))
-        for page in range(n_pages):
-            page_st = st_with[page*n_per_page:(page+1)*n_per_page]
-            pfun.start_plot(figsize=(14, 2.6*len(page_st)), fs=10)
-            fig, axes = plt.subplots(len(page_st), 1, sharex=True,
-                                     figsize=(14, 2.6*len(page_st)))
-            if len(page_st) == 1:
-                axes = [axes]
-            for ax, station in zip(axes, page_st):
-                rec = model[station]
-                ax.plot(rec['time'], rec[level][vn], '-', color='tab:red',
-                        lw=1.2, label='model z=%.1f m' % rec['mdepth'][level])
-                for otype in otypes:
-                    ot, ov, oz = obs_points(obs, station, vn, level, otype)
-                    if len(ot) == 0:
-                        continue
-                    style = OBS_STYLE.get(otype, DEFAULT_OBS_STYLE)
-                    ax.plot(ot, ov, label='%s z=%.0f m' % (otype, np.nanmean(oz)),
-                            **style)
-                ax.set_ylabel(vn, fontsize=8)
-                ax.grid(True, alpha=0.3)
-                ax.text(.01, .85, station, transform=ax.transAxes,
-                        fontweight='bold', fontsize=9)
-                ax.legend(loc='upper right', fontsize=7, ncol=2)
-            axes[-1].set_xlabel('Date')
-            vsafe = vn.split(' ')[0].replace('/', '')
-            fig.suptitle('%s %s — %s %s (page %d/%d)'
-                         % (level, vn, gtx, args.job, page+1, n_pages),
-                         fontweight='bold')
-            fig.tight_layout(rect=[0, 0, 1, 0.98])
-            name = 'ts_%s_%s_%s_p%02d' % (level, vsafe, gtx, page+1)
-            if args.testing:
-                plt.show(); plt.close(fig); sys.exit()
-            fig.savefig(out_dir / (name + '.png'), bbox_inches='tight')
-            print('Saved %s.png' % name)
-            plt.close(fig)
+# split mooring stations into their source groups (King County / Ecology)
+groups = {}
+for s in stations:
+    groups.setdefault(stn_group.get(s, 'Other'), []).append(s)
+
+for glabel, gstations in groups.items():
+    gsafe = glabel.replace(' ', '')
+    for level in ['bottom', 'surface']:
+        vns = [vn for vn in vf.VARS
+               if any(vn in model[s][level] for s in gstations)]
+        for vn in vns:
+            st_with = [s for s in gstations if vn in model[s][level]]
+            n_pages = int(np.ceil(len(st_with) / n_per_page))
+            for page in range(n_pages):
+                page_st = st_with[page*n_per_page:(page+1)*n_per_page]
+                pfun.start_plot(figsize=(14, 2.6*len(page_st)), fs=10)
+                fig, axes = plt.subplots(len(page_st), 1, sharex=True,
+                                         figsize=(14, 2.6*len(page_st)))
+                if len(page_st) == 1:
+                    axes = [axes]
+                for ax, station in zip(axes, page_st):
+                    rec = model[station]
+                    ax.plot(rec['time'], rec[level][vn], '-', color='tab:red',
+                            lw=1.2, label='model z=%.1f m' % rec['mdepth'][level])
+                    for otype in otypes:
+                        ot, ov, oz = obs_points(obs, station, vn, level, otype)
+                        if len(ot) == 0:
+                            continue
+                        style = OBS_STYLE.get(otype, DEFAULT_OBS_STYLE)
+                        ax.plot(ot, ov, label='%s z=%.0f m' % (otype, np.nanmean(oz)),
+                                **style)
+                    ax.set_ylabel(vn, fontsize=8)
+                    ax.grid(True, alpha=0.3)
+                    ax.text(.01, .85, station, transform=ax.transAxes,
+                            fontweight='bold', fontsize=9)
+                    ax.legend(loc='upper right', fontsize=7, ncol=2)
+                axes[-1].set_xlabel('Date')
+                vsafe = vn.split(' ')[0].replace('/', '')
+                fig.suptitle('%s — %s %s — %s %s (page %d/%d)'
+                             % (glabel, level, vn, gtx, args.job, page+1, n_pages),
+                             fontweight='bold')
+                fig.tight_layout(rect=[0, 0, 1, 0.98])
+                name = 'ts_%s_%s_%s_%s_p%02d' % (gsafe, level, vsafe, gtx, page+1)
+                if args.testing:
+                    plt.show(); plt.close(fig); sys.exit()
+                fig.savefig(out_dir / (name + '.png'), bbox_inches='tight')
+                print('Saved %s.png' % name)
+                plt.close(fig)
 
 print('Done. Figures in %s' % out_dir)
