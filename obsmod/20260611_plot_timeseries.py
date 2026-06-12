@@ -174,7 +174,7 @@ if not model:
 obs, stn_group = load_obs()
 
 stations = sorted(model.keys())
-n_per_page = 6
+n_per_page = 100   # effectively one page per group (all stations together)
 
 # split mooring stations into their source groups (King County / Ecology)
 groups = {}
@@ -214,11 +214,11 @@ for glabel, gstations in groups.items():
                     ax.legend(loc='upper right', fontsize=7, ncol=2)
                 axes[-1].set_xlabel('Date')
                 vsafe = vn.split(' ')[0].replace('/', '')
-                fig.suptitle('%s — %s %s — %s %s (page %d/%d)'
-                             % (glabel, level, vn, gtx, args.job, page+1, n_pages),
+                fig.suptitle('%s — %s %s — %s %s'
+                             % (glabel, level, vn, gtx, args.job),
                              fontweight='bold')
                 fig.tight_layout(rect=[0, 0, 1, 0.98])
-                name = 'ts_%s_%s_%s_%s_p%02d' % (gsafe, level, vsafe, gtx, page+1)
+                name = 'ts_%s_%s_%s_%s' % (gsafe, level, vsafe, gtx)
                 if args.testing:
                     plt.show(); plt.close(fig); sys.exit()
                 fig.savefig(out_dir / (name + '.png'), bbox_inches='tight')
