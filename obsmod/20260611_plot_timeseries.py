@@ -37,9 +37,22 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-gtx', '--gtagex', type=str, default=vf.DEFAULT_GTX)
 parser.add_argument('-job', type=str, default=vf.MOOR_JOB)
 parser.add_argument('-years', type=str, default='2024,2025')
+# ctd and bottle are overlaid as separate obs series (distinct markers). The
+# surface depth gate below still keeps deep-only casts out of the surface panel.
 parser.add_argument('-otypes', type=str, default='ctd,bottle')
 parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
 args = parser.parse_args()
+
+# a 'surface' obs must be at least this shallow (m, z negative) to count;
+# protects against deep-only casts (e.g. KC bottle) showing up as surface
+SURF_GATE = -10.0
+
+# marker style per obs type
+OBS_STYLE = {
+    'ctd':    dict(marker='o', color='k',        ms=5, ls=''),
+    'bottle': dict(marker='^', color='tab:blue', ms=6, ls='', mfc='none', mew=1.2),
+}
+DEFAULT_OBS_STYLE = dict(marker='s', color='tab:green', ms=5, ls='')
 
 Ldir = Lfun.Lstart()
 if '_mac' in Ldir['lo_env']:
@@ -109,6 +122,7 @@ def load_obs():
                 df = pd.read_pickle(fn)
                 df = df.copy()
                 df['station'] = df['name'].map(sanitize)
+                df['otype'] = otype
                 df['cast'] = source + '_' + otype + '_' + year + '_' + df['cid'].astype(str)
                 if 'DIN (uM)' not in df and {'NO3 (uM)', 'NH4 (uM)'} <= set(df.columns):
                     df['DIN (uM)'] = df['NO3 (uM)'] + df['NH4 (uM)']
@@ -120,19 +134,28 @@ def load_obs():
     return obs
 
 
-def obs_points(obs, station, vn, level):
-    """Bottom/surface obs points for one station/variable: per cast take the
-    deepest (bottom) or shallowest (surface) finite sample.
+def obs_points(obs, station, vn, level, otype):
+    """Bottom/surface obs points for one station/variable/otype: per cast take
+    the deepest (bottom) or shallowest (surface) finite sample.
     Returns (time, val, z) arrays."""
     if vn not in obs.columns:
         return np.array([]), np.array([]), np.array([])
-    sdf = obs[(obs['station'] == station) & np.isfinite(obs[vn])]
+    sdf = obs[(obs['station'] == station) & (obs['otype'] == otype)
+              & np.isfinite(obs[vn])]
     if len(sdf) == 0:
         return np.array([]), np.array([]), np.array([])
     times, vals, zs = [], [], []
     for _, g in sdf.groupby('cast'):
-        row = g.loc[g['z'].idxmin()] if level == 'bottom' else g.loc[g['z'].idxmax()]
+        if level == 'bottom':
+            row = g.loc[g['z'].idxmin()]          # deepest finite sample
+        else:
+            gg = g[g['z'] >= SURF_GATE]           # require a near-surface sample
+            if len(gg) == 0:
+                continue
+            row = gg.loc[gg['z'].idxmax()]        # shallowest finite sample
         times.append(row['time']); vals.append(row[vn]); zs.append(row['z'])
+    if len(times) == 0:
+        return np.array([]), np.array([]), np.array([])
     order = np.argsort(times)
     return np.array(times)[order], np.array(vals)[order], np.array(zs)[order]
 
@@ -164,19 +187,14 @@ for level in ['bottom', 'surface']:
             for ax, station in zip(axes, page_st):
                 rec = model[station]
                 ax.plot(rec['time'], rec[level][vn], '-', color='tab:red',
-                        lw=1.2, label='model (lowpass)')
-                ot, ov, oz = obs_points(obs, station, vn, level)
-                if len(ot) > 0:
-                    ax.plot(ot, ov, 'o', color='k', ms=5, label='obs')
-                # depth annotation: mean model layer depth vs mean obs sample depth
-                mdz = rec['mdepth'][level]
-                odz = np.nanmean(oz) if len(oz) > 0 else np.nan
-                dz_str = 'model z=%.1f m' % mdz
-                if np.isfinite(odz):
-                    dz_str += ', obs z=%.1f m' % odz
-                ax.text(.99, .04, dz_str, transform=ax.transAxes,
-                        ha='right', va='bottom', fontsize=7, style='italic',
-                        color='dimgray')
+                        lw=1.2, label='model z=%.1f m' % rec['mdepth'][level])
+                for otype in otypes:
+                    ot, ov, oz = obs_points(obs, station, vn, level, otype)
+                    if len(ot) == 0:
+                        continue
+                    style = OBS_STYLE.get(otype, DEFAULT_OBS_STYLE)
+                    ax.plot(ot, ov, label='%s z=%.0f m' % (otype, np.nanmean(oz)),
+                            **style)
                 ax.set_ylabel(vn, fontsize=8)
                 ax.grid(True, alpha=0.3)
                 ax.text(.01, .85, station, transform=ax.transAxes,
