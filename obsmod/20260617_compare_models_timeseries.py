@@ -36,6 +36,8 @@ parser.add_argument('-gtxs', type=str,
 parser.add_argument('-job', type=str, default=vf.MOOR_JOB)
 parser.add_argument('-years', type=str, default='2024,2025')
 parser.add_argument('-otypes', type=str, default='ctd,bottle')
+# restrict to the 15 wb1-domain stations (useful when a gtx is a larger grid)
+parser.add_argument('-wb1_only', default=True, type=Lfun.boolean_string)
 parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
 args = parser.parse_args()
 
@@ -159,6 +161,8 @@ obs, stn_group = load_obs()
 
 # union of stations across models, grouped by source
 stations = sorted(set().union(*[set(m) for m in models.values()]))
+if args.wb1_only:
+    stations = [s for s in stations if s in vf.WB1_STATIONS_SAFE]
 groups = {}
 for s in stations:
     groups.setdefault(stn_group.get(s, 'Other'), []).append(s)
