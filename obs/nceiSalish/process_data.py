@@ -15,7 +15,7 @@ Ldir = Lfun.Lstart()
 
 # BOTTLE
 source = 'nceiSalish'
-otype = 'bottle'
+otype = 'bottle_ctd' # rosette-fired rows pairing CTD-sensor T/S/O2 with discrete bottle samples
 in_dir0 = Ldir['data'] / 'obs' / source
 year_list = range(2008,2026)
 
@@ -42,7 +42,9 @@ v_dict = {
     'CTDSAL_PSS78':'SP',
     'CTDSAL_FLAG_W':'',
     'SIGMATHETA_KG_M3':'',
-    'CTDOXY_UMOL_KG_ADJ':'DO (umol/kg)',
+    'RECOMMENDED_OXYGEN_UMOL_KG':'DO (umol/kg)', # producers' merged best-estimate O2
+    'RECOMMENDED_OXYGEN_FLAG_W':'',
+    'CTDOXY_UMOL_KG_ADJ':'',
     'CTDOXY_UMOL_KG':'',
     'CTDOXY_MG_L_1':'',
     'CTDOXY_MG_L_2':'',
@@ -87,6 +89,27 @@ for year in year_list:
         df0['time'] = pd.to_datetime(df0['DATE_UTC'] + ' ' + df0['TIME_UTC'], errors='coerce')
         df0.loc[mask24, 'time'] = df0.loc[mask24, 'time'] + pd.Timedelta(days=1)
         df0 = df0.drop(columns=['DATE_UTC', 'TIME_UTC'])
+
+        # WOCE flag-based screening: mask any measured value whose quality flag is
+        # not "acceptable" to NaN, before unit conversion / selection. We keep:
+        #   2 = acceptable, 6 = mean of replicates,
+        #   7/8 = near-surface O2 codes the producers define as analogous to 2/6.
+        # We drop 3 (questionable), 5 (not reported), 9 (not sampled), 4 (bad).
+        flag_screen = [
+            ('CTDTMP_DEG_C_ITS90', 'CTDTMP_FLAG_W', {2}),
+            ('CTDSAL_PSS78',       'CTDSAL_FLAG_W', {2}),
+            ('RECOMMENDED_OXYGEN_UMOL_KG', 'RECOMMENDED_OXYGEN_FLAG_W', {2, 6, 7, 8}),
+            ('TA_UMOL_KG',  'TA_FLAG_W',  {2, 6}),
+            ('DIC_UMOL_KG', 'DIC_FLAG_W', {2, 6}),
+            ('NITRATE_UMOL_L',   'NUTRIENTS_FLAG_W', {2}),
+            ('NITRITE_UMOL_L',   'NUTRIENTS_FLAG_W', {2}),
+            ('AMMONIUM_UMOL_L',  'NUTRIENTS_FLAG_W', {2}),
+            ('PHOSPHATE_UMOL_L', 'NUTRIENTS_FLAG_W', {2}),
+            ('SILICATE_UMOL_L',  'NUTRIENTS_FLAG_W', {2}),
+        ]
+        for dcol, fcol, keep in flag_screen:
+            df0.loc[~df0[fcol].isin(keep), dcol] = np.nan
+
         load_data = False # only load the first time
     
     # select one year

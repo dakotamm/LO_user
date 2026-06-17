@@ -2,7 +2,7 @@
 
 Author: Dakota Mascarenas
 
-Last updated: 2026/04/21
+Last updated: 2026/06/15
 
 These files are from King County's marine offshore monitoring water column samples, both bottle and CTD.
 
@@ -24,12 +24,14 @@ NOTE: This includes bottle data replicated in the folder kc_whidbeyBasin bottle 
 
 NOTE: Light transmission is currently not considered in this data processing. However, for future use, reference https://green2.kingcounty.gov/marine/Monitoring/OffshoreCTD: "Light Transmission data prior to May 19, 2014 were referenced to air. After this date, all Light Transmission data are referenced to water. To convert the pre-May 19, 2014 data to ‘referenced to water’, multiply the values by 1.095."
 
-CTD data availability:
-* CT: 1998-2024
-* Chl: 1998-2024
-* DO: 1998-2024
-* NO3: 2017-2024
-* SA: 1998-2024
+NOTE: The CTD data are quality-controlled in process_ctd.py using King County's quality flags. Each measurement column has a paired "*_Qual" flag column (e.g. DO_Qual, SA_Qual); see DataReadMeFile_WQ.docx for the full flag vocabulary. Individual measurements are voided (set to NaN) when their flag indicates the value was rejected ("R"/"Rej"/"rej"/"REJ"/"rj"), questionable ("q"/"Q"), or estimated ("E"). Blank flags (passed QC) and "TA" (text-available note only, not a quality issue) are retained. Flags are masked per-variable, so a cast can keep good salinity/temperature while its flagged DO is voided. Note: King County marks some downcasts rejected with a "[USE_UPCAST]" note directing use of the upcast; since only downcasts are processed here, those values become gaps rather than upcast substitutions.
+
+CTD data availability (years with at least some data retained after QC):
+* CT: 1998-2026
+* Chl: 1998-2026
+* DO: 1998-2026
+* NO3: 2017-2026
+* SA: 1998-2026
 
 Bottle data availability
 * CT: 1965-2026

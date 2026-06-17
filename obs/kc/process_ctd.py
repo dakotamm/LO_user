@@ -56,7 +56,7 @@ sta_df = pd.read_csv(in_dir0 / 'WLRD_Sites_20260421.csv')
 big_df = big_df_raw.merge(sta_df[['Locator','Latitude', 'Longitude']], on = 'Locator', how='left')
 
 # Use only downcasts.
-big_df_use0 = big_df[big_df['Updown'] == 'Down']
+big_df_use0 = big_df[big_df['Updown'] == 'Down'].copy()
 
 # Create dictionary for important variable and column names.
 v_dict = {'Chlorophyll, Field (mg/m^3)':'Chl (mg m-3)',
@@ -70,6 +70,36 @@ for v in v_dict.keys():
     if len(v_dict[v]) > 0:
         v_dict_use[v] = v_dict[v]
 v_list = np.array(list(v_dict_use.keys()))
+
+# Quality control: void measurements flagged as rejected, questionable, or estimated.
+# Each measurement column has a paired *_Qual flag column (see DataReadMeFile_WQ.docx).
+# Flags are case-inconsistent (e.g. 'rej','Rej','REJ','rj','R') and can be comma-combined
+# (e.g. 'E, rej', 'Rej, E, TA'), so each flag string is split and tested token-by-token.
+qual_dict = {'Chlorophyll, Field (mg/m^3)': 'CH_Qual',
+             'Dissolved Oxygen, Field (mg/l ws=2)': 'DO_Qual',
+             'Nitrite + Nitrate Nitrogen, Field (mg/L)': 'NO23_Qual',
+             'Salinity, Field (PSS)': 'SA_Qual',
+             'Sample Temperature, Field (deg C)': 'ST_Qual',
+             }
+
+def is_bad_flag(flag):
+    # Return True if a measurement should be voided based on its quality flag.
+    # Voids: rejected (any token starting with 'r' -> R/Rej/rej/REJ/rj),
+    # questionable ('q'/'Q'), and estimated ('E'). Keeps blank (passed QC) and
+    # 'TA' (text-available note only, not a quality problem).
+    if pd.isna(flag):
+        return False
+    for token in str(flag).split(','):
+        token = token.strip().lower()
+        if token.startswith('r') or token == 'q' or token == 'e':
+            return True
+    return False
+
+for vcol, qcol in qual_dict.items():
+    if vcol in big_df_use0.columns and qcol in big_df_use0.columns:
+        bad = big_df_use0[qcol].map(is_bad_flag)
+        big_df_use0.loc[bad, vcol] = np.nan
+        print('QC %s: voided %d of %d values' % (vcol, int(bad.sum()), len(bad)))
 
 # Clean column names.
 big_df_use6 = big_df_use0.copy()
