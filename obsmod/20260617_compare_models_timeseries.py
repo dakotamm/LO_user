@@ -196,6 +196,7 @@ for glabel, gstations in groups.items():
                     style = OBS_STYLE.get(otype, DEFAULT_OBS_STYLE)
                     ax.plot(ot, ov, label='obs %s' % otype, **style)
                 ax.set_ylabel(vn, fontsize=8)
+                ax.set_ylim(vf.LIMS.get(vn, (None, None)))
                 ax.grid(True, alpha=0.3)
                 ax.text(.01, .85, station, transform=ax.transAxes,
                         fontweight='bold', fontsize=9)

@@ -149,7 +149,7 @@ def avg_profile(casts, vn, key):
 def new_fig():
     n = len(vf.VARS)
     pfun.start_plot(figsize=(5 * n, 6), fs=12)
-    fig, axes = plt.subplots(1, n, figsize=(5 * n, 6), sharey=False)
+    fig, axes = plt.subplots(1, n, figsize=(5 * n, 6), sharey=True)
     if n == 1:
         axes = [axes]
     return fig, axes
@@ -158,6 +158,7 @@ def new_fig():
 def finish(fig, axes, title, name):
     for ax, vn in zip(axes, vf.VARS):
         ax.set_xlim(vf.LIMS.get(vn, (None, None)))
+        ax.set_ylim(vf.DEPTH_LIM)
         ax.set_xlabel(vn); ax.grid(True, alpha=0.3)
         ax.text(.03, .03, vn, transform=ax.transAxes, fontweight='bold')
     axes[0].set_ylabel('z (m)')

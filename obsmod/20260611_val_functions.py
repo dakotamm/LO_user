@@ -46,6 +46,10 @@ MOD_VARNAME = {
     'DIC (uM)': 'TIC',
 }
 
+# consistent depth (z, m) axis for all profile figures (deepest of the 15
+# wb1 stations is ADM003 at ~-211 m)
+DEPTH_LIM = (-230, 5)
+
 LIMS = {
     'SA': (14, 34), 'CT': (4, 20), 'DO (uM)': (0, 450), 'DO (mg L-1)': (0, 15),
     'NO3 (uM)': (0, 45), 'NH4 (uM)': (0, 10), 'DIN (uM)': (0, 50),
