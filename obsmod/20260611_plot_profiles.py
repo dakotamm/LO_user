@@ -43,6 +43,8 @@ parser.add_argument('-gtx', '--gtagex', type=str, default=vf.DEFAULT_GTX)
 parser.add_argument('-years', type=str, default='2024,2025')
 parser.add_argument('-otypes', type=str, default='ctd,bottle')
 parser.add_argument('-date', type=str, default='2025.12.03')  # set-2 target date
+# restrict to the 15 wb1-domain stations (useful when gtx is a larger grid)
+parser.add_argument('-wb1_only', default=True, type=Lfun.boolean_string)
 parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
 args = parser.parse_args()
 
@@ -206,6 +208,8 @@ def plot_closest(station, casts, otype):
 # ---- main --------------------------------------------------------------------
 for otype in otypes:
     site = load_site_casts(otype)
+    if args.wb1_only:
+        site = {st: c for st, c in site.items() if st in vf.WB1_STATIONS}
     if not site:
         print('No data for %s' % otype); continue
     for station in sorted(site, key=str):

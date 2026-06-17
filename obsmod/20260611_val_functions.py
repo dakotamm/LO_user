@@ -17,6 +17,16 @@ SOURCES = {
     'ecology_nc': 'Ecology',
 }
 
+# the 15 in-wb1-domain stations (obs 'name' values). Used to restrict plots to
+# the wb1 station set even when working with a larger grid (e.g. cas7).
+WB1_STATIONS = [
+    'ADM001', 'ADM003', 'PSS019', 'PTH005', 'SAR003', 'SKG003',
+    'PENNCOVEENT', 'PENNCOVEWEST', 'PSUSANBUOY', 'PSUSANENT', 'PSUSANKP',
+    'Poss DO-2', 'SARATOGACH', 'SARATOGAOP', 'SARATOGARP',
+]
+# same names with spaces -> underscores, to match mooring filenames
+WB1_STATIONS_SAFE = set(s.replace(' ', '_') for s in WB1_STATIONS)
+
 # umol/L (uM) -> mg/L for dissolved oxygen
 DO_UM_TO_MGL = 32.0 / 1000.0
 

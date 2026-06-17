@@ -40,6 +40,8 @@ parser.add_argument('-years', type=str, default='2024,2025')
 # ctd and bottle are overlaid as separate obs series (distinct markers). The
 # surface depth gate below still keeps deep-only casts out of the surface panel.
 parser.add_argument('-otypes', type=str, default='ctd,bottle')
+# restrict to the 15 wb1-domain stations (useful when gtx is a larger grid)
+parser.add_argument('-wb1_only', default=True, type=Lfun.boolean_string)
 parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
 args = parser.parse_args()
 
@@ -176,6 +178,8 @@ if not model:
 obs, stn_group = load_obs()
 
 stations = sorted(model.keys())
+if args.wb1_only:
+    stations = [s for s in stations if s in vf.WB1_STATIONS_SAFE]
 n_per_page = 100   # effectively one page per group (all stations together)
 
 # split mooring stations into their source groups (King County / Ecology)
