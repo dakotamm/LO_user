@@ -34,7 +34,8 @@ DO_UM_TO_MGL = 32.0 / 1000.0
 # model value out of a cast/mooring xarray Dataset (function of the Dataset).
 # Model 'salt'/'temp' are handled specially (converted to SA/CT with gsw); DO is
 # converted from uM to mg/L.
-VARS = ['CT', 'SA', 'DO (mg L-1)']
+VARS = ['CT', 'SA', 'DO (mg L-1)', 'NO3 (uM)', 'NH4 (uM)', 'DIN (uM)',
+        'Chl (mg m-3)', 'TA (uM)', 'DIC (uM)']
 
 # model data_var name for each display variable (None => derived / special)
 MOD_VARNAME = {

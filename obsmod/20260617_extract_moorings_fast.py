@@ -110,7 +110,9 @@ def main():
     parser.add_argument('-0', '--ds0', type=str, default='2024.01.02')
     parser.add_argument('-1', '--ds1', type=str, default='2025.12.30')
     parser.add_argument('-job', type=str, default='KCEcology_2024_2025')
-    parser.add_argument('-vars', type=str, default='salt,temp,oxygen')
+    parser.add_argument('-vars', type=str,
+                        default='salt,temp,oxygen,NO3,NH4,chlorophyll,'
+                                'phytoplankton,alkalinity,TIC')
     parser.add_argument('-Nproc', type=int, default=10)
     parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
     args = parser.parse_args()
@@ -150,6 +152,11 @@ def main():
     Vtransform = int(g['Vtransform'].values) if 'Vtransform' in g else 2
     Lon = lon2[0, :]
     Lat = lat2[:, 0]
+    # keep only requested vars that actually exist in the files
+    missing = [v for v in var_list if v not in g.data_vars]
+    if missing:
+        print('  (vars not in files, skipping: %s)' % missing)
+        var_list = [v for v in var_list if v in g.data_vars]
     g.close()
 
     # station grid indices (nudged to nearest water cell if needed)
