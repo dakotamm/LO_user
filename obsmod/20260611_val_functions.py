@@ -30,6 +30,13 @@ WB1_STATIONS_SAFE = set(s.replace(' ', '_') for s in WB1_STATIONS)
 # umol/L (uM) -> mg/L for dissolved oxygen
 DO_UM_TO_MGL = 32.0 / 1000.0
 
+# LO/ROMS Fennel diagnoses chlorophyll as a fixed multiple of phytoplankton:
+#   fennel.h "PM Edit":  Bio(iChlo) = Bio(iPhyt) * 2.5
+# i.e. Chl [mg m-3] = phytoplankton [mmol N m-3] * 2.5. The lowpass files keep
+# 'phytoplankton' but not 'chlorophyll', so we reconstruct it here; because the
+# Godin filter is linear, 2.5 * lowpass(phyto) == lowpass(chl) exactly.
+CHL_PER_PHYTO_N = 2.5
+
 # Variables to plot.  For each: display name, obs column, and how to pull the
 # model value out of a cast/mooring xarray Dataset (function of the Dataset).
 # Model 'salt'/'temp' are handled specially (converted to SA/CT with gsw); DO is
@@ -84,6 +91,14 @@ def model_var(ds, vn, SA=None, CT=None):
         return CT
     if vn == 'DO (mg L-1)':
         return ds['oxygen'].values * DO_UM_TO_MGL if 'oxygen' in ds else None
+    if vn == 'Chl (mg m-3)':
+        # prefer the model's own chlorophyll (cast/history files); fall back to
+        # 2.5 * phytoplankton (lowpass/moor files, which lack chlorophyll)
+        if 'chlorophyll' in ds:
+            return ds['chlorophyll'].values
+        if 'phytoplankton' in ds:
+            return ds['phytoplankton'].values * CHL_PER_PHYTO_N
+        return None
     if vn == 'DIN (uM)':
         if 'NO3' in ds and 'NH4' in ds:
             return ds['NO3'].values + ds['NH4'].values
