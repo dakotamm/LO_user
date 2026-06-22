@@ -116,9 +116,8 @@ for ii, sn in enumerate(sta_dict.keys(), start=1):
             shutil.copyfile(moor_fn, job_moor_fn)
         else:
             shutil.move(moor_fn, job_moor_fn)
-        made = job_moor_fn.is_file()
     except FileNotFoundError:
-        made = False
+        print(' - error making %s' % job_moor_fn.name)
 
     # write logs
     for tag_, blob in [('screen_output', stdout), ('subprocess_error', stderr)]:
@@ -127,14 +126,8 @@ for ii, sn in enumerate(sta_dict.keys(), start=1):
         if len(blob) > 0:
             with open(fn, 'w') as f:
                 f.write(blob.decode())
-
-    # if the extraction failed, surface the real error from extract_moor.py
-    if not made:
-        print(' - error making %s' % job_moor_fn.name)
-        tail = (stderr.decode().strip().splitlines()
-                or stdout.decode().strip().splitlines())[-15:]
-        for line in tail:
-            print('   | ' + line)
+    if args.testing and len(stderr) > 0:
+        print('\n' + stderr.decode())
 
     print(': completed in %d sec' % (time() - tt0))
     sys.stdout.flush()
