@@ -57,7 +57,8 @@ tag = '_vs_'.join(gtxs)
 out_dir = vf.out_dir(Ldir)
 Lfun.make_dir(out_dir)
 
-SURF_GATE = -10.0
+# surface/bottom split (m): shallower than this = surface, deeper = bottom
+SURF_GATE = -5.0
 MODEL_COLORS = ['tab:red', 'tab:purple', 'tab:green', 'tab:orange']
 OBS_STYLE = {
     'ctd':    dict(marker='o', color='k',        ms=5, ls=''),
@@ -136,13 +137,16 @@ def obs_points(obs, station, vn, level, otype):
         return np.array([]), np.array([])
     times, vals = [], []
     for _, g in sdf.groupby('cast'):
-        if level == 'bottom':
-            row = g.loc[g['z'].idxmin()]
-        else:
-            gg = g[g['z'] >= SURF_GATE]
+        if level == 'surface':
+            gg = g[g['z'] >= SURF_GATE]           # within the top |SURF_GATE| m
             if len(gg) == 0:
                 continue
             row = gg.loc[gg['z'].idxmax()]
+        else:  # bottom: must be BELOW the surface zone (no surface-only dupes)
+            gg = g[g['z'] < SURF_GATE]
+            if len(gg) == 0:
+                continue
+            row = gg.loc[gg['z'].idxmin()]
         times.append(row['time']); vals.append(row[vn])
     if not times:
         return np.array([]), np.array([])

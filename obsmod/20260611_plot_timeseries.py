@@ -45,9 +45,10 @@ parser.add_argument('-wb1_only', default=True, type=Lfun.boolean_string)
 parser.add_argument('-test', '--testing', default=False, type=Lfun.boolean_string)
 args = parser.parse_args()
 
-# a 'surface' obs must be at least this shallow (m, z negative) to count;
-# protects against deep-only casts (e.g. KC bottle) showing up as surface
-SURF_GATE = -10.0
+# surface/bottom split (m, z negative): samples shallower than this count as
+# 'surface', deeper as 'bottom'. So a variable sampled only in the top 5 m
+# (e.g. KC bottle Chl at ~-1 m) goes to surface only, not duplicated to bottom.
+SURF_GATE = -5.0
 
 # marker style per obs type
 OBS_STYLE = {
@@ -156,13 +157,17 @@ def obs_points(obs, station, vn, level, otype):
         return np.array([]), np.array([]), np.array([])
     times, vals, zs = [], [], []
     for _, g in sdf.groupby('cast'):
-        if level == 'bottom':
-            row = g.loc[g['z'].idxmin()]          # deepest finite sample
-        else:
-            gg = g[g['z'] >= SURF_GATE]           # require a near-surface sample
+        if level == 'surface':
+            gg = g[g['z'] >= SURF_GATE]           # within the top |SURF_GATE| m
             if len(gg) == 0:
                 continue
-            row = gg.loc[gg['z'].idxmax()]        # shallowest finite sample
+            row = gg.loc[gg['z'].idxmax()]        # shallowest such sample
+        else:  # bottom: must be BELOW the surface zone, so a surface-only
+               # variable (e.g. KC bottle Chl at ~-1 m) is not duplicated here
+            gg = g[g['z'] < SURF_GATE]
+            if len(gg) == 0:
+                continue
+            row = gg.loc[gg['z'].idxmin()]        # deepest such sample
         times.append(row['time']); vals.append(row[vn]); zs.append(row['z'])
     if len(times) == 0:
         return np.array([]), np.array([]), np.array([])
