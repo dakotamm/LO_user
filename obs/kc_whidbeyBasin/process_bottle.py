@@ -11,7 +11,11 @@ Initial author date: 2026/04/21
 
 Finalized for public use: 2026/04/21
 
+Most recent update: 2026/06/23
+
 Written by: Dakota Mascarenas
+
+NOTE: Quality control keeps only QualityId == 1 ("Good Data, Passes Data Manager QC"), dropping Questionable (3), Poor/Bad (4), Estimated (6), and Missing (9), consistent with QC applied to other King County sources. Detection-limit-censored values (Lab Qualifier <RDL/<MDL) carry QualityId 1 and are intentionally retained as valid low values. See DataReadMeFile_WQ.docx for the QualityId code definitions.
 
 """
 
@@ -41,6 +45,14 @@ big_df = big_df_raw.merge(sta_df[['Locator','Latitude', 'Longitude']], on='Locat
 
 # Select only marine offshore stations.
 big_df_use0 = big_df[big_df['Site Type'] == 'Marine Offshore']
+
+# Quality control: keep only QualityId == 1 (Good Data, Passes Data Manager QC).
+# Drops Questionable (3), Poor/Bad (4), Estimated (6), and Missing (9). Operates on the
+# long-format (one row per parameter/depth) data, so it masks per-measurement before the
+# pivot. Detection-limit-censored values (<RDL/<MDL) are QualityId 1 and are retained.
+n_before = len(big_df_use0)
+big_df_use0 = big_df_use0[big_df_use0['QualityId'] == 1]
+print('QC: kept %d of %d marine-offshore rows (QualityId == 1)' % (len(big_df_use0), n_before))
 
 # Create dictionary for important variable and parameter names.
 cols_all = big_df_use0['Parameter'].unique()

@@ -9,9 +9,11 @@ Finalized for group use: 2025/09/03
 
 Written by: Dakota Mascarenas
 
-Most recent update: 2026/04/13
+Most recent update: 2026/06/23
 
 NOTE: Despite the labeling on the Excel files received from WA Dept. of Ecology records request, we consider all data in this set bottle (discrete) data. Email requests for information were sent on 2025/05/06 with follow up on 2025/09/03.
+
+NOTE on QUALITY CONTROL: No QC screening is applied. Ecology's 1973-1998 historical quality qualifiers (MarineWatersMetadata_v4.pdf, Table 10) were NOT included in the Excel extracts received -- the files contain only numeric value columns -- so there are no quality flags to filter on. Ecology also notes this historical era remains unreviewed. Data are used as delivered (known limitation).
 
 """
 

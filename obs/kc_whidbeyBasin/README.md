@@ -2,7 +2,7 @@
 
 Author: Dakota Mascarenas
 
-Last updated: 2026/04/21
+Last updated: 2026/06/23
 
 These files are from King County's marine offshore monitoring water column CTD samples in Whidbey Basin.
 
@@ -23,6 +23,8 @@ NOTE: Light transmission is currently not considered in this data processing.
 NOTE: Bottle data is replicated in the folder kc bottle data, but is included here since this is the format that King County maintains.
 
 NOTE: Timestamps in the raw data are assumed to be in PST. The processing script converts these to timezone-aware UTC (+8 hours) for consistency with other LO observation sources.
+
+NOTE: Both datasets are quality-controlled using King County's quality flags (see DataReadMeFile_WQ.docx for the flag vocabulary). For the CTD data (process_ctd.py), each measurement column has a paired flag column (CH Qual, DO Qual, NO23 Qual, SA Qual, st_qual); individual measurements are voided (set to NaN) per-variable when flagged rejected ("R"), questionable ("q"), or estimated ("E"). For the bottle data (process_bottle.py), only rows with QualityId == 1 ("Good Data, Passes Data Manager QC") are kept, dropping Questionable (3), Poor/Bad (4), Estimated (6), and Missing (9); detection-limit-censored values (Lab Qualifier <RDL/<MDL) carry QualityId 1 and are retained as valid low values.
 
 CTD data availability:
 * CT: 2022-2026

@@ -11,11 +11,13 @@ Finalized for group use: 2025/09/05
 
 Written by: Dakota Mascarenas
 
-Most recent update: 2026/04/13
+Most recent update: 2026/06/23
 
 NOTE: TaylorQuality and TaylorNote columns are considered insofar as to filter to only TaylorQuality = 'ok'.
 
-NOTE: "field" data and temperature are from CTD. Here we consider just bottle data (and CTD temperature concurrently).
+NOTE: Variable sources differ. Here Salinity ('Salinity', lab) and Dissolved Oxygen ('Dissolved Oxygen', Winkler titration -- reliable) are bottle/lab measurements; the "..., Field" CTD-sensor variants are excluded. Temperature has no bottle equivalent and is taken from the concurrent field instrument.
+
+NOTE: INSTRUMENT TRANSITION (per King County methods, his_methods_email - TM to DM 20250117.pdf): temperature was measured ex situ with an alcohol/mercury thermometer before ~October 1998, and with Seabird CTD instrumentation after. The 'Temperature' record -- and therefore the derived CT here -- silently switches instrument at ~Oct 1998 with NO flag in the data. The transition is detectable only via the first appearance of 'Salinity, Field' (1998-10-20). Keep this break in mind for long-term trend analysis.
 
 NOTE: TIMES IN UTC
 
@@ -68,9 +70,10 @@ big_df_use2 = big_df_use1[['CollectDateTime', 'Depth', 'ParmDisplayName', 'Value
 big_df_use5 = big_df_use2.pivot_table(index = ['CollectDateTime', 'Depth','Latitude', 'Longitude', 'Locator'],
                                       columns = 'ParmDisplayName', values = 'Value').reset_index()
 big_df_use6 = big_df_use5.copy()
-big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['CollectDateTime'])
-# Ensure times are timezone-aware UTC (raw data already in UTC).
-big_df_use6['time'] = big_df_use6['time'].dt.tz_localize('UTC')
+# Parse to timezone-aware UTC. Raw 'CollectDateTime' carries a 'Z' suffix, so use to_datetime
+# with utc=True to robustly handle already-aware (Z) values; newer pandas parses 'Z' as
+# tz-aware, which broke the prior DatetimeIndex + tz_localize('UTC') approach.
+big_df_use6['time'] = pd.to_datetime(big_df_use6['CollectDateTime'], utc=True)
 
 # Create unique cast IDs (cid).
 big_df_use7 = big_df_use6.copy()

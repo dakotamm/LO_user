@@ -26,6 +26,8 @@ NOTE: Light transmission is currently not considered in this data processing. Ho
 
 NOTE: The CTD data are quality-controlled in process_ctd.py using King County's quality flags. Each measurement column has a paired "*_Qual" flag column (e.g. DO_Qual, SA_Qual); see DataReadMeFile_WQ.docx for the full flag vocabulary. Individual measurements are voided (set to NaN) when their flag indicates the value was rejected ("R"/"Rej"/"rej"/"REJ"/"rj"), questionable ("q"/"Q"), or estimated ("E"). Blank flags (passed QC) and "TA" (text-available note only, not a quality issue) are retained. Flags are masked per-variable, so a cast can keep good salinity/temperature while its flagged DO is voided. Note: King County marks some downcasts rejected with a "[USE_UPCAST]" note directing use of the upcast; since only downcasts are processed here, those values become gaps rather than upcast substitutions.
 
+NOTE: The bottle data are quality-controlled in process_bottle.py using King County's numeric QualityId codes. Only rows with QualityId == 1 ("Good Data, Passes Data Manager QC") are kept, dropping Provisional (2), Questionable (3), Poor/Bad (4), Estimated (6), Missing (9), and Quality Unknown (0). Detection-limit-censored values (Lab Qualifier <RDL/<MDL) carry QualityId 1 and are retained as valid low values.
+
 CTD data availability (years with at least some data retained after QC):
 * CT: 1998-2026
 * Chl: 1998-2026

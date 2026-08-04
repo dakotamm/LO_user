@@ -2,7 +2,7 @@
 
 Author: Dakota Mascarenas
 
-Last updated: 2026/04/13
+Last updated: 2026/06/23
 
 These files are WA Dept. of Ecology water column samples, both bottle and CTD. These were acquired via Public Records Request #P019860-042924 initiated 2024/04/29 by Dakota Mascarenas.
 
@@ -23,6 +23,8 @@ Also included in the associated LO_data folder is the file: "ParkerMacCreadyCore
 These datasets were initially primarily used for DO, temperature, and salinity. However, other variables are included (see Excel files).
 
 NOTE: Timestamps in "Aug1973toOct1989CTDandDiscrete.xlsx" and "Nov1989toDec1998Discrete.xlsx" are assumed to be in PST. Timestamps in "Nov1989toDec1998CTDprofiles.xlsx" are written in UTC. The processing scripts convert all timestamps to timezone-aware UTC for consistency with other LO observation sources.
+
+NOTE on QUALITY CONTROL: No data-quality screening is (or can be) applied to this source. Per Ecology's metadata (MarineWatersMetadata_v4.pdf, Table 10), 1973-1998 marine water data carry historical quality qualifiers -- data-quality codes (1 = adequate QC, 2 = less precise method/QC, 3 = known/suspected data problem, 4 = unknown method/QC, C = calculated) and result-quality codes (e.g. E = estimate due to interference, J = estimate, B/V = analyte in blank, H = over holding time, N = spike recovery outside limits). However, these qualifier columns were NOT included in the Excel extracts received via the records request; the files contain only numeric value columns. Ecology further notes these historical qualifiers remain unreviewed ("remain in the data until we have the capacity to conduct in-depth data review and apply current qualifiers"). The data are therefore used as delivered, without Ecology's quality flags. This is a known limitation; clarification was requested from Ecology by email on 2025/05/06 with follow-up on 2025/09/03.
 
 Bottle data availability:
 * DO: 1973-1983, 1988-1998

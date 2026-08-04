@@ -9,9 +9,11 @@ Finalized for group use: 2025/09/05
 
 Written by: Dakota Mascarenas
 
-Most recent update: 2026/04/13
+Most recent update: 2026/06/23
 
 NOTE: "field" data and temperature are from CTD. Here we consider just bottle data (and CTD temperature concurrently).
+
+NOTE: Quality control voids measurements flagged rejected ('R'), questionable ('q'/'Q'), or estimated ('E') via the alphanumeric QUALIFIER column (see DataReadMeFile_WQ.docx). Detection-limit qualifiers (<MDL, <RDL, RDL) mark valid censored low values and are retained. For the variables processed here this currently voids nothing -- all R/E flags in the raw file are on bacteria/organics parameters that are not used -- but the filter is applied for consistency with other King County sources.
 
 
 """
@@ -59,7 +61,22 @@ for v in v_dict.keys():
     if len(v_dict[v]) > 0:
         v_dict_use[v] = v_dict[v]
 v_list = np.array(list(v_dict_use.keys()))
-big_df_use1 = big_df[big_df['PARMNAME'].isin(v_list)]
+big_df_use1 = big_df[big_df['PARMNAME'].isin(v_list)].copy()
+
+# Quality control: void measurements flagged rejected/questionable/estimated via QUALIFIER.
+# Use an explicit reject-token set (NOT a startswith('r') rule) so detection-limit qualifiers
+# (<MDL, <RDL, RDL) -- which mark valid censored low values -- are retained.
+reject_tokens = {'r', 'rej', 'e', 'q'}
+def is_bad_flag(flag):
+    if pd.isna(flag):
+        return False
+    for token in str(flag).split(','):
+        if token.strip().lower() in reject_tokens:
+            return True
+    return False
+bad = big_df_use1['QUALIFIER'].map(is_bad_flag)
+big_df_use1.loc[bad, 'NUMVALUE'] = np.nan
+print('QC: voided %d of %d used-parameter measurements (rejected/questionable/estimated)' % (int(bad.sum()), len(bad)))
 
 # Clean dataframe.
 big_df_use2 = big_df_use1[['COLLECTDATE', 'SAMPLE_DEPTH', 'PARMNAME', 'NUMVALUE','Latitude', 'Longitude', 'Locator']]

@@ -11,11 +11,13 @@ Finalized for group use: 2025/09/05
 
 Written by: Dakota Mascarenas
 
-Most recent update: 2026/04/13
+Most recent update: 2026/06/23
 
 NOTE: TaylorQuality and TaylorNote columns are considered insofar as to filter to only TaylorQuality = 'ok'.
 
-NOTE: "field" data and temperature are from CTD and others are from bottle. Here, considering just CTD.
+NOTE: Variables here are the field/CTD measurements ('Salinity, Field', 'Dissolved Oxygen, Field') plus 'Temperature' (which has no bottle equivalent); the bottle 'Salinity'/'Dissolved Oxygen' are excluded.
+
+NOTE: INSTRUMENT TRANSITION (per King County methods, his_methods_email - TM to DM 20250117.pdf): the Seabird CTD came into use ~October 1998. 'Salinity, Field' and 'Dissolved Oxygen, Field' only exist from 1998-10-20 onward (before that, field salinity is absent and field DO was a handheld YSI-type sonde; temperature was an alcohol/mercury thermometer). Because CT/SA require salinity, pre-Oct-1998 casts (thermometer temperature, no CTD salinity) yield NaN CT/SA, so the CTD product effectively begins ~Oct 1998. Further CTD caveats from the same email: Seabird 43 DO sensor added July 2004; DO calibration approach changed Feb 2005 and again Jan 2010; depths before 6/1/2010 may be biased deep (~0.7 m near surface) and before Jan 2010 by +/- 0.4 m (no barometric offset).
 
 NOTE: TIMES IN UTC
 
@@ -68,9 +70,10 @@ big_df_use2 = big_df_use1[['CollectDateTime', 'Depth', 'ParmDisplayName', 'Value
 big_df_use5 = big_df_use2.pivot_table(index = ['CollectDateTime', 'Depth','Latitude', 'Longitude', 'Locator'],
                                       columns = 'ParmDisplayName', values = 'Value').reset_index()
 big_df_use6 = big_df_use5.copy()
-big_df_use6['time'] = pd.DatetimeIndex(big_df_use6['CollectDateTime'])
-# Ensure times are timezone-aware UTC (raw data already in UTC).
-big_df_use6['time'] = big_df_use6['time'].dt.tz_localize('UTC')
+# Parse to timezone-aware UTC. Raw 'CollectDateTime' carries a 'Z' suffix, so use to_datetime
+# with utc=True to robustly handle already-aware (Z) values; newer pandas parses 'Z' as
+# tz-aware, which broke the prior DatetimeIndex + tz_localize('UTC') approach.
+big_df_use6['time'] = pd.to_datetime(big_df_use6['CollectDateTime'], utc=True)
 
 # Create unique cast IDs (cid).
 big_df_use7 = big_df_use6.copy()

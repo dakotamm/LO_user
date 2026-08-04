@@ -11,7 +11,9 @@ Finalized for public use: 2025/09/05
 
 Written by: Dakota Mascarenas
 
-Most recent update: 2026/04/21
+Most recent update: 2026/06/23
+
+NOTE: Quality control voids individual measurements flagged as rejected, questionable, or estimated using King County's per-variable quality columns (CH Qual, DO Qual, NO23 Qual, SA Qual, st_qual). See DataReadMeFile_WQ.docx for the flag vocabulary.
 
 """
 
@@ -40,7 +42,7 @@ sta_df = pd.read_csv(Ldir['data'] / 'obs' / source / 'WLRD_Sites_20260421.csv')
 big_df = big_df_raw.merge(sta_df[['Locator','Latitude', 'Longitude']], on = 'Locator', how='left')
 
 # Use only downcasts.
-big_df_use0 = big_df[big_df['Up Down'] == 'Down']
+big_df_use0 = big_df[big_df['Up Down'] == 'Down'].copy()
 
 # Create dictionary for important variable and column names.
 v_dict = {'Chlorophyll (µg/L)':'Chl (ug -L)',
@@ -54,7 +56,35 @@ for v in v_dict.keys():
     if len(v_dict[v]) > 0:
         v_dict_use[v] = v_dict[v]
 v_list = np.array(list(v_dict_use.keys())) #redundant but fine
-        
+
+# Quality control: void measurements flagged as rejected, questionable, or estimated.
+# Each used variable has a paired quality-flag column. Flags are masked per-variable, so a
+# cast can keep good temperature/salinity while its flagged DO/NO3 is voided.
+qual_dict = {'Chlorophyll (µg/L)': 'CH Qual',
+             'Dissolved Oxygen (mg/L)': 'DO Qual',
+             'Nitrate + Nitrite (mg N/L)': 'NO23 Qual',
+             'Salinity (PSU)': 'SA Qual',
+             'Temperature (°C)': 'st_qual',
+             }
+
+def is_bad_flag(flag):
+    # Return True if a measurement should be voided based on its quality flag.
+    # Voids: rejected (any token starting with 'r' -> R/Rej/rej/REJ/rj),
+    # questionable ('q'/'Q'), and estimated ('E'). Keeps blank (passed QC).
+    if pd.isna(flag):
+        return False
+    for token in str(flag).split(','):
+        token = token.strip().lower()
+        if token.startswith('r') or token == 'q' or token == 'e':
+            return True
+    return False
+
+for vcol, qcol in qual_dict.items():
+    if vcol in big_df_use0.columns and qcol in big_df_use0.columns:
+        bad = big_df_use0[qcol].map(is_bad_flag)
+        big_df_use0.loc[bad, vcol] = np.nan
+        print('QC %s: voided %d of %d values' % (vcol, int(bad.sum()), len(bad)))
+
 # Clean column names.
 big_df_use6 = big_df_use0.copy()
 big_df_use6['time'] = pd.to_datetime(big_df_use6['Sample Date'], infer_datetime_format=True)
