@@ -41,8 +41,13 @@ mask = dsg.mask_rho.values
 h = dsg.h.values
 dsg.close()
 
-seg = pickle.load(open(Ldir['LOo'] / 'extract' / 'tef2'
-                       / 'seg_info_dict_wb1_pc1_riv00.p', 'rb'))
+# whichever river tag this machine has -- cells are river-independent
+_tef2 = Ldir['LOo'] / 'extract' / 'tef2'
+_cands = sorted(_tef2.glob('seg_info_dict_wb1_pc1_*.p'))
+if len(_cands) == 0:
+    raise SystemExit('no seg_info_dict for wb1_pc1 in %s' % _tef2)
+print('using %s' % _cands[0].name)
+seg = pickle.load(open(_cands[0], 'rb'))
 cells = {k: set(map(tuple, v['ji_list'])) for k, v in seg.items()}
 
 # recover each particle's cohort and depth from its initial position, the same

@@ -223,7 +223,7 @@ def get_ic(TR):
         # It is capped, because at 2602 cells and ~30 m deep it would otherwise
         # contribute ~26000 particles and swamp the three cove cohorts.
         plon00, plat00, pcs00 = ic_from_tef2_segs(
-            fn00, gridname, ctag='pc1', riv='riv00',
+            fn00, gridname, ctag='pc1', riv='trapsN00',
             seg_list=['pc_cp_m', 'pc_cp_p', 'pc_lp_m', 'pc_lp_p'], DZ=3,
             n_max_per_seg=1500)
 
@@ -258,8 +258,23 @@ def ic_from_tef2_segs(fn00, gridname, ctag, riv, seg_list, DZ,
     from lo_tools import Lfun, zrfun
 
     Ldir = Lfun.Lstart(gridname=gridname)
-    seg_fn = (Ldir['LOo'] / 'extract' / 'tef2'
-              / ('seg_info_dict_' + gridname + '_' + ctag + '_' + riv + '.p'))
+    tef2_dir = Ldir['LOo'] / 'extract' / 'tef2'
+    seg_fn = tef2_dir / ('seg_info_dict_' + gridname + '_' + ctag + '_' + riv + '.p')
+    if not seg_fn.is_file():
+        # Fall back to whatever river tag is present. A segment's ji_list does
+        # not depend on the river set -- create_seg_info_dict.py floods using
+        # only sect_df and the land mask, and attaches riv_list afterwards --
+        # so any tag gives identical cells and therefore an identical release.
+        # Machines end up with different tags (the mac was built with riv00,
+        # apogee with trapsN00) and that should not stop a run.
+        alt = sorted(tef2_dir.glob('seg_info_dict_' + gridname + '_' + ctag + '_*.p'))
+        if len(alt) == 0:
+            raise FileNotFoundError(
+                'no seg_info_dict for %s_%s in %s -- run create_seg_info_dict.py'
+                % (gridname, ctag, tef2_dir))
+        print('  %s not found, using %s (cells are river-independent)'
+              % (seg_fn.name, alt[0].name))
+        seg_fn = alt[0]
     seg_info = pickle.load(open(seg_fn, 'rb'))
 
     G = zrfun.get_basic_info(fn00, only_G=True)
