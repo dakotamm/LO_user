@@ -57,7 +57,14 @@ out_fn = out_dir / ('wind_' + Ldir['ds0'] + '_' + Ldir['ds1'] + '_' + gctag + '.
 
 fn_list = Lfun.get_fn_list('hourly', Ldir, Ldir['ds0'], Ldir['ds1'],
                            his_num=Ldir['his_num'])
-print('%d files, first %s' % (len(fn_list), fn_list[0]))
+# Subsample in time. The target is a DAILY mean to correlate against daily gyre
+# strength, and the cost here is dominated by the per-file open, not by the
+# bytes. Every 6th hour still gives 4 samples a day, which resolves the diurnal
+# sea breeze (4 per cycle, comfortably above Nyquist) at a sixth of the cost.
+# Set -nskip 1 if you ever want the full hourly series.
+NSKIP = 6
+fn_list = fn_list[::NSKIP]
+print('%d files (every %dth hour), first %s' % (len(fn_list), NSKIP, fn_list[0]))
 
 # cove axis from the segment centroids, inner to outer
 g = xr.open_dataset(Ldir['grid'] / 'grid.nc')
@@ -80,20 +87,37 @@ norm = np.hypot(ax, ay)
 ax, ay = ax / norm, ay / norm
 print('cove axis (mouth -> head) unit vector: (%.3f, %.3f)' % (ax, ay))
 
+# Read only a bounding box around the cove instead of the whole field. Indexing
+# with .values[jj, ii] pulls the entire 368x272 grid off disk first; slicing
+# lets netCDF read just the hyperslab, which is what made extract_segments_SV
+# fast (0.054 s/file) while the first version of this script was not.
+j0, j1 = jj.min(), jj.max() + 1
+i0, i1 = ii.min(), ii.max() + 1
+jl, il = jj - j0, ii - i0
+sl = dict(eta_rho=slice(j0, j1), xi_rho=slice(i0, i1))
+print('bounding box j %d:%d i %d:%d (%d of %d cells)'
+      % (j0, j1, i0, i1, (j1 - j0) * (i1 - i0), 368 * 272))
+
 tt0 = time()
 ot, U, Vv = [], [], []
 for k, fn in enumerate(fn_list):
-    ds = xr.open_dataset(fn)
-    ot.append(ds.ocean_time.values[0])
-    U.append(float(np.nanmean(ds.Uwind.isel(ocean_time=0).values[jj, ii])))
-    Vv.append(float(np.nanmean(ds.Vwind.isel(ocean_time=0).values[jj, ii])))
+    # decode_times=False skips the per-file CF/time decoding, which is pure
+    # overhead when the cost is dominated by opening thousands of files
+    ds = xr.open_dataset(fn, decode_times=False)
+    ot.append(float(ds.ocean_time.values[0]))
+    U.append(float(np.nanmean(ds.Uwind.isel(ocean_time=0, **sl).values[jl, il])))
+    Vv.append(float(np.nanmean(ds.Vwind.isel(ocean_time=0, **sl).values[jl, il])))
     ds.close()
-    if np.mod(k, 2000) == 0 and k > 0:
+    if np.mod(k, 500) == 0 and k > 0:
         el = time() - tt0
-        print('  %6d / %d  %.1f min elapsed' % (k, len(fn_list), el / 60))
+        print('  %5d / %d  %.1f min elapsed, ~%.1f min left'
+              % (k, len(fn_list), el / 60, el / 60 * (len(fn_list) - k) / k))
         sys.stdout.flush()
 
-t = pd.to_datetime(ot)
+# Lfun.roms_time_units is 'seconds since 1970-01-01', i.e. plain Unix epoch, so
+# pandas converts the whole array at once. Lfun.modtime_to_datetime is scalar
+# only and would need a loop.
+t = pd.to_datetime(np.array(ot), unit='s')
 df = pd.DataFrame({'Uwind': U, 'Vwind': Vv}, index=t)
 # positive w_along blows from the mouth toward the head, i.e. into the cove
 df['w_along'] = df.Uwind * ax + df.Vwind * ay
