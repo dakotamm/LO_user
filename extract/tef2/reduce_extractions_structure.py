@@ -81,6 +81,18 @@ for sn in sect_list:
         if sel.any():
             qmon[m - 1] = np.nanmean(q[sel], axis=0)
 
+    # DAILY lateral profile: depth-summed, one row per day. Twelve monthly
+    # means is far too few points to attribute the gyre to a driver -- daily
+    # gives n of order 700 and lets the correlation carry weight. Depth-summed
+    # here because the lateral profile is all the gyre metric needs, and it
+    # keeps the array small.
+    day = pd.Series(np.arange(NT), index=t).groupby(t.floor('D'))
+    dates = np.array(sorted(day.groups.keys()))
+    qlat_day = np.full((len(dates), NP), np.nan)
+    for k, dd in enumerate(dates):
+        idx = day.get_group(dd).values
+        qlat_day[k] = -np.nansum(np.nanmean(q[idx], axis=0), axis=0)
+
     # how much of the residual circulation lives on each axis: collapse to a
     # profile along one direction and take its variance
     prof_z = np.nansum(qbar, axis=1)      # (z) -- vertical structure
@@ -95,6 +107,9 @@ for sn in sect_list:
     lat_f = 0.5 * (lat_rho[d.jrp, d.irp] + lat_rho[d.jrm, d.irm])
 
     pdim, zdim = sn + '_p', sn + '_z'
+    ds_out[sn + '_qlat_day'] = (('day', pdim), qlat_day)
+    if 'day' not in ds_out.coords:
+        ds_out = ds_out.assign_coords(day=dates)
     ds_out[sn + '_qbar'] = ((zdim, pdim), qbar)
     ds_out[sn + '_fsbar'] = ((zdim, pdim), fsbar)
     ds_out[sn + '_sbar'] = ((zdim, pdim), sbar)
