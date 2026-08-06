@@ -27,9 +27,10 @@ That claim is checked two independent ways, which should agree:
 
   LOG     each day's forcing writes Info/screen_output.txt, which names the
           fill method per source in the model's own words.
-  REPEAT  matching 2024 and 2025 on DAY OF YEAR: a climatological source has
-          a max difference of exactly 0. Day of year, not month-day -- 2024 is
-          a leap year, and the traps climatologies are indexed by dayofyear.
+  REPEAT  matching 2024 and 2025 on MONTH-DAY: a climatological source has a
+          max difference of exactly 0. Month-day, not day of year -- the traps
+          climatologies run on a 366-day year and the forcing code shifts the
+          yearday in non-leap years so that calendar dates line up.
 
 river_transport is signed by the source's isign -- the sign is which way the
 flux points on the grid, not whether it is a source or a sink. Magnitude is
@@ -105,19 +106,23 @@ meta['fill'] = [prov.get(n, prov.get(n[:-2] if n.endswith(' R') else n,
                                      'unknown')) for n in meta.index]
 
 # independent check: does the source repeat exactly between the two years?
-# Match on DAY OF YEAR, not month-day. The traps climatologies are indexed by
-# dayofyear (yd_ind in the forcing code), so in a leap year every date after
-# Feb 29 gets a day-of-year one higher than the same calendar date in a
-# non-leap year. Matching on month-day would compare DOY 61 against DOY 60 for
-# all of Mar-Dec and report a small nonzero difference for sources that are in
-# fact pure climatology.
-doy = Q.index.dayofyear
+# Match on MONTH-DAY, not day of year. The traps climatologies are built on a
+# 366-day year, and trapsfun.get_qtbio explicitly shifts the yearday forward by
+# one after Feb in a non-leap year ("shift yearday by one if it is after Feb 28
+# and it is not a leap year"). The net effect is that the climatology is keyed
+# to the CALENDAR DATE: Mar 1 2024 and Mar 1 2025 draw the same value even
+# though their day-of-year differs. Matching on day of year instead would
+# compare Mar 1 against Feb 29 for all of Mar-Dec and report a spurious
+# nonzero difference for sources that are in fact pure climatology.
+# Verified on the run: month-day matching gives exactly 0 across all 29 small
+# sources, day-of-year matching gives up to 3.1 m3/s.
+md = Q.index.strftime('%m-%d')
 y = Q.index.year
 yrs = sorted(set(y))
 if len(yrs) >= 2:
-    a = Q[y == yrs[0]].set_index(doy[y == yrs[0]])
-    b = Q[y == yrs[-1]].set_index(doy[y == yrs[-1]])
-    common = a.index.intersection(b.index)      # drops DOY 366 automatically
+    a = Q[y == yrs[0]].set_index(md[y == yrs[0]])
+    b = Q[y == yrs[-1]].set_index(md[y == yrs[-1]])
+    common = a.index.intersection(b.index)      # drops 02-29 automatically
     meta['repeat_maxdiff'] = (a.loc[common] - b.loc[common]).abs().max()
 else:
     meta['repeat_maxdiff'] = np.nan
@@ -128,8 +133,8 @@ log_clim = meta.fill.str.contains('climatology|dataset', regex=True)
 print('  groups: ' + ', '.join('%s %d' % (g, n)
                                for g, n in meta.group.value_counts().items()))
 if len(yrs) >= 2:
-    print('  %d of %d sources repeat exactly between %d and %d on day of year '
-          '(climatological); largest between-year difference %.3g m3/s'
+    print('  %d of %d sources repeat exactly between %d and %d on calendar '
+          'date (climatological); largest between-year difference %.3g m3/s'
           % (n_clim, len(meta), yrs[0], yrs[-1], meta.repeat_maxdiff.max()))
     agree = (log_clim == meta.climatological).all()
     print('  forcing log and repeat test %s'

@@ -31,7 +31,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
-from pathlib import Path
 
 from lo_tools import Lfun, zfun
 
@@ -40,7 +39,7 @@ gtx = 'wb1_t0_xn11abbur00'
 coll = 'wb1_pc1'
 SECT = 'pc_lp'
 TZ = 'America/Los_Angeles'
-out_dir = Path.home() / 'Desktop' / 'pltz'
+out_dir = Ldir['LOo'] / 'DM_outs' / '20260806_tidal_phase'
 Lfun.make_dir(out_dir)
 
 # ------------------------------------------------------------------- load ---
@@ -240,9 +239,9 @@ C.legend(fontsize=8)
 for lab in C.get_xticklabels():
     lab.set_rotation(20)
 
-fn_out = out_dir / '20260806_tidal_seasonality.png'
+fn_out = out_dir / 'seasonality.png'
 fig.savefig(fn_out, dpi=200, bbox_inches='tight')
 pd.DataFrame(dict(range_m=rng, msl_m=msl)).to_csv(
-    out_dir / '20260806_tidal_seasonality_daily.csv',
+    out_dir / 'seasonality_daily.csv',
     index_label='date_local', float_format='%.4f')
 print('\nsaved %s' % fn_out)

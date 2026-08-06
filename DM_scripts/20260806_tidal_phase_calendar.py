@@ -42,7 +42,6 @@ import ephem
 import xarray as xr
 import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
-from pathlib import Path
 from scipy.signal import find_peaks
 
 from lo_tools import Lfun
@@ -51,7 +50,7 @@ Ldir = Lfun.Lstart(gridname='wb1')
 gtx = 'wb1_t0_xn11abbur00'
 coll = 'wb1_pc1'
 SECT = 'pc_lp'          # Penn Cove mouth; sections differ by < 1 cm
-out_dir = Path.home() / 'Desktop' / 'pltz'
+out_dir = Ldir['LOo'] / 'DM_outs' / '20260806_tidal_phase'
 Lfun.make_dir(out_dir)
 
 TZ = 'America/Los_Angeles'   # 'Etc/GMT+8' for fixed PST, no DST
@@ -258,10 +257,10 @@ q = D.range_smooth_m.quantile([1 / 3, 2 / 3]).values
 D['model_phase'] = np.where(D.range_smooth_m >= q[1], 'spring',
                             np.where(D.range_smooth_m <= q[0], 'neap', 'transition'))
 
-E_out.to_csv(out_dir / '20260806_tidal_phase_events.csv', index=False)
+E_out.to_csv(out_dir / 'phase_events.csv', index=False)
 D_out = D.copy()
 D_out.index = D_out.index.strftime('%Y-%m-%d')
-D_out.to_csv(out_dir / '20260806_tidal_phase_daily.csv',
+D_out.to_csv(out_dir / 'phase_daily.csv',
              index_label='date_local', float_format='%.4f')
 
 # ------------------------------------------------------------------ report ---
@@ -332,8 +331,8 @@ C.text(0.005, 0.06, 'extrema = tropic tides, zero = equatorial (13.66 d)',
        transform=C.transAxes, fontsize=8, color='0.3')
 C.xaxis.set_major_formatter(DateFormatter('%b\n%Y'))
 
-fn_out = out_dir / '20260806_tidal_phase_calendar.png'
+fn_out = out_dir / 'phase_calendar.png'
 fig.savefig(fn_out, dpi=200, bbox_inches='tight')
 print('\nsaved %s' % fn_out)
-print('saved %s' % (out_dir / '20260806_tidal_phase_events.csv'))
-print('saved %s' % (out_dir / '20260806_tidal_phase_daily.csv'))
+print('saved %s' % (out_dir / 'phase_events.csv'))
+print('saved %s' % (out_dir / 'phase_daily.csv'))
