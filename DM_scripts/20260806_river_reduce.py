@@ -123,5 +123,8 @@ if missing:
 print('mean total flow %.1f m3/s over %s to %s'
       % (Q.sum(axis=1).mean(), Q.index[0].date(), Q.index[-1].date()))
 print('\nsaved %s  (%.2f MB)' % (out_fn, out_fn.stat().st_size / 1e6))
-print('\nbring it home with:\n  scp apogee:%s \\\n      ~/%s'
-      % (out_fn, out_fn.relative_to(Path.home())))
+# The destination is built from LOo's own last component rather than from
+# Path.home(): on apogee LOo is /dat2/dakotamm/LO_output while $HOME is
+# /home/dakotamm, so relative_to(home) has nothing to strip and raises.
+print('\nbring it home with:\n  scp apogee:%s \\\n      ~/%s/'
+      % (out_fn, Path(Ldir['LOo'].name) / out_dir.relative_to(Ldir['LOo'])))
