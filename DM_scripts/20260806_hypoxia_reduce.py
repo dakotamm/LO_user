@@ -42,9 +42,11 @@ make a second pass over the run for it.
 
 SOURCE: 'lowpass' reads lowpassed.nc, one Godin-filtered field per day, which
 is the right series for a seasonal question -- the tide is removed rather than
-aliased into it. 'his' reads the hourly history files instead, ~24x the I/O,
-and answers the different question of how much hypoxic volume is built and
-destroyed within a tidal cycle. Start with lowpass.
+aliased into it, and two years is ~730 files (a quarter of a second of work
+each, so the whole cost is reading them). 'his' reads the hourly history files
+instead, 24x the I/O, and answers the different question of how much hypoxic
+volume is built and destroyed within a tidal cycle; -hstride 3 makes that
+tractable over a long window. Start with lowpass.
 
 Salinity comes along (region surface and bottom means) because stratification
 is the first thing anyone asks when the volume series moves, and one more
@@ -78,13 +80,17 @@ parser.add_argument('-0', '--ds0', default='2024.01.01', type=str)
 parser.add_argument('-1', '--ds1', default='2025.12.31', type=str)
 parser.add_argument('-src', '--source', default='lowpass', type=str,
                     choices=['lowpass', 'his'])
+parser.add_argument('-hstride', default=1, type=int,
+                    help='keep every Nth hour when -src his (24 files/day at 1)')
 args = parser.parse_args()
 
 Ldir = Lfun.Lstart(gridname='wb1')
 gtx = args.gtagex
 DATE0, DATE1, SOURCE = args.ds0, args.ds1, args.source
 
-HIS_HOURS = range(1, 25)      # which ocean_his_00NN.nc per day, if SOURCE='his'
+# ocean_his_0001 is 00:00 of the day and 0025 is 00:00 of the next, so 1..24
+# keeps each day's own hours exactly once
+HIS_HOURS = range(1, 25, args.hstride)
 
 THRESH = [0.5, 2.0, 3.0, 5.0]      # mg/L, series thresholds
 FIELD_THRESH = [2.0, 5.0]          # mg/L, thresholds carried as map fields
@@ -124,8 +130,6 @@ def find_files():
             if SOURCE == 'lowpass':
                 fns = [run_dir / 'lowpassed.nc']
             else:
-                # ocean_his_0001 is 00:00 of this day and 0025 is 00:00 of the
-                # next, so 1..24 keeps each day's own hours exactly once
                 fns = [run_dir / ('ocean_his_%04d.nc' % i) for i in HIS_HOURS]
             fns = [f for f in fns if f.is_file()]
             if fns:
@@ -135,8 +139,13 @@ def find_files():
 
 FN = find_files()
 if not FN:
-    raise SystemExit('no %s files for %s under %s'
-                     % (SOURCE, gtx, [str(Ldir.get(k)) for k in ROMS_OUT_KEYS]))
+    raise SystemExit(
+        'no %s files for %s between %s and %s under\n  %s\n'
+        'if lowpassed.nc was never made for this run, use the history files:\n'
+        '  python %s -gtx %s -src his -hstride 3'
+        % (SOURCE, gtx, DATE0, DATE1,
+           '\n  '.join(str(Ldir.get(k)) for k in ROMS_OUT_KEYS),
+           Path(__file__).name, gtx))
 nfile = sum(len(v) for v in FN.values())
 print('%s: %d days, %d %s files, %s to %s'
       % (gtx, len(FN), nfile, SOURCE, min(FN), max(FN)))
@@ -343,7 +352,7 @@ for nm in regions:
     print('%-14s %8.3f %8.2f %9.2f   %s'
           % (nm, d.V_tot.mean() / 1e9, d.do_min.min(), d.do_bot_mean.mean(),
              frac))
-print('  the last columns are the %% of time steps with ANY water below each')
+print('  the last columns are the % of time steps with ANY water below each')
 print('  threshold in that region; the series worth plotting is the lowest')
 print('  threshold that is neither 0% nor 100% of the time')
 

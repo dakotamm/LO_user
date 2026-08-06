@@ -91,6 +91,7 @@ W.index = W.index.tz_localize('UTC').tz_convert(TZ)
 if len(MET):
     MET.index = MET.index.tz_localize('UTC').tz_convert(TZ)
 lt = W.index                                   # local time, for the diurnal
+uhr = pd.Series(W.index.tz_convert('UTC').hour, index=W.index)
 print('reduced wind forcing from %s' % CACHE.name)
 print('  made %s from %s on the %s grid'
       % (C['info']['made'], C['info']['frc'], Ldir['gridname']))
@@ -105,20 +106,56 @@ if C['missing']:
 # unique (u,v) count == number of WRF cells covering the region, because atm00
 # interpolates by nearest neighbour
 print('\n--- what resolution is this wind, really ---')
-print('%-14s %8s %10s %14s' % ('region', 'km2', 'WRF cells', 'km per cell'))
+print('%-14s %8s %11s %14s' % ('region', 'km2', 'WRF cells', 'km per cell'))
 for nm in regions:
     a = C['ncell'][nm] * 0.04
     n = DG['nuniq_' + nm]
-    print('%-14s %8.1f %5d - %-4d %14.2f'
-          % (nm, a, n.min(), n.max(), np.sqrt(a / n.median())))
+    print('%-14s %8.1f %11d %14.2f' % (nm, a, n.median(),
+                                       np.sqrt(a / n.median())))
+print('  (typical day; the ROMS grid is 200 m, so the wind is smoother than')
+print('   the bathymetry by a factor of ~%.0f)'
+      % (np.sqrt(1552.5 / DG.nuniq_domain.median()) / 0.2))
+
+# not every day gets the fine nest, and a day that falls back is a day when
+# the whole cove may be a single wind vector -- worth naming rather than
+# hiding inside a min-max range
+bad = DG[DG.nuniq_domain < DG.nuniq_domain.median()]
+print('  %d of %d days fall back to a coarser WRF nest:' % (len(bad), len(DG)))
+for n_, g in bad.groupby('nuniq_pc'):
+    print('    %3d day(s) with only %d distinct wind value(s) in Penn Cove '
+          '(%d over the domain): %s'
+          % (len(g), n_, g.nuniq_domain.median(),
+             ', '.join(d.strftime('%Y-%m-%d') for d in g.index)))
 if 'miss_d4' in DG:
-    nd4 = (DG.miss_d4 == 0).sum()
-    nd3 = (DG.miss_d3 == 0).sum()
-    print('forcing log: d4 (1.3 km) complete on %d of %d days, '
-          'd3 (4 km) complete on %d' % (nd4, len(DG), nd3))
-    print('  the ROMS grid is 200 m, so the wind is smoother than the '
-          'bathymetry by a factor of ~%.0f'
-          % (np.sqrt(1552.5 / DG.nuniq_domain.median()) / 0.2))
+    # the count above is sampled at midday only, so it catches a day that lost
+    # the nest for the whole day but not one that lost a few hours -- the log
+    # is the stricter test and gives the larger number
+    print('  forcing log, which sees every hour rather than just midday: '
+          'd4 (1.3 km) incomplete on %d days (%d of them entirely absent), '
+          'd3 (4 km) incomplete on %d'
+          % ((DG.miss_d4 > 0).sum(), (DG.miss_d4 >= 25).sum(),
+             (DG.miss_d3 > 0).sum()))
+
+# -------------------------------------------------------- the daily seam ---
+# Each day's forcing is built from that day's own WRF run, hours f00 to f24, and
+# the reducer keeps f00-f23. So 00 UTC is an f00 -- a freshly initialised WRF
+# field -- sitting directly after an f23 from the PREVIOUS day's run. The two
+# runs disagree: checking two files that hold the same valid time, the mean
+# vector difference over water is ~2.9 m/s, larger than a real one-hour change.
+# The model therefore gets a wind discontinuity once a day, and any diurnal
+# composite picks it up as a spike, because 00 UTC is a fixed local hour
+# (16:00 PST / 17:00 PDT).
+jmp = np.hypot(W.u_domain.diff(), W.v_domain.diff())
+seam, rest = jmp[uhr == 0].mean(), jmp[uhr != 0].mean()
+print('\n--- the daily seam at 00 UTC (a forcing artifact, not weather) ---')
+print('  mean hour-to-hour change in the domain wind vector:')
+print('    into 00 UTC (new WRF run starts)  %.3f m s-1' % seam)
+print('    every other hour                  %.3f m s-1' % rest)
+print('  the seam is %.1fx a normal hourly change, and it lands at 16:00 PST '
+      '/ 17:00 PDT' % (seam / rest))
+print('  it is %.1f%% of all hours; excluded from the diurnal composite below, '
+      'kept everywhere else because the model really did feel it'
+      % (100 * (uhr == 0).mean()))
 
 # --------------------------------------------------------------- geometry ---
 # axis of each region from its own water cells, to ask whether the wind is
@@ -294,18 +331,32 @@ if len(yrs) >= 2:
 print('\n--- diurnal cycle (local time): is there a sea breeze ---')
 print('%-5s %9s %9s %9s %11s' % ('seas', 'range', 'peak hr', 'min hr',
                                  'cross-cove'))
+# A diurnal composite wants a FIXED offset from the sun, not civil time. With
+# DST, 00 UTC falls in local hour 16 for half the year and 17 for the other
+# half, so dropping it would leave both of those hours built from a different
+# subset of days than their neighbours -- which puts a step back into the curve
+# in exactly the place the seam was. Fixed UTC-8 keeps the seam in one bin.
+SOL_OFF = 8
+shr = (uhr - SOL_OFF) % 24
+SEAM_HR = (0 - SOL_OFF) % 24                       # 16
 DI = {}
 for s, ms in SEAS.items():
-    q = W[W.index.month.isin(ms)]
-    h = q.groupby(q.index.hour).mean()
+    # the seam hour is dropped: it is the WRF re-initialisation measured above,
+    # and being at a fixed solar hour it would otherwise masquerade as a
+    # late-afternoon sea breeze in every season at once
+    sel = W.index.month.isin(ms) & (uhr != 0)
+    q = W[sel]
+    h = q.groupby(shr[sel]).mean().reindex(range(24))
     DI[s] = h
     print('%-5s %9.2f %9d %9d %11.2f'
           % (s, h.spd_domain.max() - h.spd_domain.min(), h.spd_domain.idxmax(),
              h.spd_domain.idxmin(),
              h.cross_pc.max() - h.cross_pc.min()))
-print('  range = peak-to-trough of the hour-of-day mean domain speed (m/s).')
-print('  a sea breeze shows up as an afternoon peak that is large in summer')
-print('  and absent in winter, and it is invisible in a daily mean.')
+print('  range = peak-to-trough of the hour-of-day mean domain speed (m/s), on')
+print('  fixed UTC-%d with the seam hour %02d:00 removed. a sea breeze shows up'
+      % (SOL_OFF, SEAM_HR))
+print('  as an afternoon peak that is large in summer and absent in winter,')
+print('  and it is invisible in a daily mean.')
 
 # --------------------------------------------------------------- events ---
 print('\n--- wind events (peaks in domain-mean hourly speed) ---')
@@ -331,6 +382,10 @@ print('%d peaks above the 95th percentile (%.2f m/s) in %d hours'
 em = pd.Series(ev.index.month).value_counts().reindex(range(1, 13), fill_value=0)
 print('  by month: ' + ', '.join('%s %d' % (MN[m - 1], n)
                                  for m, n in em.items() if n))
+# a peak landing on the seam hour would be the artifact, not a storm
+print('  %d of %d peaks fall on the 00 UTC seam hour (%.1f%% expected by '
+      'chance)' % (int((uhr.loc[ev.index] == 0).sum()), len(ev),
+                   100 / 24))
 
 # ------------------------------------------------------- mixing energy ---
 print('\n--- wind mixing energy (u*^3), and how event-dominated it is ---')
@@ -383,8 +438,13 @@ print('  correlation of local hourly speed with the domain mean: '
       % (np.nanmedian(coh[cw]), np.nanmin(coh[cw])))
 print('  local mean speed / domain mean speed: %.2f to %.2f over water '
       '(sheltering and channelling)' % (ratio[cw].min(), ratio[cw].max()))
-print('  local wind axis spans %.0f-%.0f deg T over water'
-      % (np.nanmin(axmap[cw]), np.nanmax(axmap[cw])))
+# the axis is bidirectional, so it wraps at 0/180 and a plain min-max is
+# meaningless. Spread is measured against the domain axis instead.
+off = np.abs(axmap - S.loc['domain', 'wind_axis'])
+off = np.minimum(off, 180 - off)
+print('  local wind axis differs from the domain axis by %.0f deg (median), '
+      '%.0f deg at the 90th percentile'
+      % (np.nanmedian(off[cw]), np.nanpercentile(off[cw], 90)))
 print('  Penn Cove mean speed is %.2f m/s = %.0f%% of the domain mean'
       % (S.loc['pc', 'mean_spd'],
          100 * S.loc['pc', 'mean_spd'] / S.loc['domain', 'mean_spd']))
@@ -533,8 +593,11 @@ for s, h in DI.items():
             label='%s domain' % s)
     Cx.plot(h.index, h.spd_pc, color=SEAS_C[s], lw=1.0, ls='--',
             label='%s Penn Cove' % s)
+Cx.axvline(SEAM_HR, color='0.6', ls=':', lw=1)
+Cx.text(SEAM_HR, Cx.get_ylim()[1], ' 00 UTC seam\n dropped', fontsize=7,
+        color='0.4', va='top')
 Cx.set_xticks(range(0, 24, 3))
-Cx.set_xlabel('hour of day (%s)' % TZ)
+Cx.set_xlabel('hour of day (fixed UTC$-$%d, no DST)' % SOL_OFF)
 Cx.set_ylabel('mean wind speed (m s$^{-1}$)')
 Cx.set_title('diurnal cycle by season -- the sea breeze')
 Cx.grid(color='lightgray', ls='--', alpha=0.5)

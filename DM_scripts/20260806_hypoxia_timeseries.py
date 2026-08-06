@@ -41,7 +41,6 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import xarray as xr
 from matplotlib.dates import DateFormatter
 from matplotlib.path import Path as MplPath
 from matplotlib.ticker import MaxNLocator
@@ -121,8 +120,8 @@ for nm in regions:
     occ = ' '.join('%11.1f%%' % (100 * (d['V_' + k] > 0).mean()) for k in TKEY)
     print('%-14s %8.2f %8.2f   %s'
           % (nm, d.do_min.min(), d.do_bot_mean.mean(), occ))
-print('  (%% of time steps with any water below the threshold anywhere in the')
-print('   region -- 0%% or 100%% means that threshold has no series to plot)')
+print('  (% of time steps with any water below the threshold anywhere in the')
+print('   region -- 0% or 100% means that threshold has no series to plot)')
 
 LIVE = [k for k in TKEY if 0 < (D['V_' + k] > 0).mean() < 1]
 print('  live in %s: %s' % (REG, ', '.join(LIVE) if LIVE else 'none'))
@@ -173,7 +172,8 @@ for k in FKEY:
              ab.max() / 1e6, 100 * (1 - (ab[on] / ac[on]).mean())))
 
 # seasonal timing: the day by which half the year's hypoxic volume-days are in
-yrs = [y for y in sorted(set(t.year)) if (t.year == y).sum() > 30]
+# (a partial year still gets a bar in figure 2; it just is not a season)
+yrs = sorted(set(t.year))
 if yrs:
     print('\n--- when in the year the low oxygen sits ---')
     for k in [MAIN, '5']:
@@ -280,7 +280,7 @@ for k in sorted(TKEY, key=float, reverse=True):     # nested: widest first
 A.set_ylabel('volume below threshold\n(10$^6$ m$^3$)')
 A2 = A.twinx()
 A2.set_ylim(np.array(A.get_ylim()) * 1e6 / D.V_tot.mean() * 100)
-A2.set_ylabel('% of %s volume' % REG)
+A2.set_ylabel('%% of %s volume' % REG)
 A.set_title('%s -- low-oxygen volume in %s (%s, %s to %s)'
             % (gtx, REG, SOURCE, args.ds0, args.ds1))
 A.grid(color='lightgray', ls='--', alpha=0.5)
@@ -297,7 +297,7 @@ for k in FKEY:
 B.set_ylabel('area below threshold\n(km$^2$)')
 B2 = B.twinx()
 B2.set_ylim(np.array(B.get_ylim()) * 1e6 / D.A_tot.mean() * 100)
-B2.set_ylabel('% of %s area' % REG)
+B2.set_ylabel('%% of %s area' % REG)
 B.grid(color='lightgray', ls='--', alpha=0.5)
 B.legend(fontsize=8, ncol=2, loc='upper left')
 B.text(0.005, 0.05, 'gap between line and fill = low-oxygen layer off the bed',
@@ -351,7 +351,7 @@ for ax, k in [(axs[0, 0], '5'), (axs[0, 1], MAIN)]:
         ax.plot(d.index, 100 * d['V_' + k] / d.V_tot, color=RC.get(nm, '0.5'),
                 lw=1.2 if nm == REG else 0.9,
                 alpha=1.0 if nm == REG else 0.75, label=nm)
-    ax.set_ylabel('% of region volume < %s mg L$^{-1}$' % k)
+    ax.set_ylabel('%% of region volume < %s mg L$^{-1}$' % k)
     ax.set_title('how much of each region is below %s mg/L' % k, fontsize=10)
     ax.grid(color='lightgray', ls='--', alpha=0.5)
     ax.legend(fontsize=8, ncol=2)
@@ -380,11 +380,11 @@ for nm in regions:
     if v.sum() <= 0:
         continue
     c = 100 * v.cumsum() / v.sum()
-    Dx.plot(d.index.dayofyear + (d.index.year - min(yrs)) * 365.25 if len(yrs) > 1
-            else d.index.dayofyear, c.values, color=RC.get(nm, '0.5'), lw=1.4,
-            label=nm)
+    Dx.plot(d.index, c.values, color=RC.get(nm, '0.5'), lw=1.4, label=nm)
 Dx.axhline(50, color='0.6', lw=0.8)
-Dx.set_xlabel('day of the run')
+Dx.plot([t[0], t[-1]], [0, 100], color='0.7', ls=':', lw=1,
+        label='if it were spread evenly')
+Dx.xaxis.set_major_formatter(DateFormatter('%b\n%Y'))
 Dx.set_ylabel('cumulative %% of low-oxygen volume-days (< %s mg/L)' % MAIN)
 Dx.set_title('when the low-oxygen water is delivered', fontsize=10)
 Dx.grid(color='lightgray', ls='--', alpha=0.5)
@@ -415,16 +415,27 @@ def draw(ax, field, aa, cmap, vmin, vmax, label, sub=1, under=None):
     ax.tick_params(labelsize=7, labelrotation=45)
 
 
-fig, axs = plt.subplots(1, 4, figsize=(18, 7), layout='constrained')
+fig, axs = plt.subplots(1, 4, figsize=(18, 5.5), layout='constrained')
 
-draw(axs[0], show(RUN['bot_do']), aa_reg, 'viridis',
-     np.nanmin(show(RUN['bot_do'])[np.isfinite(show(RUN['bot_do']))]) if
-     np.isfinite(show(RUN['bot_do'])).any() else 0, 10,
-     'run-mean bottom DO (mg L$^{-1}$)')
+
+def in_window(field, aa, sub=1):
+    """The field's values inside the map window, for scaling the colorbar."""
+    w = ((lon[::sub, ::sub] >= aa[0]) & (lon[::sub, ::sub] <= aa[1]) &
+         (lat[::sub, ::sub] >= aa[2]) & (lat[::sub, ::sub] <= aa[3]))
+    v = field[w]
+    return v[np.isfinite(v)]
+
+
+bd = show(RUN['bot_do'])
+draw(axs[0], bd, aa_reg, 'viridis',
+     *np.percentile(in_window(bd, aa_reg), [1, 99]),
+     label='run-mean bottom DO (mg L$^{-1}$)')
 axs[0].set_title('mean bottom oxygen', fontsize=10)
 
-draw(axs[1], show(RUN['col_do_min']), aa_reg, 'magma', 0, 8,
-     'run-minimum column DO (mg L$^{-1}$)')
+cm_ = show(RUN['col_do_min'])
+draw(axs[1], cm_, aa_reg, 'magma',
+     0, np.percentile(in_window(cm_, aa_reg), 99),
+     label='run-minimum column DO (mg L$^{-1}$)')
 axs[1].set_title('lowest oxygen ever reached\nanywhere in the column',
                  fontsize=10)
 
@@ -446,7 +457,7 @@ fig.savefig(fn3, dpi=180, bbox_inches='tight')
 # ---------------------------------------------- figure 4: monthly bottom DO ---
 # the series says when, this says where within the cove, month by month
 keys = sorted(MF)
-ncol = 6
+ncol = min(6, len(keys))
 nrow = int(np.ceil(len(keys) / ncol))
 fig, axs = plt.subplots(nrow, ncol, figsize=(3.0 * ncol, 3.6 * nrow),
                         layout='constrained', squeeze=False)
