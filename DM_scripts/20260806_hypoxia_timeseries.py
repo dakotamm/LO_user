@@ -125,8 +125,10 @@ print('   region -- 0% or 100% means that threshold has no series to plot)')
 
 LIVE = [k for k in TKEY if 0 < (D['V_' + k] > 0).mean() < 1]
 print('  live in %s: %s' % (REG, ', '.join(LIVE) if LIVE else 'none'))
-# what the figures lead with: the lowest live threshold, and 5 mg/L for context
-MAIN = LIVE[0] if LIVE else TKEY[1]
+# What the single-threshold panels lead with: 2 mg/L, the conventional hypoxia
+# line, whenever it is live here -- otherwise the lowest threshold that is.
+MAIN = '2' if '2' in LIVE else (LIVE[0] if LIVE else '2')
+print('  the single-threshold panels below use < %s mg/L' % MAIN)
 
 # ----------------------------------------------------- the series, in words ---
 def spells(b):
@@ -194,15 +196,47 @@ if yrs:
                      100 * q[q.index.month.isin([7, 8, 9, 10])].sum() / q.sum()))
 
 # --------------------------------------------------- stratification & wind ---
+# Both of these have to be asked on ANOMALIES as well as on the raw series.
+# The hypoxic volume is almost pure seasonal cycle here, and so is the salinity
+# stratification -- so a raw correlation between them mostly reports that both
+# have a summer, with whatever sign their two seasons happen to line up in. A
+# 30-day centred rolling mean removes that background from both and leaves the
+# synoptic question: when this went up, did that follow?
+def anom(s, win=30):
+    return s - s.rolling(win, center=True, min_periods=win // 2).mean()
+
+
+def corr_stats(x, y):
+    """r with an autocorrelation-corrected p (Bretherton et al. 1999 n_eff).
+
+    Daily series are strongly autocorrelated, and the nominal n makes almost
+    any r significant.
+    """
+    from scipy.stats import t as tdist
+    j = pd.concat([x.rename('x'), y.rename('y')], axis=1).dropna()
+    if len(j) < 10 or j.x.std() == 0 or j.y.std() == 0:
+        return np.nan, np.nan, 0
+    r = j.x.corr(j.y)
+    a = j.x.autocorr(1) * j.y.autocorr(1)
+    n_eff = min(max(len(j) * (1 - a) / (1 + a), 3.0), float(len(j)))
+    tv = r * np.sqrt((n_eff - 2) / max(1 - r ** 2, 1e-12))
+    return r, 2 * tdist.sf(abs(tv), n_eff - 2), n_eff
+
+
 if 'dsalt' in D.columns:
     print('\n--- does it track stratification ---')
-    v = D['V_' + MAIN]
+    v, va = D['V_' + MAIN], anom(D['V_' + MAIN])
+    print('  %5s %26s %26s' % ('lag', 'raw series', '30-day anomalies'))
     for lag in [0, 1, 2, 3, 5, 7]:
-        r = v.corr(D.dsalt.shift(lag))
-        print('  V(<%s) vs bottom-minus-surface salinity lagged %d step%s: '
-              'r = %+.3f' % (MAIN, lag, ' ' if lag == 1 else 's', r))
-    print('  positive r = more stratified, more low-oxygen water. A peak at a')
-    print('  lag of a few days is the cove integrating, not responding.')
+        r0, p0, n0 = corr_stats(v, D.dsalt.shift(lag))
+        r1, p1, n1 = corr_stats(va, anom(D.dsalt).shift(lag))
+        print('  %4d  r = %+.3f (p = %.3f, n_eff %4.0f)  r = %+.3f '
+              '(p = %.3f, n_eff %4.0f)'
+              % (lag, r0, p0, n0, r1, p1, n1))
+    print('  positive r = more salinity-stratified, more low-oxygen water.')
+    print('  the raw column is dominated by the seasonal cycle of both series;')
+    print('  the anomaly column is the synoptic question. They can disagree in')
+    print('  sign, and when they do it is the anomaly one that is about events.')
 
 # the wind pickle is the other forcing reduction from the same day; if it is
 # here, ask the obvious question rather than making anyone open both files
@@ -217,16 +251,22 @@ if wfn.is_file() and 'dsalt' in D.columns:
                             else 'domain')].resample('1D').mean()
         v = D['V_' + MAIN].resample('1D').mean()
         j = pd.concat([v.rename('V'), u3.rename('u3')], axis=1).dropna()
-        dv = j.V.diff()
+        j['dV'] = j.V.diff()
         print('\n--- does the wind knock it down ---')
-        print('  daily u*^3 vs same-day CHANGE in hypoxic volume: r = %+.3f'
-              % dv.corr(j.u3))
-        print('  daily u*^3 vs hypoxic volume itself:              r = %+.3f'
-              % j.V.corr(j.u3))
-        hi = j.u3 > j.u3.quantile(0.9)
-        print('  on the windiest 10%% of days the volume changes by %+.2f x1e6 '
-              'm3, against %+.2f on the rest'
-              % (dv[hi].mean() / 1e6, dv[~hi].mean() / 1e6))
+        print('  %-34s %26s %26s' % ('', 'raw series', '30-day anomalies'))
+        for lab, y in [('u*^3 vs hypoxic volume', j.V),
+                       ('u*^3 vs its day-to-day change', j.dV)]:
+            r0, p0, n0 = corr_stats(j.u3, y)
+            r1, p1, n1 = corr_stats(anom(j.u3), anom(y))
+            print('  %-32s r = %+.3f (p = %.3f, n_eff %4.0f)  r = %+.3f '
+                  '(p = %.3f, n_eff %4.0f)' % (lab, r0, p0, n0, r1, p1, n1))
+        hi = anom(j.u3) > anom(j.u3).quantile(0.9)
+        print('  on days in the windiest 10%% of the u*^3 ANOMALY the volume '
+              'changes by %+.3f x1e6 m3/day, against %+.3f on the rest '
+              '(%+.2f%% and %+.2f%% of the region per day)'
+              % (j.dV[hi].mean() / 1e6, j.dV[~hi].mean() / 1e6,
+                 100 * j.dV[hi].mean() / D.V_tot.mean(),
+                 100 * j.dV[~hi].mean() / D.V_tot.mean()))
     except Exception as ex:
         print('\n  wind cross-check skipped: %s' % ex)
 
