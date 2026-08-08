@@ -22,8 +22,9 @@ Per-point top/bottom salinity at the cove mouth is no longer plotted here; that
 question is answered properly, over two years, by
 20260806_pc_mouth_salinity_tides.py.
 
-Runs on apogee (needs the history files). Defaults to 2 days = 49 hourly frames,
-about two diurnal / four semidiurnal cycles.
+Runs on apogee (needs the history files). Defaults to the first week of
+September 2025 = 169 hourly frames, about 14 semidiurnal / 7 diurnal cycles,
+which is long enough to watch the spring-neap envelope open and close.
 
     python 20260806_wbnorth_tidal_movie.py
     python 20260806_wbnorth_tidal_movie.py --ds0 2025.07.15 --ds1 2025.07.16
@@ -61,7 +62,7 @@ p = argparse.ArgumentParser()
 p.add_argument('--gtx', default='wb1_t0_xn11abbur00')
 p.add_argument('--ro', default=2, type=int)              # /dat2/dakotamm/LO_roms
 p.add_argument('--ds0', default='2025.09.01')
-p.add_argument('--ds1', default='2025.09.02')            # 2 days -> 49 hourly frames
+p.add_argument('--ds1', default='2025.09.07')            # 1 week -> 169 hourly frames
 p.add_argument('--lt', default='hourly0')                # clean hour-0 start on ds0
 p.add_argument('--region', default='wb_north', help='polygon that sets the map window')
 p.add_argument('--var', default='salt', help='surface field to animate')

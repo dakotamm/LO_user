@@ -1,8 +1,8 @@
 #!/bin/bash
 # Run on apogee. Tidal-cycle movie of surface salinity over wb_north (right),
-# with SSH averaged over the red pc bounding box (top left). Defaults to
-# Sept 1-2 2025 (49 hourly frames, ~2 diurnal / 4 semidiurnal cycles) of
-# wb1_t0_xn11abbur00.
+# with SSH averaged over the red pc bounding box (top left). Defaults to the
+# first week of Sept 2025 (169 hourly frames, ~7 diurnal / 14 semidiurnal
+# cycles) of wb1_t0_xn11abbur00.
 #
 #   bash 20260806_wbnorth_tidal_movie.sh
 #
