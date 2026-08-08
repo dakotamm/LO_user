@@ -132,20 +132,14 @@ riv = pd.read_csv(Ldir['LOo'] / 'DM_outs' / '20260806_river_hydrographs'
                   / 'daily_flow.csv', parse_dates=['date'])
 riv = riv.set_index(riv.date.dt.date)
 
+# wind is DAILY means, so it is looked up by date rather than sliced by hour.
+# Only w_along and the speed are used: w_cross carries a known sign error in
+# reduce_wind_cove.py and is not worth reporting here.
 wnd = xr.open_dataset(tef2 / ('wind_%s_%s_%s.nc' % (args.ds0, args.ds1, gctag)))
-WVAR = list(wnd.data_vars)
-wt = pd.to_datetime(wnd.time.values)
-
-
-def wind_pick(name_options):
-    for nm in name_options:
-        if nm in WVAR:
-            return np.asarray(wnd[nm].values, dtype=float).squeeze()
-    return None
-
-
-w_along = wind_pick(['w_along', 'walong', 'u_along'])
-w_speed = wind_pick(['speed', 'wspd', 'w_speed'])
+W = wnd.to_dataframe()
+W['w_speed'] = np.hypot(W.Uwind, W.Vwind)
+W = W.set_index(pd.DatetimeIndex(W.index).date)
+wnd.close()
 
 # ------------------------------------------------- cut into cycles ---
 # distance = 20 h keeps the larger of each day's two high waters
@@ -177,12 +171,10 @@ for i0, k in enumerate(pk[:-1]):
     for sn in ['pc_lp', 'pc_lj', 'pc_cp']:
         rec['dstrat_' + sn] = STRAT[sn][mid]
         rec['sbot_' + sn] = SBOT[sn][mid]
-    if w_along is not None:
-        rec['w_along'] = np.nanmean(w_along[sl])
-    if w_speed is not None:
-        rec['w_speed'] = np.nanmean(w_speed[sl])
+    wrow = W.loc[d_local] if d_local in W.index else None
+    rec['w_along'] = np.nan if wrow is None else wrow.w_along
+    rec['w_speed'] = np.nan if wrow is None else wrow.w_speed
     rows.append(rec)
-wnd.close()
 
 C = pd.DataFrame(rows).dropna(subset=['range_m', 'dstrat_' + args.strat_sect])
 C = C.reset_index(drop=True)

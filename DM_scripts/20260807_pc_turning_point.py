@@ -208,18 +208,41 @@ idx = pd.DatetimeIndex(time).tz_localize('UTC').tz_convert(args.tz)
 
 # -------------------------------------------------------- turning metrics ---
 def penetration(qn, f):
-    """Longitude where |Q_N| has first fallen to (1-f) of its mouth value,
-    scanning west from the mouth. Linear in longitude between columns."""
+    """(longitude, status) where the mouth's limb has decayed to (1-f) of its
+    strength, scanning west. Linear in longitude between columns.
+
+    The limb is whichever half is flowing IN at the mouth, not the north half
+    by assumption. Hourly the lateral exchange reverses for part of the cycle
+    (38 of 360 hours in the 2017 test) and a north-half-only definition throws
+    those away; taking the sign from the mouth follows the mirrored gyre
+    instead and keeps the series continuous. The sign is reported separately
+    so gyre and reversed periods stay distinguishable.
+
+    Three outcomes, all of them information:
+      ok        the limb decayed inside the cove
+      censored  it never did -- it reaches the head, so the head longitude is
+                returned rather than a NaN, which would drop exactly the times
+                the limb goes deepest and bias the excursion low
+      weak      |limb| < qmin: the exchange is passing through zero and there
+                is no limb to locate. Genuinely undefined.
+    """
     q0 = qn[im]
-    if not np.isfinite(q0) or q0 >= -args.qmin:
-        return np.nan
-    target = (1 - f) * q0                      # both negative
+    if not np.isfinite(q0) or abs(q0) < args.qmin:
+        return np.nan, 'weak'
+    P = -np.sign(q0) * (-qn)                   # positive at the mouth
+    target = (1 - f) * P[im]
     for k in range(len(COL) - 1, 0, -1):
         c, cw = COL[k], COL[k - 1]
-        if qn[c] <= target and qn[cw] > target:
-            w = (target - qn[c]) / (qn[cw] - qn[c])
-            return lonc[c] + w * (lonc[cw] - lonc[c])
-    return np.nan
+        if P[c] <= target and P[cw] > target:
+            w = (target - P[c]) / (P[cw] - P[c])
+            return lonc[c] + w * (lonc[cw] - lonc[c]), 'ok'
+    return lonc[COL[0]], 'censored'
+
+
+def pen_series(QN, f):
+    """penetration() over a (nt, nu) stack -> (longitudes, statuses)."""
+    out = [penetration(q, f) for q in QN]
+    return np.array([o[0] for o in out]), np.array([o[1] for o in out])
 
 
 def zero_west(qn):
@@ -248,16 +271,16 @@ def v_centroid(vs):
 def metrics(qn, qb, vs):
     r = dict(QN_mouth=qn[im], QS_mouth=np.nan, x_zero=zero_west(qn),
              x_min=lonc[COL[int(np.nanargmin(np.abs(qn[COL])))]],
-             x_Vcent=v_centroid(vs))
+             x_Vcent=v_centroid(vs), limb_sign=-np.sign(qn[im]))
     for f in FLEV:
-        r['x%d' % (100 * f)] = penetration(qn, f)
-        r['x%d_bot' % (100 * f)] = penetration(qb, f)
+        r['x%d' % (100 * f)], r['status%d' % (100 * f)] = penetration(qn, f)
+        r['x%d_bot' % (100 * f)] = penetration(qb, f)[0]
     return r
 
 
 X = pd.DataFrame([metrics(Q_N[n], Q_BOT[n], V_SPLIT[n])
                   for n in range(len(idx))], index=idx)
-X['QS_mouth'] = Q_S[:, im]
+X['QS_mouth'] = Q_S_raw[:, im]
 X['Q_net_mouth'] = Q_TOT[:, im]
 X['E_lat_mouth'] = E_LAT[:, im]
 X['E_vert_mouth'] = E_VERT[:, im]

@@ -1,26 +1,26 @@
 """
-Tidal-cycle movie of the wb_north surface field, with the Penn Cove mouth
-timeseries running underneath it.
+Tidal-cycle movie of the wb_north surface field, with Penn Cove SSH beside it.
 
 Layout (one figure, animated over hourly history files):
-  left   -- map of surface salinity (or --var) over wb_north
-  right  -- three stacked timeseries, sharing a clock with the map:
-              1. surface + bottom salinity at the NORTH side of the cove mouth
-              2. surface + bottom salinity at the SOUTH side of the cove mouth
-              3. Penn Cove box-mean SSH (tidal phase)
-            each carries a marker showing where the animation is.
+  right       -- map of surface salinity (or --var) over wb_north, with the
+                 bounding box of the `pc` polygon drawn in red
+  top left    -- SSH averaged over that same red box (tidal phase), carrying a
+                 marker showing where the animation is
+  lower left  -- deliberately blank, reserved for two more timeseries
 
-The two mouth points are placed ON the pc_lp section (the cove mouth, see the
-wb1_pc1 TEF collection) at --fracs along its length, then snapped to the nearest
-wet rho cell. Putting them across the mouth rather than along the cove axis is
-the point: the exchange at the mouth is laterally sheared, so the north and
-south sides do not do the same thing over a tidal cycle, and top-vs-bottom at
-each tells you whether that is the two-layer exchange or a lateral tilt.
+The red box does double duty: it is what is drawn on the map AND what SSH is
+averaged over, so there is only one rectangle in the figure and it means one
+thing. (It replaced PENN_COVE_BOX from wb1_penncove_region.py, which was a
+hand-tuned rectangle that did not match any drawn outline.)
 
 Region-plot convention (DM 2026.08.04): the window is the rectangular bounding
 box of the WHOLE wb_north polygon plus PAD_CELLS of margin, but only cells
 inside `wb` are drawn -- otherwise Admiralty Inlet and the main Puget Sound
 trench come along on the far side of Whidbey and take over the color scale.
+
+Per-point top/bottom salinity at the cove mouth is no longer plotted here; that
+question is answered properly, over two years, by
+20260806_pc_mouth_salinity_tides.py.
 
 Runs on apogee (needs the history files). Defaults to 2 days = 49 hourly frames,
 about two diurnal / four semidiurnal cycles.
@@ -28,7 +28,7 @@ about two diurnal / four semidiurnal cycles.
     python 20260806_wbnorth_tidal_movie.py
     python 20260806_wbnorth_tidal_movie.py --ds0 2025.07.15 --ds1 2025.07.16
     python 20260806_wbnorth_tidal_movie.py --var temp --region skagit_delta
-    python 20260806_wbnorth_tidal_movie.py --fracs 0.15,0.85 --test
+    python 20260806_wbnorth_tidal_movie.py --test
 """
 import argparse
 import multiprocessing as mp
@@ -49,7 +49,12 @@ from cmocean import cm
 
 from lo_tools import Lfun
 from lo_tools import plotting_functions as pfun
-from wb1_penncove_region import PENN_COVE_BOX
+
+# house style, same as the pc_mouth analysis figures. Grid on the timeseries,
+# never on the map -- DM 2026.08.07.
+GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
+RED = '#e04256'
+BLUE = '#4565e8'
 
 # ---- arguments -------------------------------------------------------------
 p = argparse.ArgumentParser()
@@ -60,15 +65,17 @@ p.add_argument('--ds1', default='2025.09.02')            # 2 days -> 49 hourly f
 p.add_argument('--lt', default='hourly0')                # clean hour-0 start on ds0
 p.add_argument('--region', default='wb_north', help='polygon that sets the map window')
 p.add_argument('--var', default='salt', help='surface field to animate')
-p.add_argument('--sect', default='pc_lp', help='section the two points sit on')
-p.add_argument('--fracs', default='0.25,0.75',
-               help='fractional positions along --sect for the two points')
-p.add_argument('--pts', default='',
-               help='override: lon,lat;lon,lat (still snapped to nearest wet cell)')
+p.add_argument('--pc-poly', default='pc', dest='pc_poly',
+               help='polygon whose bounding box is drawn in red and used for SSH')
 p.add_argument('--vmin', type=float)                     # default: percentiles in window
 p.add_argument('--vmax', type=float)
 p.add_argument('--pad-cells', default=10, type=int)
 p.add_argument('--fps', default=6, type=int)
+p.add_argument('--no-transparent', dest='transparent', action='store_false',
+               help='opaque background on the saved stills')
+p.add_argument('--vformat', default='mp4', choices=['mp4', 'prores', 'qtrle'],
+               help='mp4 = h264 on white (small, plays anywhere); prores/qtrle '
+                    '= .mov with a real alpha channel, for compositing')
 p.add_argument('--nproc', default=min(8, os.cpu_count() or 1), type=int,
                help='parallel workers for reading history files (1 = serial)')
 p.add_argument('--test', dest='test', action='store_true',
@@ -101,10 +108,8 @@ dsg = xr.open_dataset(Ldir['grid'] / 'grid.nc')
 lon = dsg.lon_rho.values
 lat = dsg.lat_rho.values
 mask_rho = dsg.mask_rho.values
-h = dsg.h.values
 dsg.close()
 wet = mask_rho == 1
-COS = np.cos(np.deg2rad(lat.mean()))
 dx = float(np.diff(lon[0, :]).mean())
 dy = float(np.diff(lat[:, 0]).mean())
 
@@ -131,7 +136,7 @@ def poly_mask(df):
 
 
 reg = load_sect(args.region)
-sect = load_sect(args.sect)
+pc = load_sect(args.pc_poly)
 in_wb = poly_mask(load_sect('wb'))            # master clip, every wb1 region plot
 
 # rectangular window around the WHOLE region polygon + a margin of cells
@@ -150,54 +155,20 @@ draw_s = (wet & in_wb)[SUB]                   # rectangular extent, wb-clipped c
 print('window %s -> %d x %d cells, %d drawn'
       % (['%.4f' % v for v in aa], lat_s.shape[0], lat_s.shape[1], draw_s.sum()))
 
-# Penn Cove SSH box (shared with the other Penn Cove plots)
-box = PENN_COVE_BOX
+# The red box is the bounding box of the pc polygon, and SSH is averaged over
+# that same box -- one box on the map means one thing, rather than drawing the
+# cove outline and quietly averaging over a different rectangle.
+box = [float(pc.x.min()), float(pc.x.max()),
+       float(pc.y.min()), float(pc.y.max())]
 in_box = ((lon >= box[0]) & (lon <= box[1]) &
           (lat >= box[2]) & (lat <= box[3]) & wet)
-print('SSH box: %d wet cells' % in_box.sum())
-
-
-# ---- the two points across the cove mouth ----------------------------------
-def point_on_line(df, frac):
-    """(lon, lat) at a fractional distance along the polyline."""
-    x, y = df.x.values, df.y.values
-    d = np.concatenate([[0.0], np.cumsum(np.hypot(np.diff(x) * COS, np.diff(y)))])
-    return float(np.interp(frac * d[-1], d, x)), float(np.interp(frac * d[-1], d, y))
-
-
-def nearest_wet(x0, y0):
-    """(j, i) of the nearest wet rho cell -- the line ends sit on land."""
-    dd = ((lon - x0) * COS) ** 2 + (lat - y0) ** 2
-    dd = np.where(wet, dd, np.inf)
-    return np.unravel_index(np.argmin(dd), dd.shape)
-
-
-if args.pts:
-    want = [tuple(float(v) for v in s.split(',')) for s in args.pts.split(';') if s]
-else:
-    want = [point_on_line(sect, float(f)) for f in args.fracs.split(',')]
-if len(want) != 2:
-    raise SystemExit('need exactly two points, got %d' % len(want))
-
-PTS = []
-for x0, y0 in want:
-    j, i = nearest_wet(x0, y0)
-    PTS.append(dict(j=int(j), i=int(i), lon=float(lon[j, i]),
-                    lat=float(lat[j, i]), h=float(h[j, i])))
-PTS.sort(key=lambda d: -d['lat'])             # north first
-LABELS = ['north side of %s' % args.sect, 'south side of %s' % args.sect]
-# colorblind-safe, and distinct from the haline map underneath
-PCOLOR = ['#0072B2', '#D55E00']
-for lab, P in zip(LABELS, PTS):
-    print('%-24s lon %.4f lat %.4f  (j=%d i=%d)  h = %.1f m'
-          % (lab, P['lon'], P['lat'], P['j'], P['i'], P['h']))
-
-JI = [(P['j'], P['i']) for P in PTS]
+print('%s bounding box %s -> %d wet cells for the SSH mean'
+      % (args.pc_poly, ['%.4f' % v for v in box], in_box.sum()))
 
 
 # ---- read one history file -------------------------------------------------
 def read_one(fn):
-    """Surface field in the window, box-mean SSH, and top/bottom salt at PTS."""
+    """Surface field in the window and the box-mean SSH."""
     ds = xr.open_dataset(fn)
     if args.var not in ds.data_vars:
         ds.close()
@@ -205,13 +176,9 @@ def read_one(fn):
     fld = ds[args.var][0, -1, SUB[0], SUB[1]].values.astype(np.float32)
     zeta = ds.zeta[0, :, :].values
     ssh = float(np.nanmean(np.where(in_box, zeta, np.nan)))
-    srf, bot = [], []
-    for j, i in JI:
-        srf.append(float(ds.salt[0, -1, j, i].values))
-        bot.append(float(ds.salt[0, 0, j, i].values))
     t_utc = pd.Timestamp(ds.ocean_time.values[0]).to_pydatetime()
     ds.close()
-    return (fld, ssh, np.array(srf), np.array(bot),
+    return (fld, ssh,
             pfun.get_dt_local(t_utc).replace(tzinfo=None))   # naive local (PST)
 
 
@@ -226,16 +193,10 @@ else:
 
 FLD = np.stack([r[0] for r in res])                      # (nt, ny, nx)
 SSH = np.array([r[1] for r in res])
-SRF = np.stack([r[2] for r in res])                      # (nt, 2)
-BOT = np.stack([r[3] for r in res])
-TT = [r[4] for r in res]
+TT = [r[2] for r in res]
 FLD = np.where(draw_s[None, :, :], FLD, np.nan)          # land + outside-wb
 print('SSH %.2f to %.2f m   (range %.2f m)'
       % (SSH.min(), SSH.max(), SSH.max() - SSH.min()))
-for k, lab in enumerate(LABELS):
-    print('%-24s surface %.2f-%.2f  bottom %.2f-%.2f g/kg'
-          % (lab, SRF[:, k].min(), SRF[:, k].max(),
-             BOT[:, k].min(), BOT[:, k].max()))
 
 # color limits from the drawn cells only, fixed for the whole movie -- an
 # auto-scaled frame would make the tide look like a color-table change
@@ -253,11 +214,10 @@ print('color limits %.2f to %.2f' % (vmin, vmax))
 # stranded out in the whitespace.
 plt.close('all')
 fig = plt.figure(figsize=(15.5, 9), layout='constrained')
-gs = fig.add_gridspec(3, 2, width_ratios=[1.15, 1])
-axm = fig.add_subplot(gs[:, 0])
-axa = fig.add_subplot(gs[0, 1])
-axb = fig.add_subplot(gs[1, 1], sharex=axa, sharey=axa)
-axs = fig.add_subplot(gs[2, 1], sharex=axa)
+gs = fig.add_gridspec(3, 2, width_ratios=[1, 1.15])
+axs = fig.add_subplot(gs[0, 0])                  # SSH, top left
+axblank = [fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[2, 0])]
+axm = fig.add_subplot(gs[:, 1])                  # map, right
 
 # --- map
 cs = axm.pcolormesh(plon_s, plat_s, FLD[0], cmap=CMAP, vmin=vmin, vmax=vmax,
@@ -265,40 +225,21 @@ cs = axm.pcolormesh(plon_s, plat_s, FLD[0], cmap=CMAP, vmin=vmin, vmax=vmax,
 fig.colorbar(cs, ax=axm, shrink=0.75, pad=0.01, aspect=35,
              label='surface %s [%s]' % (args.var, UNITS))
 pfun.add_coast(axm, color='gray', linewidth=0.5)
-axm.plot(reg.x, reg.y, '-', color='tab:purple', lw=1.8, zorder=6,
-         label=args.region)
-axm.plot(sect.x, sect.y, '-', color='magenta', lw=2.2, zorder=7, label=args.sect)
-pfun.draw_box(axm, box, color='k', linewidth=1.0, linestyle='--')
-for lab, P, c in zip(LABELS, PTS, PCOLOR):
-    axm.plot(P['lon'], P['lat'], 'o', ms=10, color=c, markeredgecolor='k',
-             markeredgewidth=1.0, zorder=10, label=lab)
+pfun.draw_box(axm, box, color=RED, linewidth=2.0)
 axm.axis(aa)
 pfun.dar(axm)
 axm.xaxis.set_major_locator(MaxNLocator(nbins=4))
 axm.tick_params(axis='x', labelrotation=45, labelsize=9)
 axm.set_xlabel('Longitude')
 axm.set_ylabel('Latitude')
-axm.legend(loc='upper left', fontsize=8, framealpha=0.9)   # land, not water
 ttl = axm.set_title('', fontsize=13)
 
-# --- the two salinity panels
-for ax, k, lab, c in zip([axa, axb], [0, 1], LABELS, PCOLOR):
-    ax.plot(TT, SRF[:, k], '-', color=c, lw=1.8, label='surface')
-    ax.plot(TT, BOT[:, k], '--', color=c, lw=1.8, label='bottom')
-    ax.set_ylabel('salinity [g kg$^{-1}$]')
-    ax.grid(color='lightgray', ls='--', alpha=0.6)
-    ax.legend(fontsize=8, ncol=2, loc='upper right')
-    ax.set_title('%s   (%.4f, %.4f, h = %.0f m)'
-                 % (lab, PTS[k]['lon'], PTS[k]['lat'], PTS[k]['h']),
-                 fontsize=10, color=c)
-    plt.setp(ax.get_xticklabels(), visible=False)
-
 # --- SSH
-axs.plot(TT, SSH, '-', color='#3B0F70', lw=1.8)
+axs.plot(TT, SSH, '-', color=BLUE, lw=1.8)
 axs.axhline(0, color='0.5', lw=0.8)
 axs.set_ylabel('Penn Cove SSH [m]')
-axs.set_title('tidal phase (box mean over the dashed box)', fontsize=10)
-axs.grid(color='lightgray', ls='--', alpha=0.6)
+axs.set_title('tidal phase (mean over the red box)', fontsize=10, color=RED)
+axs.grid(**GRID)
 axs.set_xlim(TT[0], TT[-1])
 axs.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
 axs.set_xlabel('local time (PST)')
@@ -306,49 +247,75 @@ for l in axs.get_xticklabels():
     l.set_rotation(30)
     l.set_horizontalalignment('right')
 
-# moving markers
-marks = []
-for ax in [axa, axb, axs]:
-    marks.append(ax.axvline(TT[0], color='k', lw=1.5, zorder=8))
-dots = []
-for ax, k, c in zip([axa, axb], [0, 1], PCOLOR):
-    dots.append(ax.plot([TT[0]], [SRF[0, k]], 'o', ms=7, color=c,
-                        markeredgecolor='k', zorder=9)[0])
-    dots.append(ax.plot([TT[0]], [BOT[0, k]], 'o', ms=7, mfc='white',
-                        markeredgecolor=c, zorder=9)[0])
-dots.append(axs.plot([TT[0]], [SSH[0]], 'o', ms=8, color='r', zorder=9)[0])
+# The lower two left cells are deliberately empty for now -- the axes are
+# created so the SSH panel keeps its size and position, then switched off so
+# they read as blank (transparent) rather than as two empty framed boxes.
+for ax in axblank:
+    ax.axis('off')
 
-fig.suptitle('%s -- surface %s over %s, with the %s mouth timeseries'
-             % (args.gtx, args.var, args.region, args.sect), fontsize=13)
+# moving markers
+mark = axs.axvline(TT[0], color='k', lw=1.5, zorder=8)
+dot = axs.plot([TT[0]], [SSH[0]], 'o', ms=8, color=RED, zorder=9)[0]
+
+fig.suptitle('%s -- surface %s over %s'
+             % (args.gtx, args.var, args.region), fontsize=13)
+
+if args.transparent:
+    fig.patch.set_alpha(0.0)
+    for ax in [axm, axs]:
+        ax.patch.set_alpha(0.0)
 
 
 def update(fi):
     cs.set_array(FLD[fi].ravel())
     ttl.set_text('surface %s -- %s (PST)'
                  % (args.var, TT[fi].strftime('%Y-%m-%d %H:%M')))
-    for m in marks:
-        m.set_xdata([TT[fi], TT[fi]])
-    for k in range(2):
-        dots[2 * k].set_data([TT[fi]], [SRF[fi, k]])
-        dots[2 * k + 1].set_data([TT[fi]], [BOT[fi, k]])
-    dots[-1].set_data([TT[fi]], [SSH[fi]])
+    mark.set_xdata([TT[fi], TT[fi]])
+    dot.set_data([TT[fi]], [SSH[fi]])
     return []
 
 
-stem = ('20260806_%s_%s_%s_%s_%s'
-        % (args.region, args.var, args.sect, args.ds0, args.ds1))
+stem = ('20260806_%s_%s_%s_%s' % (args.region, args.var, args.ds0, args.ds1))
+still_kw = dict(dpi=200, bbox_inches='tight', transparent=args.transparent)
+
+# Video formats. h264 has no alpha channel, so mp4 is rendered on white -- a
+# transparent figure piped to it just gets composited onto black. ProRes 4444
+# and QuickTime RLE do carry alpha and are both NATIVE ffmpeg encoders, so they
+# need nothing beyond a stock build.
+#
+# Do NOT reach for VP9/webm here: `-c:v libvpx-vp9 -pix_fmt yuva420p` encodes
+# without error and the alpha is silently gone -- a decode round-trip comes
+# back fully opaque. Verified 2026.08.07, ffmpeg 7.1.1.
+VFMT = {
+    'mp4': dict(ext='.mp4', kw=dict(bitrate=3000),
+                save=dict(facecolor='white')),
+    'prores': dict(ext='.mov',
+                   kw=dict(codec='prores_ks',
+                           extra_args=['-pix_fmt', 'yuva444p10le',
+                                       '-profile:v', '4444', '-alpha_bits', '8']),
+                   save=dict(transparent=True)),
+    'qtrle': dict(ext='.mov',
+                  kw=dict(codec='qtrle', extra_args=['-pix_fmt', 'argb']),
+                  save=dict(transparent=True)),
+}
+VW = VFMT[args.vformat]['kw']
+SAVE_KW = VFMT[args.vformat]['save']
+if args.vformat != 'mp4' and not args.transparent:
+    SAVE_KW = dict(facecolor='white')     # --no-transparent wins
 if args.test:
     update(0)
     fn_out = out_dir / (stem + '_frame0.png')
-    fig.savefig(fn_out, dpi=150)
+    fig.savefig(fn_out, **still_kw)
     print('TEST: saved %s' % fn_out)
 else:
     anim = animation.FuncAnimation(fig, update, frames=len(TT),
                                    interval=1000 / args.fps, blit=False)
-    fn_out = out_dir / (stem + '.mp4')
-    anim.save(fn_out, writer=animation.FFMpegWriter(fps=args.fps, bitrate=3000))
-    print('saved %s' % fn_out)
+    fn_out = out_dir / (stem + VFMT[args.vformat]['ext'])
+    anim.save(fn_out, writer=animation.FFMpegWriter(fps=args.fps, **VW),
+              savefig_kwargs=SAVE_KW)
+    print('saved %s  (%s, %.1f MB)'
+          % (fn_out, args.vformat, fn_out.stat().st_size / 1e6))
     update(0)
-    fig.savefig(out_dir / (stem + '_frame0.png'), dpi=150)
+    fig.savefig(out_dir / (stem + '_frame0.png'), **still_kw)
     print('saved %s' % (out_dir / (stem + '_frame0.png')))
 plt.close('all')

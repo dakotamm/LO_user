@@ -1,8 +1,8 @@
 #!/bin/bash
-# Run on apogee. Tidal-cycle movie of surface salinity over wb_north, with
-# surface+bottom salinity at two points across the Penn Cove mouth (pc_lp) and
-# Penn Cove box-mean SSH running underneath it. Defaults to Sept 1-2 2025
-# (49 hourly frames, ~2 diurnal / 4 semidiurnal cycles) of wb1_t0_xn11abbur00.
+# Run on apogee. Tidal-cycle movie of surface salinity over wb_north (right),
+# with SSH averaged over the red pc bounding box (top left). Defaults to
+# Sept 1-2 2025 (49 hourly frames, ~2 diurnal / 4 semidiurnal cycles) of
+# wb1_t0_xn11abbur00.
 #
 #   bash 20260806_wbnorth_tidal_movie.sh
 #
@@ -10,8 +10,8 @@
 #   bash 20260806_wbnorth_tidal_movie.sh --test              # one still, fast
 #   bash 20260806_wbnorth_tidal_movie.sh --ds0 2025.07.15 --ds1 2025.07.16
 #   bash 20260806_wbnorth_tidal_movie.sh --var temp
-#   bash 20260806_wbnorth_tidal_movie.sh --region skagit_delta --sect skagit_sp
-#   bash 20260806_wbnorth_tidal_movie.sh --fracs 0.15,0.85   # closer to the shores
+#   bash 20260806_wbnorth_tidal_movie.sh --region skagit_delta
+#   bash 20260806_wbnorth_tidal_movie.sh --pc-poly skagit_delta  # move the red box
 #   bash 20260806_wbnorth_tidal_movie.sh --vmin 24 --vmax 30 # force the color range
 set -euo pipefail
 
