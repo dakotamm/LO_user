@@ -57,6 +57,7 @@ run 20260807_pc_turning_point.py
 run 20260807_pc_turning_point.py -f turning_his_wb1_r0_xn11b_2017.09.04_2017.09.18.p
 """
 import argparse
+import warnings
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -80,6 +81,7 @@ p.add_argument('-nface', default=4, type=int,
 p.add_argument('--no-utide', dest='utide', action='store_false',
                help='skip the harmonic analysis of the turning point position')
 args = p.parse_args()
+warnings.simplefilter('ignore', RuntimeWarning)   # all-NaN columns over land
 
 Ldir = Lfun.Lstart(gridname='wb1')
 out_dir = Ldir['LOo'] / 'DM_outs' / '20260807_pc_turning'
@@ -178,7 +180,7 @@ lat_split = np.array([0.5 * (latu[JS[c]] + latu[max(JS[c] - 1, 0)])
                       for c in range(len(lonc))])
 
 Q_N, Q_S = limbs(QU2, JS)
-Q_N_raw, _ = limbs(QU2_raw, JS)
+Q_N_raw, Q_S_raw = limbs(QU2_raw, JS)
 Q_TOT = np.nansum(QU2_raw, axis=1)                  # the net, kept as it is
 # the vertical bands carry exactly a third of the face area each, so the same
 # removal is just the column net split three ways
@@ -233,8 +235,8 @@ def penetration(qn, f):
     target = (1 - f) * P[im]
     for k in range(len(COL) - 1, 0, -1):
         c, cw = COL[k], COL[k - 1]
-        if P[c] <= target and P[cw] > target:
-            w = (target - P[c]) / (P[cw] - P[c])
+        if P[c] >= target > P[cw]:      # still strong here, decayed just west
+            w = (P[c] - target) / (P[c] - P[cw])
             return lonc[c] + w * (lonc[cw] - lonc[c]), 'ok'
     return lonc[COL[0]], 'censored'
 
@@ -290,7 +292,7 @@ X['state'] = np.where(X.limb > args.qmin, 'gyre',
 for c in [k for k in X.columns if k.startswith('x')]:
     X[c.replace('x', 'km', 1)] = (X[c] - lonc[im]) * KMDEG
 
-X['km50_raw'] = ([penetration(q, 0.5) for q in Q_N_raw] - lonc[im]) * KMDEG
+X['km50_raw'] = (pen_series(Q_N_raw, 0.5)[0] - lonc[im]) * KMDEG
 print('\nremoving the net changes the subtidal turning point by a median of '
       '%.3f km\n  (that is the sanity check on the recirculating definition -- '
       'it should be small here\n  and large hourly)'
@@ -406,8 +408,8 @@ ax.xaxis.set_major_locator(plt.MaxNLocator(5))
 
 # --- the limbs
 ax = fig.add_subplot(gs[0, 1])
-for y, c, lab in [(Q_N, C_IN, 'north half (inflow)'),
-                  (Q_S, C_OUT, 'south half (outflow)'),
+for y, c, lab in [(Q_N_raw, C_IN, 'north half (inflow)'),
+                  (Q_S_raw, C_OUT, 'south half (outflow)'),
                   (Q_TOT, '0.4', 'net')]:
     m = np.nanmean(y, axis=0)[COL]
     lo, hi = (np.nanpercentile(y[:, COL], 25, axis=0),
@@ -419,8 +421,8 @@ for f, ls in zip(FLEV, ['-', '--']):
     ax.axvline(X['x%d' % (100 * f)].median(), color=C_IN, ls=ls, lw=1.5)
 ax.set_xlabel('longitude')
 ax.set_ylabel('transport (m$^3$ s$^{-1}$)')
-ax.set_title('the two limbs along the cove\nband = interquartile range over '
-             'the record', fontsize=10)
+ax.set_title('the two limbs along the cove\nraw transports; band = '
+             'interquartile range over the record', fontsize=10)
 ax.grid(**GRID)
 ax.legend(fontsize=8)
 
@@ -624,21 +626,25 @@ if 'QU2_h' in D:
 
     Xh = pd.DataFrame(dict(
         hrs=hrs, zeta=zeta_h,
-        x50=[penetration(QNh[n], 0.5) for n in range(len(idh))],
-        x90=[penetration(QNh[n], 0.9) for n in range(len(idh))],
-        x50_raw=[penetration(QNh_raw[n], 0.5) for n in range(len(idh))],
+        x50=pen_series(QNh, 0.5)[0], x90=pen_series(QNh, 0.9)[0],
+        status=pen_series(QNh, 0.5)[1],
+        limb_sign=-np.sign(QNh[:, im]),
+        x50_raw=pen_series(QNh_raw, 0.5)[0],
         QN=QNh[:, im]), index=idh)
     if 'QU2_bot_h' in D:                      # only present with -hourly_all
         Qnet_h = np.nansum(QU2h_raw, axis=1)
         QBh = np.nansum(np.where(UM[None, :, :], D['QU2_bot_h'], np.nan),
                         axis=1) - Qnet_h / 3
-        Xh['x50_bot'] = [penetration(QBh[n], 0.5) for n in range(len(idh))]
+        Xh['x50_bot'] = pen_series(QBh, 0.5)[0]
     for c in [k for k in Xh.columns if k.startswith('x')]:
         Xh[c.replace('x', 'km', 1)] = (Xh[c] - lonc[im]) * KMDEG
-    print('\nhourly turning point: defined on %.0f%% of hours with the net '
-          'removed,\n  %.0f%% without -- that is why the metric is defined on '
-          'the recirculating flow'
-          % (100 * Xh.x50.notna().mean(), 100 * Xh.x50_raw.notna().mean()))
+    st = Xh.status.value_counts(normalize=True)
+    print('\nhourly turning point: %s'
+          % ', '.join('%s %.0f%%' % (k, 100 * v) for k, v in st.items()))
+    print('  (%.0f%% with the raw north-half definition, and the exchange runs '
+          'reversed\n  %.0f%% of hours -- both are why the metric is '
+          'sign-aware and net-removed)'
+          % (100 * Xh.x50_raw.notna().mean(), 100 * (Xh.limb_sign < 0).mean()))
     BINS = np.arange(-6.5, 6.6, 1.0)
     CTR = 0.5 * (BINS[:-1] + BINS[1:])
     Xh['bin'] = pd.cut(Xh.hrs, BINS, labels=CTR)
@@ -716,16 +722,19 @@ if 'QU2_h' in D:
     # per tidal cycle (high water to high water): how far does it swing?
     cyc = []
     for a, b in zip(i_hw[:-1], i_hw[1:]):
-        v = Xh[KMCOLS[0]].values[a:b]
-        v = v[np.isfinite(v)]
-        if len(v) >= 8:
-            cyc.append(dict(t=idh[a], excursion=np.ptp(v), mean=v.mean(),
-                            zeta_range=np.ptp(zeta_h[a:b])))
+        r_ = dict(t=idh[a], zeta_range=np.ptp(zeta_h[a:b]))
+        for c in KMCOLS:
+            v = Xh[c].values[a:b]
+            v = v[np.isfinite(v)]
+            # a cycle only counts for a metric if the metric was defined for
+            # most of it, otherwise the range is of whatever hours survived
+            r_[c] = np.ptp(v) if len(v) >= 8 else np.nan
+        cyc.append(r_)
     CY = pd.DataFrame(cyc)
-    if len(CY):
-        CY['date'] = CY.t.dt.floor('D')
-        CY = CY.merge(Dd[['range_smooth_m']].rename_axis('date').reset_index(),
-                      on='date', how='left')
+    CY['excursion'] = CY[KMCOLS[0]]
+    CY['date'] = CY.t.dt.floor('D')
+    CY = CY.merge(Dd[['range_smooth_m']].rename_axis('date').reset_index(),
+                  on='date', how='left')
 
     fig, axs = plt.subplots(2, 2, figsize=(15, 9), layout='constrained')
 
@@ -804,9 +813,9 @@ if 'QU2_h' in D:
         Cc.set_xlabel('excursion within one tidal cycle (km)')
     Cc.set_ylabel('excursion within one tidal cycle (km)'
                   if len(CY) and CY.range_smooth_m.notna().any() else 'cycles')
-    Cc.set_title('the swing within a single cycle\nmedian %.2f km over %d '
-                 'cycles' % (CY.excursion.median() if len(CY) else np.nan,
-                             len(CY)), fontsize=10)
+    Cc.set_title('the swing within a single cycle\n%s: median %.2f km over %d '
+                 'cycles' % (KMLAB[KMCOLS[0]], CY.excursion.median(),
+                             int(CY.excursion.notna().sum())), fontsize=10)
     Cc.grid(**GRID)
 
     # --- constituents of the position itself
@@ -862,9 +871,8 @@ if 'QU2_h' in D:
                  fontsize=12)
     savefig(fig, 'fig5_excursion.png')
 
-    if len(CY):
-        V['cycle_excursion_median'] = CY.excursion.median()
-        V['cycle_excursion_p90'] = CY.excursion.quantile(0.9)
+    V['cycle_excursion_median'] = [CY[c].median() for c in V.metric]
+    V['cycle_excursion_p90'] = [CY[c].quantile(0.9) for c in V.metric]
     V.to_csv(out_dir / 'turning_excursion_summary.csv', index=False,
              float_format='%.4f')
     print('\nHOW FAR THE TURNING POINT SHIFTS (km):')
@@ -872,12 +880,10 @@ if 'QU2_h' in D:
     print('  sd_tidal is the swing within the tidal band, sd_subtidal the '
           'week-to-week wandering;\n  frac_* are their shares of the total '
           'variance of the position.')
-    if len(CY):
-        print('  within a single high-water-to-high-water cycle the median '
-              'swing is %.2f km (p90 %.2f).'
-              % (CY.excursion.median(), CY.excursion.quantile(0.9)))
-        CY.to_csv(out_dir / 'turning_cycle_excursion.csv', index=False,
-                  float_format='%.4f')
+    print('  cycle_excursion_* is the high-water-to-high-water swing, the '
+          'answer to\n  "how far does it move within one tidal cycle".')
+    CY.to_csv(out_dir / 'turning_cycle_excursion.csv', index=False,
+              float_format='%.4f')
     Xh.drop(columns='bin').to_csv(out_dir / 'turning_point_hourly.csv',
                                   float_format='%.5f')
 

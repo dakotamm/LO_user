@@ -72,8 +72,12 @@ p.add_argument('--vmin', type=float)                     # default: percentiles 
 p.add_argument('--vmax', type=float)
 p.add_argument('--pad-cells', default=10, type=int)
 p.add_argument('--fps', default=6, type=int)
-p.add_argument('--no-transparent', dest='transparent', action='store_false',
-               help='opaque background on the saved stills')
+p.add_argument('--transparent', action='store_true',
+               help='transparent background on the saved stills (off by '
+                    'default; the movie is always opaque)')
+p.add_argument('--dpi', default=150, type=int,
+               help='render dpi for the movie frames -- 100 makes the labels '
+                    'mushy once h264 has had a go at them')
 p.add_argument('--vformat', default='mp4', choices=['mp4', 'prores', 'qtrle'],
                help='mp4 = h264 on white (small, plays anywhere); prores/qtrle '
                     '= .mov with a real alpha channel, for compositing')
@@ -287,8 +291,18 @@ still_kw = dict(dpi=200, bbox_inches='tight', transparent=args.transparent)
 # Do NOT reach for VP9/webm here: `-c:v libvpx-vp9 -pix_fmt yuva420p` encodes
 # without error and the alpha is silently gone -- a decode round-trip comes
 # back fully opaque. Verified 2026.08.07, ffmpeg 7.1.1.
+#
+# Text sharpness in the mp4 comes from two places, both handled here:
+#   - render dpi (--dpi). At 100 dpi the tick labels are ~13 px tall and h264
+#     has almost nothing to work with; 150 dpi gives it 20 px.
+#   - constant-quality (-crf 18) instead of a fixed bitrate, so the encoder
+#     spends bits on the thin glyph edges instead of holding a fixed rate.
+# yuv420p is kept for player compatibility, and h264 needs even dimensions,
+# hence the crop filter (same trick as make_vids.py).
+EVEN = ['-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2']
 VFMT = {
-    'mp4': dict(ext='.mp4', kw=dict(bitrate=3000),
+    'mp4': dict(ext='.mp4',
+                kw=dict(extra_args=EVEN + ['-crf', '18', '-pix_fmt', 'yuv420p']),
                 save=dict(facecolor='white')),
     'prores': dict(ext='.mov',
                    kw=dict(codec='prores_ks',
@@ -313,9 +327,9 @@ else:
                                    interval=1000 / args.fps, blit=False)
     fn_out = out_dir / (stem + VFMT[args.vformat]['ext'])
     anim.save(fn_out, writer=animation.FFMpegWriter(fps=args.fps, **VW),
-              savefig_kwargs=SAVE_KW)
-    print('saved %s  (%s, %.1f MB)'
-          % (fn_out, args.vformat, fn_out.stat().st_size / 1e6))
+              savefig_kwargs=SAVE_KW, dpi=args.dpi)
+    print('saved %s  (%s, %d dpi, %.1f MB)'
+          % (fn_out, args.vformat, args.dpi, fn_out.stat().st_size / 1e6))
     update(0)
     fig.savefig(out_dir / (stem + '_frame0.png'), **still_kw)
     print('saved %s' % (out_dir / (stem + '_frame0.png')))
