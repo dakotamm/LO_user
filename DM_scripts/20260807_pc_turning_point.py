@@ -78,6 +78,9 @@ p.add_argument('-qmin', default=50.0, type=float,
                     'turning point is undefined')
 p.add_argument('-nface', default=4, type=int,
                help='skip columns with fewer than this many wet faces')
+p.add_argument('-qabs', default='150,300', type=str,
+               help='comma-separated FIXED transport thresholds (m3/s) for the '
+                    'scale-dependent penetration metric x_q<T>')
 p.add_argument('--no-utide', dest='utide', action='store_false',
                help='skip the harmonic analysis of the turning point position')
 args = p.parse_args()
@@ -93,6 +96,7 @@ C_IN, C_OUT = '#0072B2', '#D55E00'          # inflow / outflow, colourblind safe
 C_LAT, C_VERT = '#009E73', '#CC79A7'        # lateral / vertical decomposition
 GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 FLEV = [0.5, 0.9]                           # penetration fractions to track
+QABS = [int(v) for v in args.qabs.split(',') if v.strip()]
 
 
 def savefig(fig, name):
@@ -241,6 +245,40 @@ def penetration(qn, f):
     return lonc[COL[0]], 'censored'
 
 
+def abs_thresh(qn, T):
+    """(longitude, status) where the limb first falls below a FIXED transport
+    T, scanning west from the mouth.
+
+    x50 is normalised by the mouth value, so it is blind to the profile being
+    scaled up or down as a whole -- exactly the change an along-cove wind
+    makes. This metric is not: it moves when either the amplitude or the shape
+    changes, so it is the one to regress on a forcing that strengthens or
+    weakens the gyre. It never goes NaN, which also makes it the better series
+    for lagged correlation.
+
+      at_mouth  the limb is already below T at the mouth (a weak-gyre day):
+                the T-contour has retreated to or past the mouth, recorded at
+                the mouth longitude
+      censored  it never falls below T inside the cove, recorded at the head
+    """
+    P = -np.sign(qn[im]) * (-qn)
+    if not np.isfinite(P[im]):
+        return np.nan, 'weak'
+    if P[im] < T:
+        return lonc[im], 'at_mouth'
+    for k in range(len(COL) - 1, 0, -1):
+        c, cw = COL[k], COL[k - 1]
+        if P[c] >= T > P[cw]:
+            w = (P[c] - T) / (P[c] - P[cw])
+            return lonc[c] + w * (lonc[cw] - lonc[c]), 'ok'
+    return lonc[COL[0]], 'censored'
+
+
+def abs_series(QN, T):
+    out = [abs_thresh(q, T) for q in QN]
+    return np.array([o[0] for o in out]), np.array([o[1] for o in out])
+
+
 def pen_series(QN, f):
     """penetration() over a (nt, nu) stack -> (longitudes, statuses)."""
     out = [penetration(q, f) for q in QN]
@@ -277,6 +315,8 @@ def metrics(qn, qb, vs):
     for f in FLEV:
         r['x%d' % (100 * f)], r['status%d' % (100 * f)] = penetration(qn, f)
         r['x%d_bot' % (100 * f)] = penetration(qb, f)[0]
+    for T in QABS:
+        r['x_q%d' % T], r['status_q%d' % T] = abs_thresh(qn, T)
     return r
 
 
@@ -307,6 +347,12 @@ for f in FLEV:
           % (k, X[k].median(), X['km%d' % (100 * f)].median(),
              X[k].quantile(0.25), X[k].quantile(0.75),
              100 * X[k].notna().mean()))
+for T in QABS:
+    k = 'x_q%d' % T
+    st = X['status_q%d' % T].value_counts(normalize=True)
+    print('  %-6s median %.4f (%+.2f km) -- the %d m3/s contour; %s'
+          % (k, X[k].median(), X['km_q%d' % T].median(), T,
+             ', '.join('%s %.0f%%' % (a, 100 * b) for a, b in st.items())))
 print('  x_zero exists on %.0f%% of days; the pinch x_min sits at %.4f'
       % (100 * X.x_zero.notna().mean(), X.x_min.median()))
 
@@ -631,6 +677,8 @@ if 'QU2_h' in D:
         limb_sign=-np.sign(QNh[:, im]),
         x50_raw=pen_series(QNh_raw, 0.5)[0],
         QN=QNh[:, im]), index=idh)
+    for T in QABS:
+        Xh['x_q%d' % T], Xh['status_q%d' % T] = abs_series(QNh, T)
     if 'QU2_bot_h' in D:                      # only present with -hourly_all
         Qnet_h = np.nansum(QU2h_raw, axis=1)
         QBh = np.nansum(np.where(UM[None, :, :], D['QU2_bot_h'], np.nan),
@@ -704,10 +752,14 @@ if 'QU2_h' in D:
     # move back and forth, and how much of that is within a tidal cycle versus
     # between one week and the next. Both come off the SAME hourly series, cut
     # by a Godin filter, so the two numbers are directly comparable.
-    KMCOLS = [c for c in ['km50', 'km90', 'km50_bot'] if c in Xh]
+    KMCOLS = ([c for c in ['km50', 'km90', 'km50_bot'] if c in Xh]
+              + ['km_q%d' % T for T in QABS])
     KMLAB = {'km50': 'x50 (lateral)', 'km90': 'x90 (lateral)',
              'km50_bot': 'x50 (bottom third)'}
     KMCOL = {'km50': C_IN, 'km90': C_LAT, 'km50_bot': C_VERT}
+    for T, c_ in zip(QABS, ['#4565e8', '#e04256', '#8c6d31']):
+        KMLAB['km_q%d' % T] = 'x at %d m$^3$/s' % T
+        KMCOL['km_q%d' % T] = c_
 
     band = {}
     for c in KMCOLS:

@@ -75,7 +75,7 @@ p.add_argument('--pmin', default=0.5, type=float,
                help='percentile setting vmin -- lower it to reach further into '
                     'the fresh tail of the plume')
 p.add_argument('--pmax', default=99.5, type=float)
-p.add_argument('--norm', default='power', choices=['linear', 'power', 'quantile'],
+p.add_argument('--norm', default='linear', choices=['linear', 'power', 'quantile'],
                help='power (default) stretches the fresh end; quantile gives '
                     'every colour band an equal number of cells; linear is the '
                     'plain scale')
@@ -218,9 +218,22 @@ print('SSH %.2f to %.2f m   (range %.2f m)'
 
 # Colour limits from the drawn cells only, fixed for the whole movie -- an
 # auto-scaled frame would make the tide look like a colour-table change.
+#
+# Salinity is capped at 27 by default rather than run to the 99.5th percentile.
+# Whidbey Basin sits in a narrow salty band, so a full-range scale spends most
+# of the colour table on water that never changes; capping saturates that and
+# hands ~78% of the table to the sub-25 range where the Skagit plume lives.
+# Everything above 27 goes one colour -- the colourbar is drawn with an arrow
+# to say so. Per-variable, so --var temp / oxygen are unaffected.
+DEFAULT_VMAX = {'salt': 27.0}
 v = FLD[np.isfinite(FLD)]
 vmin = args.vmin if args.vmin is not None else float(np.percentile(v, args.pmin))
-vmax = args.vmax if args.vmax is not None else float(np.percentile(v, args.pmax))
+if args.vmax is not None:
+    vmax = args.vmax
+elif args.var in DEFAULT_VMAX:
+    vmax = DEFAULT_VMAX[args.var]
+else:
+    vmax = float(np.percentile(v, args.pmax))
 CMAP = {'salt': cm.haline, 'temp': cm.thermal, 'oxygen': cm.oxy}.get(args.var, cm.haline)
 UNITS = {'salt': 'g kg$^{-1}$', 'temp': '$^{\\circ}$C',
          'oxygen': 'mmol m$^{-3}$'}.get(args.var, '')
@@ -253,6 +266,14 @@ else:
     print('colour scale: linear, %.2f to %.2f' % (vmin, vmax))
 print('  data in window: min %.2f, %gth pctl %.2f, median %.2f, max %.2f'
       % (v.min(), args.pmin, vmin, np.median(v), v.max()))
+f_hi = float(np.mean(v > vmax))
+f_lo = float(np.mean(v < vmin))
+print('  saturated: %.1f%% of cell-hours above vmax, %.1f%% below vmin'
+      % (100 * f_hi, 100 * f_lo))
+# arrow on the colourbar wherever data runs past the limit, so a saturated
+# background never reads as a real value
+CB_EXT = ('both' if (f_lo > 0 and f_hi > 0) else 'max' if f_hi > 0
+          else 'min' if f_lo > 0 else 'neither')
 
 # ---- figure ----------------------------------------------------------------
 # constrained layout, not manual margins: the map carries a fixed aspect (dar),
@@ -268,11 +289,14 @@ axm = fig.add_subplot(gs[:, 1])                  # map, right
 # --- map
 cs = axm.pcolormesh(plon_s, plat_s, FLD[0], cmap=CMAP, norm=norm,
                     shading='flat', zorder=1)
-cb = fig.colorbar(cs, ax=axm, shrink=0.75, pad=0.01, aspect=35,
-                  label='surface %s [%s]' % (args.var, UNITS))
+cb_kw = dict(shrink=0.75, pad=0.01, aspect=35,
+             label='surface %s [%s]' % (args.var, UNITS))
 if isinstance(norm, BoundaryNorm):
+    cb = fig.colorbar(cs, ax=axm, **cb_kw)     # extend lives on the norm here
     cb.set_ticks(norm.boundaries)
     cb.ax.set_yticklabels(['%.1f' % b for b in norm.boundaries], fontsize=8)
+else:
+    cb = fig.colorbar(cs, ax=axm, extend=CB_EXT, **cb_kw)
 pfun.add_coast(axm, color='gray', linewidth=0.5)
 pfun.draw_box(axm, box, color=RED, linewidth=2.0)
 axm.axis(aa)
