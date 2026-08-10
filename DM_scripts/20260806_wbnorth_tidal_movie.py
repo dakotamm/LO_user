@@ -45,6 +45,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from matplotlib.path import Path as MplPath
+from matplotlib.colors import BoundaryNorm, Normalize, PowerNorm
 from matplotlib.ticker import MaxNLocator
 from cmocean import cm
 
@@ -70,6 +71,18 @@ p.add_argument('--pc-poly', default='pc', dest='pc_poly',
                help='polygon whose bounding box is drawn in red and used for SSH')
 p.add_argument('--vmin', type=float)                     # default: percentiles in window
 p.add_argument('--vmax', type=float)
+p.add_argument('--pmin', default=0.5, type=float,
+               help='percentile setting vmin -- lower it to reach further into '
+                    'the fresh tail of the plume')
+p.add_argument('--pmax', default=99.5, type=float)
+p.add_argument('--norm', default='power', choices=['linear', 'power', 'quantile'],
+               help='power (default) stretches the fresh end; quantile gives '
+                    'every colour band an equal number of cells; linear is the '
+                    'plain scale')
+p.add_argument('--gamma', default=0.5, type=float,
+               help='power-norm exponent. <1 expands the FRESH end; 1 = linear')
+p.add_argument('--levels', default='',
+               help='explicit colour boundaries, e.g. 10,16,20,23,25,27,28,29,30')
 p.add_argument('--pad-cells', default=10, type=int)
 p.add_argument('--fps', default=6, type=int)
 p.add_argument('--transparent', action='store_true',
@@ -203,15 +216,43 @@ FLD = np.where(draw_s[None, :, :], FLD, np.nan)          # land + outside-wb
 print('SSH %.2f to %.2f m   (range %.2f m)'
       % (SSH.min(), SSH.max(), SSH.max() - SSH.min()))
 
-# color limits from the drawn cells only, fixed for the whole movie -- an
-# auto-scaled frame would make the tide look like a color-table change
+# Colour limits from the drawn cells only, fixed for the whole movie -- an
+# auto-scaled frame would make the tide look like a colour-table change.
 v = FLD[np.isfinite(FLD)]
-vmin = args.vmin if args.vmin is not None else float(np.percentile(v, 1))
-vmax = args.vmax if args.vmax is not None else float(np.percentile(v, 99))
+vmin = args.vmin if args.vmin is not None else float(np.percentile(v, args.pmin))
+vmax = args.vmax if args.vmax is not None else float(np.percentile(v, args.pmax))
 CMAP = {'salt': cm.haline, 'temp': cm.thermal, 'oxygen': cm.oxy}.get(args.var, cm.haline)
 UNITS = {'salt': 'g kg$^{-1}$', 'temp': '$^{\\circ}$C',
          'oxygen': 'mmol m$^{-3}$'}.get(args.var, '')
-print('color limits %.2f to %.2f' % (vmin, vmax))
+
+# Most of wb_north sits in a narrow salty range, so a LINEAR scale spends most
+# of the colour table on water that never changes and squeezes the Skagit plume
+# into the first few shades. Two ways out, both keeping the full data range:
+#   power    -- continuous, gamma < 1 stretches the fresh end. Smooth, which
+#               matters in a movie; discrete bands shimmer frame to frame.
+#   quantile -- boundaries at data percentiles, so every colour band holds the
+#               same number of cells. Maximum contrast everywhere, but the
+#               colourbar is no longer linear in salinity and has to be read
+#               off its tick labels.
+NLEV = 12
+if args.levels:
+    lv = np.array(sorted(float(x) for x in args.levels.split(',')))
+    norm = BoundaryNorm(lv, CMAP.N)
+    print('colour levels (explicit): %s' % np.round(lv, 2).tolist())
+elif args.norm == 'quantile':
+    lv = np.unique(np.percentile(v[(v >= vmin) & (v <= vmax)],
+                                 np.linspace(0, 100, NLEV + 1)))
+    norm = BoundaryNorm(lv, CMAP.N)
+    print('colour levels (quantile): %s' % np.round(lv, 2).tolist())
+elif args.norm == 'power':
+    norm = PowerNorm(gamma=args.gamma, vmin=vmin, vmax=vmax)
+    print('colour scale: power norm, gamma %.2f, %.2f to %.2f'
+          % (args.gamma, vmin, vmax))
+else:
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    print('colour scale: linear, %.2f to %.2f' % (vmin, vmax))
+print('  data in window: min %.2f, %gth pctl %.2f, median %.2f, max %.2f'
+      % (v.min(), args.pmin, vmin, np.median(v), v.max()))
 
 # ---- figure ----------------------------------------------------------------
 # constrained layout, not manual margins: the map carries a fixed aspect (dar),
@@ -225,10 +266,13 @@ axblank = [fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[2, 0])]
 axm = fig.add_subplot(gs[:, 1])                  # map, right
 
 # --- map
-cs = axm.pcolormesh(plon_s, plat_s, FLD[0], cmap=CMAP, vmin=vmin, vmax=vmax,
+cs = axm.pcolormesh(plon_s, plat_s, FLD[0], cmap=CMAP, norm=norm,
                     shading='flat', zorder=1)
-fig.colorbar(cs, ax=axm, shrink=0.75, pad=0.01, aspect=35,
-             label='surface %s [%s]' % (args.var, UNITS))
+cb = fig.colorbar(cs, ax=axm, shrink=0.75, pad=0.01, aspect=35,
+                  label='surface %s [%s]' % (args.var, UNITS))
+if isinstance(norm, BoundaryNorm):
+    cb.set_ticks(norm.boundaries)
+    cb.ax.set_yticklabels(['%.1f' % b for b in norm.boundaries], fontsize=8)
 pfun.add_coast(axm, color='gray', linewidth=0.5)
 pfun.draw_box(axm, box, color=RED, linewidth=2.0)
 axm.axis(aa)

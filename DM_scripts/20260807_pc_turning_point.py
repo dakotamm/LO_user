@@ -758,6 +758,8 @@ if 'QU2_h' in D:
                 'timescales\n(gold = tide)' % (n_show // 24), fontsize=10)
     A.grid(**GRID)
     A.legend(fontsize=8, loc='upper left')
+    A.xaxis.set_major_formatter(DateFormatter('%b %d'))
+    A.xaxis.set_major_locator(plt.MaxNLocator(6))
 
     # --- how much of the movement is in each band
     B = axs[0][1]
@@ -829,6 +831,7 @@ if 'QU2_h' in D:
             MAIN = ['M2', 'S2', 'N2', 'K1', 'O1', 'P1']
             wid = 0.8 / len(KMCOLS)
             urows = []
+            COH = {}
             for kk, c in enumerate(KMCOLS):
                 y = band[c]['filled'].values.astype(float)
                 sol = utide.solve(tnum, y, lat=48.23, method='ols',
@@ -840,6 +843,10 @@ if 'QU2_h' in D:
                       color=KMCOL[c], label=KMLAB[c])
                 urows += [dict(metric=c, constituent=m, amplitude_km=amp.get(m))
                           for m in MAIN]
+                # Parseval: the variance a sinusoid of amplitude A carries is
+                # A^2/2, so this is the part of the tidal-band wandering that
+                # is phase-locked to the tide rather than cycle-to-cycle noise
+                COH[c] = float(np.sqrt(0.5 * np.nansum(np.asarray(sol.A) ** 2)))
             pd.DataFrame(urows).to_csv(out_dir / 'turning_utide.csv',
                                        index=False, float_format='%.4f')
             E.set_xticks(np.arange(len(MAIN)) + 0.4 - wid / 2)
@@ -849,6 +856,9 @@ if 'QU2_h' in D:
                         'how many km each constituent moves it', fontsize=10)
             E.legend(fontsize=8)
             E.grid(**GRID)
+            V['sd_tidal_coherent'] = [COH.get(c, np.nan) for c in V.metric]
+            V['sd_tidal_incoherent'] = np.sqrt(
+                np.clip(V.sd_tidal ** 2 - V.sd_tidal_coherent ** 2, 0, None))
             done = True
         except Exception as ex:
             print('utide on the turning point failed: %s' % ex)
@@ -880,6 +890,13 @@ if 'QU2_h' in D:
     print('  sd_tidal is the swing within the tidal band, sd_subtidal the '
           'week-to-week wandering;\n  frac_* are their shares of the total '
           'variance of the position.')
+    if 'sd_tidal_coherent' in V:
+        print('  of the tidal band, only sd_tidal_coherent is phase-locked to '
+              'the tide (the harmonic\n  fit); sd_tidal_incoherent is the '
+              'cycle-to-cycle part that repeats at no fixed phase.')
+    cens = {c: float((Xh[c] <= (km[COL[0]] + 0.05)).mean()) for c in KMCOLS}
+    print('  fraction of hours pinned at the cove head (metric saturated): %s'
+          % ', '.join('%s %.0f%%' % (k, 100 * v) for k, v in cens.items()))
     print('  cycle_excursion_* is the high-water-to-high-water swing, the '
           'answer to\n  "how far does it move within one tidal cycle".')
     CY.to_csv(out_dir / 'turning_cycle_excursion.csv', index=False,
