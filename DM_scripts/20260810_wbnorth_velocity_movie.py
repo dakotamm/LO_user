@@ -80,11 +80,12 @@ p.add_argument('--region', default='wb_north', help='polygon that sets the map w
 p.add_argument('--exclude', default='skagit_delta',
                help='comma-separated polygons to cut out of the map, and to '
                     'zoom past; empty string keeps the whole region')
-p.add_argument('--quiver-step', default=8, type=int, dest='quiver_step',
-               help='draw one arrow every N grid cells')
+p.add_argument('--quiver-step', default=4, type=int, dest='quiver_step',
+               help='draw one arrow every N grid cells; arrow length scales '
+                    'with it so density stays readable')
 p.add_argument('--quiver-scale', type=float, dest='quiver_scale',
-               help='data units per axes width; default from the 95th pctl '
-                    'speed so a typical arrow spans ~1/12 of the map')
+               help='data units per axes width; default ties a 95th-pctl '
+                    'arrow to ~1.2 grid steps')
 p.add_argument('--quiver-key', type=float, dest='quiver_key',
                help='reference arrow magnitude [m/s]; default 95th pctl speed')
 p.add_argument('--pc-poly', default='pc', dest='pc_poly',
@@ -404,7 +405,13 @@ cb = fig.colorbar(cs, ax=axm, shrink=0.75, pad=0.01, aspect=35,
 # an arrow length that meant something different each frame would be useless.
 qs = max(1, args.quiver_step)
 spd95 = float(np.nanpercentile(FLD, 95))
-qscale = args.quiver_scale if args.quiver_scale else 12.0 * spd95
+# Arrow LENGTH is tied to arrow SPACING, so --quiver-step alone is enough to
+# change density: a typical (95th pctl) arrow spans ~1.2 grid steps whatever
+# the step is. With a fixed scale, halving the step doubles the overlap and
+# the map turns into a solid mat of arrowheads.
+nx_win = lon_s.shape[1]
+qscale = (args.quiver_scale if args.quiver_scale
+          else spd95 * nx_win / (1.2 * qs))
 qkey = args.quiver_key if args.quiver_key else round(spd95, 2)
 # white arrows with a black outline: cm.speed runs pale yellow at slack to
 # near-black at full flood, and a single arrow colour is invisible at one end

@@ -126,6 +126,10 @@ p.add_argument('--vmin', default=0.0, type=float, help='--cmap oxy only')
 p.add_argument('--vmax', default=10.0, type=float, help='--cmap oxy only')
 p.add_argument('--no-contour', dest='contour', action='store_false',
                help='drop the threshold edge on the map')
+p.add_argument('--pct', default='auto', choices=['auto', 'on', 'off'],
+               help='units on the top (or only) series panel: auto = percent '
+                    'of the floor when the map is zoomed to that one region, '
+                    'km2 otherwise')
 p.add_argument('--pad-cells', default=6, type=int)
 p.add_argument('--fps', default=8, type=int)
 p.add_argument('--dpi', default=150, type=int,
@@ -341,12 +345,32 @@ for nm in SER:
 # constrained layout, not manual margins: the map carries a fixed aspect (dar),
 # so it shrinks inside its own gridspec cell and a hand-placed colorbar ends up
 # stranded out in the whitespace.
+#
+# Two shapes, picked by whether there is one series or two:
+#   --region wb   (default)  2x2: basin series over cove series, map spanning
+#                            the right -- the cove read against its basin
+#   --region pc              1x2 side by side: one series, one map. A single
+#                            panel stacked over an empty half is just a tall
+#                            thin map and a lot of white.
+SINGLE = args.pc_poly == args.region
 plt.close('all')
-fig = plt.figure(figsize=(17.5, 9), layout='constrained')
-gs = fig.add_gridspec(2, 2, width_ratios=[1, 1.05])
-ax1 = fig.add_subplot(gs[0, 0])                  # region area series
-ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)      # pc area series
-axm = fig.add_subplot(gs[:, 1])                  # map
+if SINGLE:
+    fig = plt.figure(figsize=(16, 6.5), layout='constrained')
+    gs = fig.add_gridspec(1, 2, width_ratios=[1, 1.05])
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = None
+    axm = fig.add_subplot(gs[0, 1])
+else:
+    fig = plt.figure(figsize=(17.5, 9), layout='constrained')
+    gs = fig.add_gridspec(2, 2, width_ratios=[1, 1.05])
+    ax1 = fig.add_subplot(gs[0, 0])              # region area series
+    ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)  # pc area series
+    axm = fig.add_subplot(gs[:, 1])              # map
+
+# Units on the top/only panel. A percent needs a denominator the reader
+# already has in mind: the cove's own floor is one (the map IS the cove), the
+# whole basin's is not, so km2 is the default there. --pct forces either way.
+PCT1 = (args.pct == 'on') or (args.pct == 'auto' and SINGLE)
 
 # --- map
 # Discrete classes by default. spacing='proportional' keeps the colourbar a
@@ -379,7 +403,16 @@ print('colour scale %s, %.1f to %.1f mg/L; %.1f%% of cell-days above the top '
                                           100 * f_hi, 100 * f_lo))
 
 pfun.add_coast(axm, color='gray', linewidth=0.5)
-pfun.draw_box(axm, box, color=GREY, linewidth=1.5, linestyle=':')
+if SINGLE:
+    # zoomed to one region: draw the POLYGON, not its bounding box. At this
+    # scale the box is nearly the whole window and says nothing, while the
+    # outline says exactly which cells the series counts -- the window is
+    # padded, so some of the water on screen is not in the series.
+    axm.plot(np.append(reg.x.values, reg.x.values[0]),
+             np.append(reg.y.values, reg.y.values[0]), '-',
+             color=RED, lw=1.8, zorder=8)
+else:
+    pfun.draw_box(axm, box, color=GREY, linewidth=1.5, linestyle=':')
 axm.axis(aa)
 pfun.dar(axm)
 axm.xaxis.set_major_locator(MaxNLocator(nbins=4))
@@ -464,6 +497,13 @@ def series_panel(ax, nm, pct):
     ax.set_ylim(0, None if not pct else 100)
     ax.set_xlim(TT[0], TT[-1])
     ax.grid(**GRID)
+    if pct:
+        # km2 on the right, because a percent answers "how much of the cove"
+        # and only an area answers "how much habitat" -- both get asked
+        km2 = RAREA[nm] / 1e6
+        sax = ax.secondary_yaxis('right', functions=(lambda p: p * km2 / 100,
+                                                     lambda a: a * 100 / km2))
+        sax.set_ylabel('[km$^2$]')
     # the marker rides the UNgapped series, so its index still lines up frame
     # for frame with the map
     y = S[nm]['A_%g' % T0] * sc
@@ -472,13 +512,21 @@ def series_panel(ax, nm, pct):
     return mark, dot, y
 
 
-m1, d1, y1 = series_panel(ax1, args.region, pct=False)
-ax1.set_title('bottom hypoxic area, %s (%.0f km$^2$ of sea floor)'
-              % (args.region, RAREA[args.region] / 1e6), fontsize=11, color=GREY)
-ax1.legend(loc='upper left', fontsize=9, framealpha=0.9)
-plt.setp(ax1.get_xticklabels(), visible=False)
+def panel1_title(ax):
+    ax.set_title('bottom hypoxic area, %s (%s of sea floor%s)'
+                 % (args.region,
+                    ('%.1f km$^2$' if RAREA[args.region] < 5e7 else '%.0f km$^2$')
+                    % (RAREA[args.region] / 1e6),
+                    ', outlined on the map' if SINGLE else ''),
+                 fontsize=11, color=RED if SINGLE else GREY)
 
-if args.pc_poly != args.region:
+
+m1, d1, y1 = series_panel(ax1, args.region, pct=PCT1)
+panel1_title(ax1)
+ax1.legend(loc='upper left', fontsize=9, framealpha=0.9)
+
+if ax2 is not None:
+    plt.setp(ax1.get_xticklabels(), visible=False)
     m2, d2, y2 = series_panel(ax2, args.pc_poly, pct=True)
     ax2.set_title('%s, as a percent of its own floor (%.1f km$^2$, dotted box '
                   'on the map)' % (args.pc_poly, RAREA[args.pc_poly] / 1e6),
@@ -489,10 +537,8 @@ if args.pc_poly != args.region:
     ax2.tick_params(color=RED)
     tail = ax2
 else:
-    ax2.axis('off')
     m2 = d2 = None
     tail = ax1
-    plt.setp(ax1.get_xticklabels(), visible=True)
 
 tail.xaxis.set_major_locator(mdates.MonthLocator())
 tail.xaxis.set_major_formatter(mdates.DateFormatter('%b %-d'))
@@ -503,7 +549,7 @@ for l in tail.get_xticklabels():
 
 if args.transparent:
     fig.patch.set_alpha(0.0)
-    for ax in [axm, ax1, ax2]:
+    for ax in [a for a in (axm, ax1, ax2) if a is not None]:
         ax.patch.set_alpha(0.0)
 
 
