@@ -169,6 +169,7 @@ def poly_mask(df):
 
 reg = load_sect(args.region)
 pc = load_sect(args.pc_poly)
+sect_line = load_sect(args.sect)              # drawn on the map in BLUE
 in_wb = poly_mask(load_sect('wb'))            # master clip, every wb1 region plot
 
 # rectangular window around the WHOLE region polygon + a margin of cells
@@ -347,11 +348,10 @@ CB_EXT = ('both' if (f_lo > 0 and f_hi > 0) else 'max' if f_hi > 0
 # so it shrinks inside its own gridspec cell and a hand-placed colorbar ends up
 # stranded out in the whitespace.
 plt.close('all')
-fig = plt.figure(figsize=(15.5, 9), layout='constrained')
-gs = fig.add_gridspec(3, 2, width_ratios=[1, 1.15])
-axs = fig.add_subplot(gs[0, 0])                  # SSH, top left
-axblank = [fig.add_subplot(gs[1, 0])]            # reserved, middle left
-axv = fig.add_subplot(gs[2, 0])                  # cross-section, bottom left
+fig = plt.figure(figsize=(17.5, 9), layout='constrained')
+gs = fig.add_gridspec(2, 2, width_ratios=[1, 1.05])
+axs = fig.add_subplot(gs[0, 0])                  # SSH, upper left
+axv = fig.add_subplot(gs[1, 0])                  # cross-section, lower left
 axm = fig.add_subplot(gs[:, 1])                  # map, right
 
 # --- map
@@ -367,6 +367,10 @@ else:
     cb = fig.colorbar(cs, ax=axm, extend=CB_EXT, **cb_kw)
 pfun.add_coast(axm, color='gray', linewidth=0.5)
 pfun.draw_box(axm, box, color=RED, linewidth=2.0)
+# the cross-section, in the same blue as the panel it feeds
+if args.vel:
+    axm.plot(sect_line.x, sect_line.y, '-', color=BLUE, lw=2.5, zorder=8,
+             solid_capstyle='butt')
 axm.axis(aa)
 pfun.dar(axm)
 axm.xaxis.set_major_locator(MaxNLocator(nbins=4))
@@ -457,15 +461,15 @@ if VEL is not None:
     axv.set_ylabel('z [m]')
     # for u the sign convention is not assumed -- q runs minus-side to
     # plus-side, which at pc_lp is eastward, i.e. OUT of Penn Cove
-    axv.set_title(stitle, fontsize=10)
+    axv.set_title(stitle, fontsize=10, color=BLUE)
+    # frame this panel in the same blue as the line drawn on the map, so the
+    # section and its location read as one object
+    for sp in axv.spines.values():
+        sp.set_color(BLUE)
+        sp.set_linewidth(2.0)
+    axv.tick_params(color=BLUE)
 else:
     axv.axis('off')
-
-# The remaining left cell is deliberately empty -- the axes is created so the
-# panels above keep their size and position, then switched off so it reads as
-# blank rather than as an empty framed box.
-for ax in axblank:
-    ax.axis('off')
 
 # moving markers
 mark = axs.axvline(TT[0], color='k', lw=1.5, zorder=8)
