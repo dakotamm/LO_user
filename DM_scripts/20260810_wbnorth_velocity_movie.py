@@ -117,6 +117,11 @@ p.add_argument('--sect-vmax', type=float, dest='sect_vmax')
 p.add_argument('--vmin', type=float)                     # default: percentiles in window
 p.add_argument('--vmax', type=float)
 p.add_argument('--pmax', default=99.5, type=float)
+p.add_argument('--cmap', default='speed',
+               help='speed colormap: any cmocean name (speed, tempo, dense, '
+                    'matter, amp, thermal, ice, deep) or matplotlib name '
+                    '(viridis, magma, cividis). Must run light-to-dark or the '
+                    'white arrows stop working at one end')
 p.add_argument('--pad-cells', default=10, type=int)
 p.add_argument('--fps', default=6, type=int)
 p.add_argument('--transparent', action='store_true',
@@ -395,7 +400,7 @@ v = FLD[np.isfinite(FLD)]
 vmin = args.vmin if args.vmin is not None else 0.0
 vmax = (args.vmax if args.vmax is not None
         else float(np.percentile(v, args.pmax)))
-CMAP = cm.speed
+CMAP = getattr(cm, args.cmap, None) or plt.get_cmap(args.cmap)
 UNITS = 'm s$^{-1}$'
 norm = Normalize(vmin=vmin, vmax=vmax)
 print('colour scale: linear, %.3f to %.3f m/s' % (vmin, vmax))

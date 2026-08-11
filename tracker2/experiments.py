@@ -227,6 +227,120 @@ def get_ic(TR):
             seg_list=['pc_cp_m', 'pc_cp_p', 'pc_lp_m', 'pc_lp_p'], DZ=3,
             n_max_per_seg=1500)
 
+    elif exp_name == 'pcbot':
+        # Penn Cove INNER-COVE BOTTOM water (DM 2026.08.11).
+        #
+        # One cohort, not four: pc_cp_m only -- the tef2 segment landward of
+        # the pc_cp (Coupeville) section, 165 wet cells, h = 7.0 to 21.2 m,
+        # median 13 m. This is the water whose oxygen is drawn down, so it is
+        # the water whose residence time the experiment is about.
+        #
+        # Only the BOTTOM of the column is seeded. Levels are set by HEIGHT
+        # ABOVE THE BED, not by sigma, because the segment spans a factor of
+        # three in depth: a fixed pcs would put "bottom" particles 1 m off the
+        # bed in the shallows and 5 m off it in the deep, and the cohort would
+        # not be one water mass. Height above bed also matches how the DO
+        # drawdown is actually distributed -- it hugs the sediment.
+        #
+        # Paired with 20260811_pc_matched_weeks.py, which picks the two
+        # tide-matched release weeks and prints the two tracker commands. Run
+        # them as two SEPARATE commands with the start_hour each one gives.
+        # Do NOT use -nsd/-dbs to make the pair in one command: -dbs steps in
+        # whole days, and that is exactly how the earlier pcret pair ended up
+        # ~9 h out of tidal phase, which made its early retention curves
+        # incomparable.
+        plon00, plat00, pcs00 = ic_from_tef2_segs_bottom(
+            fn00, gridname, ctag='pc1', riv='trapsN00',
+            seg_list=['pc_cp_m'], hab_max=5.0, dz=0.5, frac_max=0.5)
+
+    return plon00, plat00, pcs00
+
+
+def ic_from_tef2_segs_bottom(fn00, gridname, ctag, riv, seg_list,
+                             hab_max=5.0, dz=0.5, frac_max=0.5, NPmax=20000):
+    """Seed the BOTTOM layer only of a list of tef2 segments.
+
+    Bottom-following version of ic_from_tef2_segs(). In every wet cell of every
+    named segment, particles go at heights above the bed of dz/2, 3dz/2, ...
+    up to hab_max, at the cell centre. pcs = -1 + hab/h.
+
+    Two rules keep the cohort a single water mass:
+
+      hab_max   the absolute thickness of the layer being called "bottom
+                water", in metres off the bed. Fixed in metres rather than as
+                a fraction of h, so a 7 m cell and a 21 m cell contribute
+                water from the same height above the sediment.
+
+      frac_max  no particle may start above frac_max of the way up the column.
+                Without it, hab_max = 5 m in a 7 m cell would seed to 71 % of
+                the depth -- surface water, wearing a bottom-water label -- and
+                the shallow cells would quietly dominate the "bottom" cohort's
+                early loss. With frac_max = 0.5 the shallowest cells simply
+                get fewer levels.
+
+    Particles sit at cell centres rather than jittered within the cell, as in
+    ic_from_tef2_segs(). The centres come from the segment's ji_list and are
+    therefore guaranteed wet, so the tracker's land-trimming does not eat the
+    shoreline cells preferentially, and each particle's starting height above
+    bed is recoverable exactly from its initial pcs.
+    """
+    import pickle
+    import sys
+
+    from lo_tools import Lfun, zrfun
+
+    Ldir = Lfun.Lstart(gridname=gridname)
+    tef2_dir = Ldir['LOo'] / 'extract' / 'tef2'
+    seg_fn = tef2_dir / ('seg_info_dict_' + gridname + '_' + ctag + '_' + riv + '.p')
+    if not seg_fn.is_file():
+        # Cells do not depend on the river set (see ic_from_tef2_segs), so any
+        # tag on this machine gives an identical release.
+        alt = sorted(tef2_dir.glob('seg_info_dict_' + gridname + '_' + ctag + '_*.p'))
+        if len(alt) == 0:
+            raise FileNotFoundError(
+                'no seg_info_dict for %s_%s in %s -- run create_seg_info_dict.py'
+                % (gridname, ctag, tef2_dir))
+        print('  %s not found, using %s (cells are river-independent)'
+              % (seg_fn.name, alt[0].name))
+        seg_fn = alt[0]
+    seg_info = pickle.load(open(seg_fn, 'rb'))
+
+    G = zrfun.get_basic_info(fn00, only_G=True)
+    h = G['h']
+    xp = G['lon_rho']
+    yp = G['lat_rho']
+
+    hab_vec = np.arange(dz / 2, hab_max, dz)   # heights above bed to try
+    plon00 = np.array([]); plat00 = np.array([]); pcs00 = np.array([])
+    for seg_name in seg_list:
+        ji = np.array(seg_info[seg_name]['ji_list'])
+        x_s = np.array([]); y_s = np.array([]); p_s = np.array([])
+        h_used = []
+        for j, i in ji:
+            hh = h[j, i]
+            if hh <= 0:
+                continue
+            hab = hab_vec[hab_vec <= frac_max * hh]
+            if len(hab) == 0:
+                continue
+            x_s = np.append(x_s, xp[j, i] * np.ones(len(hab)))
+            y_s = np.append(y_s, yp[j, i] * np.ones(len(hab)))
+            p_s = np.append(p_s, -1 + hab / hh)
+            h_used.append(hh)
+        plon00 = np.append(plon00, x_s)
+        plat00 = np.append(plat00, y_s)
+        pcs00 = np.append(pcs00, p_s)
+        print('  %-9s %4d cells (h %.1f-%.1f m) -> %5d particles, '
+              '%.1f-%.1f m above the bed'
+              % (seg_name, len(h_used), np.min(h_used), np.max(h_used),
+                 len(x_s), hab_vec[0], hab_vec[-1]))
+
+    NP = len(plon00)
+    nstep = max(1, int(NP / NPmax))
+    if nstep > 1:
+        plon00 = plon00[::nstep]; plat00 = plat00[::nstep]; pcs00 = pcs00[::nstep]
+    print('  total %d particles (subsample step %d)' % (len(plon00), nstep))
+    sys.stdout.flush()
     return plon00, plat00, pcs00
 
 

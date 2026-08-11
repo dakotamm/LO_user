@@ -105,9 +105,8 @@ THRESH = [(2.0, '#7f2704'), (3.0, '#d94801'), (5.0, '#fdae6b')]
 EXTRACT_MSG = (
     'Extract on apogee, where the run lives, using the LO driver:\n'
     '  cd ~/LO/extract/moor\n'
-    '  python multi_mooring_driver.py -gtx %s -ro 2 \\\n'
-    '      -0 %s -1 %s -lt %s -job %s -get_all True -Nproc 100 \\\n'
-    '      > %s.log &\n'
+    '  python multi_mooring_driver.py -gtx %s -ro 2 -0 %s -1 %s -lt %s -job %s'
+    ' -get_all True -Nproc 100 > %s.log &\n'
     % (args.gtagex, args.ds0, args.ds1, args.list_type, args.job, args.job))
 
 
