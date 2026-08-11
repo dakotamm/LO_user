@@ -69,6 +69,20 @@ p.add_argument('--region', default='wb_north', help='polygon that sets the map w
 p.add_argument('--var', default='salt', help='surface field to animate')
 p.add_argument('--pc-poly', default='pc', dest='pc_poly',
                help='polygon whose bounding box is drawn in red and used for SSH')
+p.add_argument('--sect', default='pc_lp',
+               help='tef2 section for the velocity cross-section panel')
+p.add_argument('--sect-var', default='salt', dest='sect_var',
+               choices=['salt', 'temp', 'u'],
+               help='what to show in the cross-section; u is the '
+                    'section-normal velocity, q/(dd*DZ)')
+p.add_argument('--no-vel', dest='vel', action='store_false',
+               help='skip the cross-section panel')
+p.add_argument('--vscale', type=float,
+               help='symmetric colour limit for --sect-var u [m/s]')
+p.add_argument('--sect-vmin', type=float, dest='sect_vmin',
+               help='cross-section colour limits; default is the SECTION own '
+                    'percentiles, which do not match the map scale')
+p.add_argument('--sect-vmax', type=float, dest='sect_vmax')
 p.add_argument('--vmin', type=float)                     # default: percentiles in window
 p.add_argument('--vmax', type=float)
 p.add_argument('--pmin', default=0.5, type=float,
@@ -196,8 +210,9 @@ def read_one(fn):
     ssh = float(np.nanmean(np.where(in_box, zeta, np.nan)))
     t_utc = pd.Timestamp(ds.ocean_time.values[0]).to_pydatetime()
     ds.close()
-    return (fld, ssh,
-            pfun.get_dt_local(t_utc).replace(tzinfo=None))   # naive local (PST)
+    # local for display, UTC kept so the tef2 extraction can be matched on a
+    # clock that has no daylight-saving step in it
+    return (fld, ssh, pfun.get_dt_local(t_utc).replace(tzinfo=None), t_utc)
 
 
 nproc = max(1, min(args.nproc, len(fn_list)))
@@ -212,9 +227,61 @@ else:
 FLD = np.stack([r[0] for r in res])                      # (nt, ny, nx)
 SSH = np.array([r[1] for r in res])
 TT = [r[2] for r in res]
+TT_UTC = pd.to_datetime([r[3] for r in res])
 FLD = np.where(draw_s[None, :, :], FLD, np.nan)          # land + outside-wb
 print('SSH %.2f to %.2f m   (range %.2f m)'
       % (SSH.min(), SSH.max(), SSH.max() - SSH.min()))
+
+
+# ---- cross-section from the existing tef2 extraction -----------------------
+def load_section_field():
+    """--sect-var as (time, z, p) at --sect, on the movie's clock.
+
+    No new extraction: extract_sections_avg.py already stored salt, q and DZ
+    per face, so salinity comes straight out and velocity is q / (dd * DZ).
+    Returns None if the extraction is not there.
+
+    The tef2 files come from ocean_avg (hourly MEANS) while the movie frames
+    are ocean_his (instantaneous), so the two clocks can sit up to half an hour
+    apart. Frames are matched to the nearest extraction time and the worst
+    offset is reported rather than assumed to be zero.
+    """
+    tdir = Ldir['LOo'] / 'extract' / args.gtx / 'tef2'
+    cand = sorted(tdir.glob('extractions_avg_*/%s.nc' % args.sect))
+    if not cand:
+        print('no extractions_avg_*/%s.nc under %s -- skipping the velocity '
+              'panel' % (args.sect, tdir))
+        return None
+    ds = xr.open_dataset(cand[0])
+    te = pd.to_datetime(ds.time.values)
+    k = te.get_indexer(TT_UTC, method='nearest')
+    off = np.abs((te[k] - TT_UTC).total_seconds()) / 60.0
+    print('cross-section %s from %s' % (args.sect_var, cand[0].name))
+    print('  matched %d frames, worst clock offset %.0f min' % (len(k), off.max()))
+    if off.max() > 65:
+        print('  WARNING: the extraction does not cover this window well')
+    DZ = ds.DZ.values[k]                     # (nt, z, p)  m
+    dd = ds.dd.values                        # (p)         m
+    hh = ds.h.values                         # (p)         m
+    if args.sect_var == 'u':
+        with np.errstate(invalid='ignore', divide='ignore'):
+            fld = ds.q.values[k] / (dd[None, None, :] * DZ)
+    elif args.sect_var in ds.data_vars:
+        fld = ds[args.sect_var].values[k]
+    else:
+        print('  %r not in %s -- skipping the panel'
+              % (args.sect_var, cand[0].name))
+        ds.close()
+        return None
+    ds.close()
+    # z from the bed by integrating the same DZ the cells were built on, so
+    # depths are exactly consistent with the data
+    zw = np.concatenate([np.zeros_like(DZ[:, :1, :]),
+                         np.cumsum(DZ, axis=1)], axis=1) - hh[None, None, :]
+    return dict(fld=fld, zw=zw, dd=dd, h=hh)
+
+
+VEL = load_section_field() if args.vel else None
 
 # Colour limits from the drawn cells only, fixed for the whole movie -- an
 # auto-scaled frame would make the tide look like a colour-table change.
@@ -283,7 +350,8 @@ plt.close('all')
 fig = plt.figure(figsize=(15.5, 9), layout='constrained')
 gs = fig.add_gridspec(3, 2, width_ratios=[1, 1.15])
 axs = fig.add_subplot(gs[0, 0])                  # SSH, top left
-axblank = [fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[2, 0])]
+axblank = [fig.add_subplot(gs[1, 0])]            # reserved, middle left
+axv = fig.add_subplot(gs[2, 0])                  # cross-section, bottom left
 axm = fig.add_subplot(gs[:, 1])                  # map, right
 
 # --- map
@@ -320,18 +388,88 @@ for l in axs.get_xticklabels():
     l.set_rotation(30)
     l.set_horizontalalignment('right')
 
-# The lower two left cells are deliberately empty for now -- the axes are
-# created so the SSH panel keeps its size and position, then switched off so
-# they read as blank (transparent) rather than as two empty framed boxes.
+# --- velocity cross-section
+csv_ = None
+if VEL is not None:
+    # x is distance across the section, built from the face widths themselves
+    x_e = np.concatenate([[0.0], np.cumsum(VEL['dd'])]) / 1000.0     # km
+    # The mesh is drawn on the TIME-MEAN sigma depths and only the colours are
+    # updated per frame. Rebuilding the mesh every frame would track the
+    # surface exactly, but zeta is a few percent of the 20 m depth here and a
+    # mesh that breathes makes the velocity structure much harder to read.
+    zw_m = VEL['zw'].mean(axis=0)                                    # (nz+1, np)
+    uu = VEL['fld'][np.isfinite(VEL['fld'])]
+    if args.sect_var == 'u':
+        # diverging, symmetric about zero -- the sign IS the signal
+        vs = args.vscale if args.vscale else float(np.percentile(np.abs(uu), 99))
+        s0, s1, scmap = -vs, vs, cm.balance
+        slab = 'u [m s$^{-1}$]'
+        stitle = '%s velocity: red = out of the cove, blue = in' % args.sect
+    else:
+        # Same scale as the map when it is the same variable, so the two
+        # panels are directly comparable. NOTE the consequence: the map is
+        # capped to bring out the Skagit plume, and the cove is saltier than
+        # that cap, so most of the section can sit at the top of the scale.
+        # The saturation fraction is printed below -- if it is near 100% the
+        # section is one flat colour and you want --sect-vmax (or a higher
+        # --vmax on both).
+        share = (args.sect_var == args.var and args.sect_vmin is None
+                 and args.sect_vmax is None)
+        if share:
+            s0, s1, scmap = vmin, vmax, CMAP
+        else:
+            s0 = (args.sect_vmin if args.sect_vmin is not None
+                  else float(np.percentile(uu, 0.5)))
+            s1 = (args.sect_vmax if args.sect_vmax is not None
+                  else float(np.percentile(uu, 99.5)))
+            scmap = {'salt': cm.haline, 'temp': cm.thermal}[args.sect_var]
+        slab = '%s [%s]' % (args.sect_var,
+                            'g kg$^{-1}$' if args.sect_var == 'salt'
+                            else '$^{\\circ}$C')
+        stitle = '%s %s cross-section' % (args.sect, args.sect_var)
+    print('  cross-section colour limits %.3f to %.3f%s'
+          % (s0, s1, '  (shared with the map)'
+             if args.sect_var != 'u' and s0 == vmin and s1 == vmax else ''))
+    f_sat = float(np.mean(uu > s1))
+    print('  cross-section saturated: %.1f%% above vmax, %.1f%% below vmin'
+          % (100 * f_sat, 100 * float(np.mean(uu < s0))))
+    if f_sat > 0.9:
+        print('  WARNING: %.0f%% of the section is at the top of the scale -- '
+              'it will render as one flat colour. Raise --sect-vmax.'
+              % (100 * f_sat))
+    # One quadmesh PER FACE. A single mesh spanning all faces has to
+    # interpolate the sigma levels across columns of different depth, which
+    # smears the water column past the stepped bathymetry -- the shading ends
+    # up below the bed. Drawn column by column, each face keeps its own levels
+    # and the mesh lands exactly on h.
+    csv_ = []
+    for ip in range(zw_m.shape[1]):
+        Xp = np.tile([x_e[ip], x_e[ip + 1]], (zw_m.shape[0], 1))
+        Yp = np.repeat(zw_m[:, ip:ip + 1], 2, axis=1)
+        csv_.append(axv.pcolormesh(Xp, Yp, VEL['fld'][0][:, ip:ip + 1],
+                                   cmap=scmap, vmin=s0, vmax=s1,
+                                   shading='flat'))
+    cbv = fig.colorbar(csv_[0], ax=axv, pad=0.01, aspect=12, label=slab)
+    axv.plot(x_e, -np.concatenate([VEL['h'][:1], VEL['h']]), '-',
+             color='0.3', lw=1.0, drawstyle='steps-pre')
+    axv.set_xlim(x_e[0], x_e[-1])
+    axv.set_xlabel('distance across %s [km]  (north on the left)' % args.sect)
+    axv.set_ylabel('z [m]')
+    # for u the sign convention is not assumed -- q runs minus-side to
+    # plus-side, which at pc_lp is eastward, i.e. OUT of Penn Cove
+    axv.set_title(stitle, fontsize=10)
+else:
+    axv.axis('off')
+
+# The remaining left cell is deliberately empty -- the axes is created so the
+# panels above keep their size and position, then switched off so it reads as
+# blank rather than as an empty framed box.
 for ax in axblank:
     ax.axis('off')
 
 # moving markers
 mark = axs.axvline(TT[0], color='k', lw=1.5, zorder=8)
 dot = axs.plot([TT[0]], [SSH[0]], 'o', ms=8, color=RED, zorder=9)[0]
-
-fig.suptitle('%s -- surface %s over %s'
-             % (args.gtx, args.var, args.region), fontsize=13)
 
 if args.transparent:
     fig.patch.set_alpha(0.0)
@@ -345,6 +483,9 @@ def update(fi):
                  % (args.var, TT[fi].strftime('%Y-%m-%d %H:%M')))
     mark.set_xdata([TT[fi], TT[fi]])
     dot.set_data([TT[fi]], [SSH[fi]])
+    if csv_ is not None:
+        for ip, m in enumerate(csv_):
+            m.set_array(VEL['fld'][fi][:, ip:ip + 1].ravel())
     return []
 
 
