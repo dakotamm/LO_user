@@ -1,14 +1,26 @@
 """
-Tidal-cycle movie of the wb_north surface field, with Penn Cove SSH beside it.
+Tidal-cycle movie of the wb_north DEPTH-AVERAGED CURRENT, with the pc_lp
+velocity cross-section and Penn Cove SSH beside it.
+
+Same figure format as 20260806_wbnorth_tidal_movie.py (the salinity version) --
+it is a copy, deliberately, so that one can keep running unchanged.
 
 Layout (one figure, animated over hourly history files):
-  right       -- map of surface salinity (or --var) over wb_north, with the
-                 bounding box of the `pc` polygon as a dotted grey box and the
-                 pc_lp section picked out in red along its eastern side
+  right       -- map of depth-averaged speed over wb_north with current arrows
+                 over the top, the bounding box of the `pc` polygon as a dotted
+                 grey box, and the pc_lp section picked out in red
   upper left  -- SSH averaged over that dotted box (tidal phase), carrying a
                  marker showing where the animation is
-  lower left  -- the --sect cross-section, framed in red to tie it to the line
+  lower left  -- the pc_lp cross-section (--sect-var, default u = the
+                 section-normal velocity), framed in red to tie it to the line
                  on the map
+
+The map is ubar/vbar, the model's own depth-averaged transport velocities, so
+it is the BAROTROPIC (tidal) flow -- a single vector for the whole water
+column. The two-layer exchange does not appear there by construction; that is
+what the cross-section panel is for. The two panels are answering different
+questions and are deliberately NOT on a shared colour scale: the map is a
+speed (a magnitude, >= 0) and the section is a signed normal velocity.
 
 The dotted box does double duty: it is what is drawn on the map AND what SSH is
 averaged over, so there is only one rectangle in the figure and it means one
@@ -20,18 +32,13 @@ box of the WHOLE wb_north polygon plus PAD_CELLS of margin, but only cells
 inside `wb` are drawn -- otherwise Admiralty Inlet and the main Puget Sound
 trench come along on the far side of Whidbey and take over the color scale.
 
-Per-point top/bottom salinity at the cove mouth is no longer plotted here; that
-question is answered properly, over two years, by
-20260806_pc_mouth_salinity_tides.py.
+Runs on apogee (needs the history files, plus extractions_avg for the section).
+Defaults to the first week of September 2025 = 169 hourly frames.
 
-Runs on apogee (needs the history files). Defaults to the first week of
-September 2025 = 169 hourly frames, about 14 semidiurnal / 7 diurnal cycles,
-which is long enough to watch the spring-neap envelope open and close.
-
-    python 20260806_wbnorth_tidal_movie.py
-    python 20260806_wbnorth_tidal_movie.py --ds0 2025.07.15 --ds1 2025.07.16
-    python 20260806_wbnorth_tidal_movie.py --var temp --region skagit_delta
-    python 20260806_wbnorth_tidal_movie.py --test
+    python 20260810_wbnorth_velocity_movie.py
+    python 20260810_wbnorth_velocity_movie.py --test
+    python 20260810_wbnorth_velocity_movie.py --quiver-step 5   # denser arrows
+    python 20260810_wbnorth_velocity_movie.py --sect-var salt   # salt section
 """
 import argparse
 import multiprocessing as mp
@@ -47,7 +54,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from matplotlib.path import Path as MplPath
-from matplotlib.colors import BoundaryNorm, Normalize, PowerNorm
+from matplotlib.colors import Normalize
 from matplotlib.ticker import MaxNLocator
 from cmocean import cm
 
@@ -69,12 +76,18 @@ p.add_argument('--ds0', default='2025.09.01')
 p.add_argument('--ds1', default='2025.09.07')            # 1 week -> 169 hourly frames
 p.add_argument('--lt', default='hourly0')                # clean hour-0 start on ds0
 p.add_argument('--region', default='wb_north', help='polygon that sets the map window')
-p.add_argument('--var', default='salt', help='surface field to animate')
+p.add_argument('--quiver-step', default=8, type=int, dest='quiver_step',
+               help='draw one arrow every N grid cells')
+p.add_argument('--quiver-scale', type=float, dest='quiver_scale',
+               help='data units per axes width; default from the 95th pctl '
+                    'speed so a typical arrow spans ~1/12 of the map')
+p.add_argument('--quiver-key', type=float, dest='quiver_key',
+               help='reference arrow magnitude [m/s]; default 95th pctl speed')
 p.add_argument('--pc-poly', default='pc', dest='pc_poly',
                help='polygon whose bounding box is drawn in red and used for SSH')
 p.add_argument('--sect', default='pc_lp',
                help='tef2 section for the velocity cross-section panel')
-p.add_argument('--sect-var', default='salt', dest='sect_var',
+p.add_argument('--sect-var', default='u', dest='sect_var',
                choices=['salt', 'temp', 'u'],
                help='what to show in the cross-section; u is the '
                     'section-normal velocity, q/(dd*DZ)')
@@ -88,18 +101,7 @@ p.add_argument('--sect-vmin', type=float, dest='sect_vmin',
 p.add_argument('--sect-vmax', type=float, dest='sect_vmax')
 p.add_argument('--vmin', type=float)                     # default: percentiles in window
 p.add_argument('--vmax', type=float)
-p.add_argument('--pmin', default=0.5, type=float,
-               help='percentile setting vmin -- lower it to reach further into '
-                    'the fresh tail of the plume')
 p.add_argument('--pmax', default=99.5, type=float)
-p.add_argument('--norm', default='linear', choices=['linear', 'power', 'quantile'],
-               help='power (default) stretches the fresh end; quantile gives '
-                    'every colour band an equal number of cells; linear is the '
-                    'plain scale')
-p.add_argument('--gamma', default=0.5, type=float,
-               help='power-norm exponent. <1 expands the FRESH end; 1 = linear')
-p.add_argument('--levels', default='',
-               help='explicit colour boundaries, e.g. 10,16,20,23,25,27,28,29,30')
 p.add_argument('--pad-cells', default=10, type=int)
 p.add_argument('--fps', default=6, type=int)
 p.add_argument('--transparent', action='store_true',
@@ -128,7 +130,7 @@ for label, dsx in [('--ds0', args.ds0), ('--ds1', args.ds1)]:
         raise SystemExit('Invalid %s value %r -- use YYYY.MM.DD with a real '
                          'calendar day.' % (label, dsx))
 
-out_dir = Ldir['LOo'] / 'DM_outs' / '20260806_wbnorth_tidal_movie'
+out_dir = Ldir['LOo'] / 'DM_outs' / '20260810_wbnorth_velocity_movie'
 Lfun.make_dir(out_dir)
 
 fn_list = [fn for fn in Lfun.get_fn_list(args.lt, Ldir, args.ds0, args.ds1)
@@ -204,19 +206,40 @@ print('%s bounding box %s -> %d wet cells for the SSH mean'
 
 # ---- read one history file -------------------------------------------------
 def read_one(fn):
-    """Surface field in the window and the box-mean SSH."""
+    """Depth-averaged current in the window, and the box-mean SSH.
+
+    ubar and vbar live on the u and v faces, so they are averaged onto the rho
+    points they straddle -- the same staggering LO assumes everywhere. The
+    shaded field is the speed; the components are carried through for arrows.
+
+    ubar/vbar are the model's own DEPTH-AVERAGED transport velocities, not a
+    surface slice, so this is the barotropic (tidal) flow. The two-layer
+    exchange is in the cross-section panel, not here.
+    """
     ds = xr.open_dataset(fn)
-    if args.var not in ds.data_vars:
-        ds.close()
-        raise SystemExit('no variable %r in %s' % (args.var, fn))
-    fld = ds[args.var][0, -1, SUB[0], SUB[1]].values.astype(np.float32)
+    for vn in ('ubar', 'vbar'):
+        if vn not in ds.data_vars:
+            ds.close()
+            raise SystemExit('no %s in %s -- this movie needs ubar/vbar' % (vn, fn))
+    ub = ds.ubar[0, :, :].values                     # (eta_rho, xi_u)
+    vb = ds.vbar[0, :, :].values                     # (eta_v,  xi_rho)
+    ur = np.full(lon.shape, np.nan)
+    vr = np.full(lon.shape, np.nan)
+    ur[:, 1:-1] = 0.5 * (ub[:, :-1] + ub[:, 1:])
+    ur[:, 0], ur[:, -1] = ub[:, 0], ub[:, -1]
+    vr[1:-1, :] = 0.5 * (vb[:-1, :] + vb[1:, :])
+    vr[0, :], vr[-1, :] = vb[0, :], vb[-1, :]
+    uq = ur[SUB].astype(np.float32)
+    vq = vr[SUB].astype(np.float32)
+    fld = np.hypot(uq, vq)
     zeta = ds.zeta[0, :, :].values
     ssh = float(np.nanmean(np.where(in_box, zeta, np.nan)))
     t_utc = pd.Timestamp(ds.ocean_time.values[0]).to_pydatetime()
     ds.close()
     # local for display, UTC kept so the tef2 extraction can be matched on a
     # clock that has no daylight-saving step in it
-    return (fld, ssh, pfun.get_dt_local(t_utc).replace(tzinfo=None), t_utc)
+    return (fld, ssh, pfun.get_dt_local(t_utc).replace(tzinfo=None), t_utc,
+            uq, vq)
 
 
 nproc = max(1, min(args.nproc, len(fn_list)))
@@ -233,6 +256,10 @@ SSH = np.array([r[1] for r in res])
 TT = [r[2] for r in res]
 TT_UTC = pd.to_datetime([r[3] for r in res])
 FLD = np.where(draw_s[None, :, :], FLD, np.nan)          # land + outside-wb
+UQ = np.where(draw_s[None, :, :], np.stack([r[4] for r in res]), np.nan)
+VQ = np.where(draw_s[None, :, :], np.stack([r[5] for r in res]), np.nan)
+print('depth-averaged speed: median %.3f, 95th pctl %.3f, max %.3f m/s'
+      % (np.nanmedian(FLD), np.nanpercentile(FLD, 95), np.nanmax(FLD)))
 print('SSH %.2f to %.2f m   (range %.2f m)'
       % (SSH.min(), SSH.max(), SSH.max() - SSH.min()))
 
@@ -296,47 +323,19 @@ VEL = load_section_field() if args.vel else None
 # hands ~78% of the table to the sub-25 range where the Skagit plume lives.
 # Everything above 27 goes one colour -- the colourbar is drawn with an arrow
 # to say so. Per-variable, so --var temp / oxygen are unaffected.
-DEFAULT_VMAX = {'salt': 27.0}
+# Speed is a magnitude, so the scale starts at zero -- a percentile floor
+# would make slack water look like a current. cm.speed is the cmocean map
+# built for exactly this: perceptually uniform and light at zero.
 v = FLD[np.isfinite(FLD)]
-vmin = args.vmin if args.vmin is not None else float(np.percentile(v, args.pmin))
-if args.vmax is not None:
-    vmax = args.vmax
-elif args.var in DEFAULT_VMAX:
-    vmax = DEFAULT_VMAX[args.var]
-else:
-    vmax = float(np.percentile(v, args.pmax))
-CMAP = {'salt': cm.haline, 'temp': cm.thermal, 'oxygen': cm.oxy}.get(args.var, cm.haline)
-UNITS = {'salt': 'g kg$^{-1}$', 'temp': '$^{\\circ}$C',
-         'oxygen': 'mmol m$^{-3}$'}.get(args.var, '')
-
-# Most of wb_north sits in a narrow salty range, so a LINEAR scale spends most
-# of the colour table on water that never changes and squeezes the Skagit plume
-# into the first few shades. Two ways out, both keeping the full data range:
-#   power    -- continuous, gamma < 1 stretches the fresh end. Smooth, which
-#               matters in a movie; discrete bands shimmer frame to frame.
-#   quantile -- boundaries at data percentiles, so every colour band holds the
-#               same number of cells. Maximum contrast everywhere, but the
-#               colourbar is no longer linear in salinity and has to be read
-#               off its tick labels.
-NLEV = 12
-if args.levels:
-    lv = np.array(sorted(float(x) for x in args.levels.split(',')))
-    norm = BoundaryNorm(lv, CMAP.N)
-    print('colour levels (explicit): %s' % np.round(lv, 2).tolist())
-elif args.norm == 'quantile':
-    lv = np.unique(np.percentile(v[(v >= vmin) & (v <= vmax)],
-                                 np.linspace(0, 100, NLEV + 1)))
-    norm = BoundaryNorm(lv, CMAP.N)
-    print('colour levels (quantile): %s' % np.round(lv, 2).tolist())
-elif args.norm == 'power':
-    norm = PowerNorm(gamma=args.gamma, vmin=vmin, vmax=vmax)
-    print('colour scale: power norm, gamma %.2f, %.2f to %.2f'
-          % (args.gamma, vmin, vmax))
-else:
-    norm = Normalize(vmin=vmin, vmax=vmax)
-    print('colour scale: linear, %.2f to %.2f' % (vmin, vmax))
-print('  data in window: min %.2f, %gth pctl %.2f, median %.2f, max %.2f'
-      % (v.min(), args.pmin, vmin, np.median(v), v.max()))
+vmin = args.vmin if args.vmin is not None else 0.0
+vmax = (args.vmax if args.vmax is not None
+        else float(np.percentile(v, args.pmax)))
+CMAP = cm.speed
+UNITS = 'm s$^{-1}$'
+norm = Normalize(vmin=vmin, vmax=vmax)
+print('colour scale: linear, %.3f to %.3f m/s' % (vmin, vmax))
+print('  data in window: min %.3f, median %.3f, %gth pctl %.3f, max %.3f'
+      % (v.min(), np.median(v), args.pmax, vmax, v.max()))
 f_hi = float(np.mean(v > vmax))
 f_lo = float(np.mean(v < vmin))
 print('  saturated: %.1f%% of cell-hours above vmax, %.1f%% below vmin'
@@ -360,14 +359,31 @@ axm = fig.add_subplot(gs[:, 1])                  # map, right
 # --- map
 cs = axm.pcolormesh(plon_s, plat_s, FLD[0], cmap=CMAP, norm=norm,
                     shading='flat', zorder=1)
-cb_kw = dict(shrink=0.75, pad=0.01, aspect=35,
-             label='surface %s [%s]' % (args.var, UNITS))
-if isinstance(norm, BoundaryNorm):
-    cb = fig.colorbar(cs, ax=axm, **cb_kw)     # extend lives on the norm here
-    cb.set_ticks(norm.boundaries)
-    cb.ax.set_yticklabels(['%.1f' % b for b in norm.boundaries], fontsize=8)
-else:
-    cb = fig.colorbar(cs, ax=axm, extend=CB_EXT, **cb_kw)
+cb = fig.colorbar(cs, ax=axm, shrink=0.75, pad=0.01, aspect=35,
+                  extend=CB_EXT,
+                  label='depth-averaged speed [%s]' % UNITS)
+
+# Arrows on a subsample of the rho grid. The scale is fixed from the whole
+# record, NOT autoscaled from frame 0 -- frame 0 can land on slack water, and
+# an arrow length that meant something different each frame would be useless.
+qs = max(1, args.quiver_step)
+spd95 = float(np.nanpercentile(FLD, 95))
+qscale = args.quiver_scale if args.quiver_scale else 12.0 * spd95
+qkey = args.quiver_key if args.quiver_key else round(spd95, 2)
+# white arrows with a black outline: cm.speed runs pale yellow at slack to
+# near-black at full flood, and a single arrow colour is invisible at one end
+# or the other. The outline carries them over the pale water, the white fill
+# over the dark.
+Q = axm.quiver(lon_s[::qs, ::qs], lat_s[::qs, ::qs],
+               UQ[0][::qs, ::qs], VQ[0][::qs, ::qs],
+               scale=qscale, scale_units='width', units='width',
+               width=0.0026, color='w', edgecolor='k', linewidth=0.5,
+               zorder=6)
+axm.quiverkey(Q, 0.86, 0.035, qkey, '%.2f m s$^{-1}$' % qkey,
+              labelpos='E', coordinates='axes', fontproperties=dict(size=9))
+print('quiver: every %d cells, scale %.2f (95th pctl speed %.3f m/s)'
+      % (qs, qscale, spd95))
+
 pfun.add_coast(axm, color='gray', linewidth=0.5)
 # Penn Cove: dotted grey box (this is also what SSH is averaged over), with
 # the pc_lp side picked out in red -- drawn as the actual section line rather
@@ -422,16 +438,14 @@ if VEL is not None:
         # The saturation fraction is printed below -- if it is near 100% the
         # section is one flat colour and you want --sect-vmax (or a higher
         # --vmax on both).
-        share = (args.sect_var == args.var and args.sect_vmin is None
-                 and args.sect_vmax is None)
-        if share:
-            s0, s1, scmap = vmin, vmax, CMAP
-        else:
-            s0 = (args.sect_vmin if args.sect_vmin is not None
-                  else float(np.percentile(uu, 0.5)))
-            s1 = (args.sect_vmax if args.sect_vmax is not None
-                  else float(np.percentile(uu, 99.5)))
-            scmap = {'salt': cm.haline, 'temp': cm.thermal}[args.sect_var]
+        # No sharing with the map here: the map is a SPEED (a magnitude, >= 0)
+        # and this is a scalar on a different range entirely, so one scale
+        # across the two panels would be meaningless.
+        s0 = (args.sect_vmin if args.sect_vmin is not None
+              else float(np.percentile(uu, 0.5)))
+        s1 = (args.sect_vmax if args.sect_vmax is not None
+              else float(np.percentile(uu, 99.5)))
+        scmap = {'salt': cm.haline, 'temp': cm.thermal}[args.sect_var]
         slab = '%s [%s]' % (args.sect_var,
                             'g kg$^{-1}$' if args.sect_var == 'salt'
                             else '$^{\\circ}$C')
@@ -488,8 +502,9 @@ if args.transparent:
 
 def update(fi):
     cs.set_array(FLD[fi].ravel())
-    ttl.set_text('surface %s -- %s (PST)'
-                 % (args.var, TT[fi].strftime('%Y-%m-%d %H:%M')))
+    ttl.set_text('depth-averaged current -- %s (PST)'
+                 % TT[fi].strftime('%Y-%m-%d %H:%M'))
+    Q.set_UVC(UQ[fi][::qs, ::qs], VQ[fi][::qs, ::qs])
     mark.set_xdata([TT[fi], TT[fi]])
     dot.set_data([TT[fi]], [SSH[fi]])
     if csv_ is not None:
@@ -498,7 +513,8 @@ def update(fi):
     return []
 
 
-stem = ('20260806_%s_%s_%s_%s' % (args.region, args.var, args.ds0, args.ds1))
+stem = ('20260810_%s_vel_%s_%s_%s'
+        % (args.region, args.sect_var, args.ds0, args.ds1))
 still_kw = dict(dpi=200, bbox_inches='tight', transparent=args.transparent)
 
 # Video formats. h264 has no alpha channel, so mp4 is rendered on white -- a
