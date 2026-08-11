@@ -2,15 +2,28 @@
 Seasonal movie of BOTTOM hypoxia developing over Whidbey Basin, with the
 hypoxic-area series it comes from running alongside it.
 
-Layout (one figure, one frame per day):
-  right       -- map of BOTTOM-CELL oxygen, with the hypoxic (<2 mg/L by
-                 default) edge drawn on top and the `pc` polygon boxed
-  upper left  -- bottom hypoxic AREA over the map region, as nested filled
-                 bands (<5, <3, <2 mg/L), carrying a marker for where the
-                 animation is
-  lower left  -- the same thing for Penn Cove, as a PERCENT of the cove floor,
-                 because 10 km2 means one thing in a 620 km2 basin and quite
-                 another in a 12 km2 cove
+Layout (one figure, one frame per day) follows how many --series were asked
+for:
+
+  ONE (default, `pc`)   side by side -- the area series left, the map right,
+                        with that polygon outlined in RED on the map so the
+                        cells the curve counts are never in doubt.
+  TWO (--series wb pc)  2x2 -- the first series over the second, map spanning
+                        the right. The second is drawn as a PERCENT of its own
+                        floor and boxed on the map, because 10 km2 means one
+                        thing in a 620 km2 basin and quite another in a 12 km2
+                        cove.
+
+The series regions are INDEPENDENT of --region, which only sets the map window.
+The default is deliberately a mismatch: the Penn Cove curve read against a map
+of the whole northern basin, so the cove's hypoxia is seen in the context of
+the water that ventilates it.
+
+WINDOW. Same as 20260810_wbnorth_velocity_movie.py, and taken from it: the
+--zoom-poly box extended east by --zoom of its own widths (the cove opens east
+into Saratoga Passage), land filled grey, water that is not drawn left white,
+--exclude cut out. The two movies can therefore be played side by side over the
+same water. --zoom 0 falls back to the whole --region window.
 
 WHY BOTTOM AREA. The bottom cell is what a benthic organism sits in and what a
 grab survey or a bottom mooring reports, and it is the quantity whose seasonal
@@ -48,19 +61,21 @@ low-contrast grey by design, and in Whidbey Basin nearly the whole sea floor
 sits in that grey between 2 and 5 mg/L. The entire seasonal signal would be
 rendered in the part of the colour table built to be unreadable.
 
-Region-plot convention (DM 2026.08.04): the window is the rectangular bounding
-box of the WHOLE region polygon plus --pad-cells of margin, but only cells
-inside `wb` are drawn.
+Region-plot convention (DM 2026.08.04): with --zoom 0 the window is the
+rectangular bounding box of the region polygon plus --pad-cells of margin, and
+in either case only cells inside `wb` are drawn.
 
 Runs wherever the lowpassed files are (apogee for the 2024-25 run; the 2017
 wb1_r0_xn11b days on the Mac make a fine test bed).
 
     python 20260810_hypoxia_movie.py
-    python 20260810_hypoxia_movie.py --test           # one still, fast
-    python 20260810_hypoxia_movie.py --region wb_north
-    python 20260810_hypoxia_movie.py --stride 3       # every third day
+    python 20260810_hypoxia_movie.py --test            # one still, fast
+    python 20260810_hypoxia_movie.py --zoom 1.0        # further up Saratoga
+    python 20260810_hypoxia_movie.py --series wb pc --zoom 0 --region wb \
+        --exclude ''                                   # whole-basin version
+    python 20260810_hypoxia_movie.py --stride 3        # every third day
     python 20260810_hypoxia_movie.py --gtx wb1_r0_xn11b --ds0 2017.08.01 \
-        --ds1 2017.12.05                              # local test bed
+        --ds1 2017.12.05                               # local test bed
 """
 import argparse
 import multiprocessing as mp
@@ -653,11 +668,14 @@ if args.transparent:
 def update(fi):
     cs.set_array(FLD[fi].ravel())
     draw_edge(fi)
-    a = S[args.region]['A_%g' % T0].iloc[fi]
+    # the number quoted is the SERIES region, not the map window -- it has to
+    # be the same quantity the moving dot is sitting on, and at the cove zoom
+    # there is hypoxic water on screen that the curve does not count
+    a = S[SER0]['A_%g' % T0].iloc[fi]
     ttl.set_text('bottom oxygen -- %s\n%s below %g mg L$^{-1}$: %.1f km$^2$ '
                  '(%.0f%% of the %s floor)'
-                 % (TT[fi].strftime('%Y-%m-%d'), args.region, T0, a / 1e6,
-                    100 * a / RAREA[args.region], args.region))
+                 % (TT[fi].strftime('%Y-%m-%d'), SER0, T0, a / 1e6,
+                    100 * a / RAREA[SER0], SER0))
     m1.set_xdata([TT[fi], TT[fi]])
     d1.set_data([TT[fi]], [y1.iloc[fi]])
     if m2 is not None:
@@ -666,8 +684,12 @@ def update(fi):
     return []
 
 
-stem = ('20260810_hypoxia_%s_%s_%s_%s'
-        % (args.gtx, args.region, args.ds0, args.ds1))
+# the series regions go in the name, not the map window: two runs over the same
+# window with different series are different figures and must not overwrite
+# each other, while the same series at a different zoom is the same figure
+stem = ('20260810_hypoxia_%s_%s%s_%s_%s'
+        % (args.gtx, '-'.join(SER), '_zoom%g' % args.zoom if args.zoom > 0 else
+           '_%s' % args.region, args.ds0, args.ds1))
 still_kw = dict(dpi=200, bbox_inches='tight', transparent=args.transparent)
 
 # Video formats. h264 has no alpha channel, so mp4 is rendered on white -- a
@@ -697,7 +719,7 @@ if args.vformat != 'mp4' and not args.transparent:
 # The still is taken at the PEAK of the primary band, not at frame 0: frame 0
 # of a May-to-November window is a fully oxygenated basin, which tells you the
 # figure renders but nothing about whether the movie works.
-peak = int(np.argmax(S[args.region]['A_%g' % T0].values))
+peak = int(np.argmax(S[SER0]['A_%g' % T0].values))
 if args.test:
     update(peak)
     fn_out = out_dir / (stem + '_peak.png')
@@ -726,14 +748,14 @@ fig2 = plt.figure(figsize=(9, 4) if SINGLE else (9, 7), layout='constrained')
 gs2 = fig2.add_gridspec(1 if SINGLE else 2, 1)
 bx1 = fig2.add_subplot(gs2[0, 0])
 bx2 = None if SINGLE else fig2.add_subplot(gs2[1, 0], sharex=bx1)
-series_panel(bx1, args.region, pct=PCT1)
+series_panel(bx1, SER0, pct=PCT1)
 panel1_title(bx1)
 bx1.legend(loc='upper left', fontsize=9, framealpha=0.9)
 if bx2 is not None:
     plt.setp(bx1.get_xticklabels(), visible=False)
-    series_panel(bx2, args.pc_poly, pct=True)
+    series_panel(bx2, SER[1], pct=True)
     bx2.set_title('%s, as a percent of its own floor (%.1f km$^2$)'
-                  % (args.pc_poly, RAREA[args.pc_poly] / 1e6),
+                  % (SER[1], RAREA[SER[1]] / 1e6),
                   fontsize=11, color=RED)
     tail2 = bx2
 else:

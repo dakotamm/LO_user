@@ -1,7 +1,9 @@
 #!/bin/bash
-# Run on apogee. Seasonal movie of BOTTOM hypoxia over Whidbey Basin, one frame
-# per day off lowpassed.nc, with the hypoxic-area series running beside it (the
-# whole `wb` polygon on top, Penn Cove as a percent of its own floor below).
+# Run on apogee. Seasonal movie of BOTTOM hypoxia, one frame per day off
+# lowpassed.nc: the Penn Cove hypoxic-area series on the left, the bottom
+# oxygen map on the right, side by side. The map window is the SAME as
+# 20260810_wbnorth_velocity_movie.sh (the pc box run 0.6 cove-widths east into
+# Saratoga, Skagit delta cut out, land grey), so the two play together.
 # Defaults to May 1 - Nov 30 2025 of wb1_t0_xn11abbur00 = 214 daily frames.
 #
 #   bash 20260810_hypoxia_movie.sh
@@ -9,7 +11,9 @@
 # Extra args pass through:
 #   bash 20260810_hypoxia_movie.sh --test              # one still at the peak, fast
 #   bash 20260810_hypoxia_movie.sh --stride 3          # every third day
-#   bash 20260810_hypoxia_movie.sh --region wb_north   # zoom to north Whidbey
+#   bash 20260810_hypoxia_movie.sh --zoom 1.0          # further up Saratoga
+#   bash 20260810_hypoxia_movie.sh --series wb pc --zoom 0 --region wb --exclude ''
+#                                                      # whole-basin, two stacked series
 #   bash 20260810_hypoxia_movie.sh --thresh 0.5 2 5    # different bands
 #   bash 20260810_hypoxia_movie.sh --cmap oxy          # continuous cmocean map
 #   bash 20260810_hypoxia_movie.sh --fps 12            # faster season
