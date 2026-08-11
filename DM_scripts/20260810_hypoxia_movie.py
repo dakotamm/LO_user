@@ -355,8 +355,11 @@ for nm in SER:
 SINGLE = args.pc_poly == args.region
 plt.close('all')
 if SINGLE:
-    fig = plt.figure(figsize=(16, 6.5), layout='constrained')
-    gs = fig.add_gridspec(1, 2, width_ratios=[1, 1.05])
+    # the series gets the wider half: a seven-month record read sideways in a
+    # tall narrow panel is unreadable, and a cove zoom is a short wide map that
+    # does not need the room
+    fig = plt.figure(figsize=(16, 6.0), layout='constrained')
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.35, 1])
     ax1 = fig.add_subplot(gs[0, 0])
     ax2 = None
     axm = fig.add_subplot(gs[0, 1])
@@ -625,25 +628,22 @@ else:
 # The same two panels without the map, because the seasonal figure is wanted in
 # talks and papers where a movie cannot go, and re-deriving it from the CSV
 # later would mean re-deciding the bands and the colours.
-fig2 = plt.figure(figsize=(9, 7), layout='constrained')
-gs2 = fig2.add_gridspec(2, 1)
+fig2 = plt.figure(figsize=(9, 4) if SINGLE else (9, 7), layout='constrained')
+gs2 = fig2.add_gridspec(1 if SINGLE else 2, 1)
 bx1 = fig2.add_subplot(gs2[0, 0])
-bx2 = fig2.add_subplot(gs2[1, 0], sharex=bx1)
-series_panel(bx1, args.region, pct=False)
-bx1.set_title('bottom hypoxic area, %s (%.0f km$^2$ of sea floor)'
-              % (args.region, RAREA[args.region] / 1e6), fontsize=11, color=GREY)
+bx2 = None if SINGLE else fig2.add_subplot(gs2[1, 0], sharex=bx1)
+series_panel(bx1, args.region, pct=PCT1)
+panel1_title(bx1)
 bx1.legend(loc='upper left', fontsize=9, framealpha=0.9)
-plt.setp(bx1.get_xticklabels(), visible=False)
-if args.pc_poly != args.region:
+if bx2 is not None:
+    plt.setp(bx1.get_xticklabels(), visible=False)
     series_panel(bx2, args.pc_poly, pct=True)
     bx2.set_title('%s, as a percent of its own floor (%.1f km$^2$)'
                   % (args.pc_poly, RAREA[args.pc_poly] / 1e6),
                   fontsize=11, color=RED)
     tail2 = bx2
 else:
-    bx2.axis('off')
     tail2 = bx1
-    plt.setp(bx1.get_xticklabels(), visible=True)
 tail2.xaxis.set_major_locator(mdates.MonthLocator())
 tail2.xaxis.set_major_formatter(mdates.DateFormatter('%b %-d'))
 tail2.set_xlabel('%d' % TT[0].year if TT[0].year == TT[-1].year else '')
@@ -651,7 +651,7 @@ for l in tail2.get_xticklabels():
     l.set_rotation(30)
     l.set_horizontalalignment('right')
 # the markers series_panel leaves behind belong to the movie, not to a still
-for ax in (bx1, bx2):
+for ax in [a for a in (bx1, bx2) if a is not None]:
     for ln in list(ax.lines):
         ln.remove()
 fig2.savefig(out_dir / (stem + '_series.png'), dpi=200, bbox_inches='tight')
