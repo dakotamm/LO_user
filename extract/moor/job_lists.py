@@ -165,6 +165,28 @@ def get_sta_dict(job_name):
             'M_inner': (-122.709640, 48.226522),
             'M_entrance': (-122.652243, 48.236059)}
 
+    elif job_name == 'pc4':
+        # DM defined 08/11/2026: mid-channel points on two TEF sections of the
+        # wb1_pc1 collection, one inside Penn Cove and one outside it in
+        # Saratoga Passage, for inside/outside bottom-DO comparison.
+        #
+        # cp_mid -- midpoint of pc_cp, the Coupeville line. pc_cp is the u-face
+        #   at i=52/53, wet over j=214..223, so the middle rho cell is
+        #   (j=219, i=53), h = 20.6 m, within 1 m of the deepest cell on the line.
+        # lp_mid -- midpoint of pc_lp, the Long Point line at the cove mouth.
+        #   pc_lp is the u-face at i=67/68, wet over j=217..228, so the middle
+        #   rho cell is (j=222, i=68), h = 27.0 m, on the flat channel floor
+        #   (j=219..223 are all within 0.3 m). This is the same grid cell as
+        #   pc3's M_entrance, which snaps there too.
+        # M5 -- the Saratoga Passage station, OUTSIDE the cove in the gyre east
+        #   of the mouth. Same point as pc0's M5 so the two jobs stay
+        #   comparable; do not move it without moving that one. i=94, j=227,
+        #   h = 37.4 m.
+        sta_dict = {
+            'cp_mid': (-122.692588, 48.231152),
+            'lp_mid': (-122.652000, 48.236565),
+            'M5': (-122.582462, 48.245981)}
+
 
     else:
         print('Unsupported job name!')
