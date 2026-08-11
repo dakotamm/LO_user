@@ -80,6 +80,12 @@ p.add_argument('--region', default='wb_north', help='polygon that sets the map w
 p.add_argument('--exclude', default='skagit_delta',
                help='comma-separated polygons to cut out of the map, and to '
                     'zoom past; empty string keeps the whole region')
+p.add_argument('--zoom', default=1.0, type=float,
+               help='window = the pc box extended EAST by this many pc-widths, '
+                    'so 1.0 reaches about halfway up Saratoga Passage. 0 or '
+                    'less falls back to the whole --region window')
+p.add_argument('--aa', default='',
+               help='explicit lon0,lon1,lat0,lat1 window; overrides --zoom')
 p.add_argument('--quiver-step', default=4, type=int, dest='quiver_step',
                help='draw one arrow every N grid cells; arrow length scales '
                     'with it so density stays readable')
@@ -213,6 +219,24 @@ aa = [lon[main].min() - args.pad_cells * dx,
       lon[main].max() + args.pad_cells * dx,
       lat[main].min() - args.pad_cells * dy,
       lat[main].max() + args.pad_cells * dy]
+
+# Penn Cove zoom. Built from the pc box rather than hard-coded degrees so it
+# follows the polygon if she redraws it. The cove opens EAST into Saratoga
+# Passage, so the window is extended asymmetrically: --zoom pc-widths to the
+# east, and only a little west, where the cove already ends at its head.
+if args.aa:
+    aa = [float(s) for s in args.aa.split(',')]
+    print('window: explicit --aa')
+elif args.zoom > 0:
+    w = float(pc.x.max() - pc.x.min())
+    h = float(pc.y.max() - pc.y.min())
+    aa = [pc.x.min() - 0.10 * w, pc.x.max() + args.zoom * w,
+          pc.y.min() - 0.60 * h, pc.y.max() + 0.90 * h]
+    inzoom = (keep & (lon >= aa[0]) & (lon <= aa[1])
+              & (lat >= aa[2]) & (lat <= aa[3]))
+    print('zoom %.2f pc-widths east of the cove -> %d of %d kept cells (%.0f%%)'
+          % (args.zoom, inzoom.sum(), keep.sum(),
+             100 * inzoom.sum() / max(1, keep.sum())))
 if excl:
     print('excluding %s from %s -> %d cells kept (was %d)'
           % (', '.join(excl), args.region, in_win.sum(),
