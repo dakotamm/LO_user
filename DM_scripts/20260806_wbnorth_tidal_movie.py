@@ -3,12 +3,14 @@ Tidal-cycle movie of the wb_north surface field, with Penn Cove SSH beside it.
 
 Layout (one figure, animated over hourly history files):
   right       -- map of surface salinity (or --var) over wb_north, with the
-                 bounding box of the `pc` polygon drawn in red
-  top left    -- SSH averaged over that same red box (tidal phase), carrying a
+                 bounding box of the `pc` polygon as a dotted grey box and the
+                 pc_lp section picked out in red along its eastern side
+  upper left  -- SSH averaged over that dotted box (tidal phase), carrying a
                  marker showing where the animation is
-  lower left  -- deliberately blank, reserved for two more timeseries
+  lower left  -- the --sect cross-section, framed in red to tie it to the line
+                 on the map
 
-The red box does double duty: it is what is drawn on the map AND what SSH is
+The dotted box does double duty: it is what is drawn on the map AND what SSH is
 averaged over, so there is only one rectangle in the figure and it means one
 thing. (It replaced PENN_COVE_BOX from wb1_penncove_region.py, which was a
 hand-tuned rectangle that did not match any drawn outline.)
@@ -57,6 +59,7 @@ from lo_tools import plotting_functions as pfun
 GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 RED = '#e04256'
 BLUE = '#4565e8'
+GREY = '0.45'
 
 # ---- arguments -------------------------------------------------------------
 p = argparse.ArgumentParser()
@@ -366,10 +369,12 @@ if isinstance(norm, BoundaryNorm):
 else:
     cb = fig.colorbar(cs, ax=axm, extend=CB_EXT, **cb_kw)
 pfun.add_coast(axm, color='gray', linewidth=0.5)
-pfun.draw_box(axm, box, color=RED, linewidth=2.0)
-# the cross-section, in the same blue as the panel it feeds
+# Penn Cove: dotted grey box (this is also what SSH is averaged over), with
+# the pc_lp side picked out in red -- drawn as the actual section line rather
+# than the box edge, so the red shows the section's true extent
+pfun.draw_box(axm, box, color=GREY, linewidth=1.5, linestyle=':')
 if args.vel:
-    axm.plot(sect_line.x, sect_line.y, '-', color=BLUE, lw=2.5, zorder=8,
+    axm.plot(sect_line.x, sect_line.y, '-', color=RED, lw=3.0, zorder=9,
              solid_capstyle='butt')
 axm.axis(aa)
 pfun.dar(axm)
@@ -383,7 +388,7 @@ ttl = axm.set_title('', fontsize=13)
 axs.plot(TT, SSH, '-', color=BLUE, lw=1.8)
 axs.axhline(0, color='0.5', lw=0.8)
 axs.set_ylabel('Penn Cove SSH [m]')
-axs.set_title('tidal phase (mean over the red box)', fontsize=10, color=RED)
+axs.set_title('tidal phase (mean over the dotted box)', fontsize=10, color=GREY)
 axs.grid(**GRID)
 axs.set_xlim(TT[0], TT[-1])
 axs.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
@@ -461,19 +466,19 @@ if VEL is not None:
     axv.set_ylabel('z [m]')
     # for u the sign convention is not assumed -- q runs minus-side to
     # plus-side, which at pc_lp is eastward, i.e. OUT of Penn Cove
-    axv.set_title(stitle, fontsize=10, color=BLUE)
-    # frame this panel in the same blue as the line drawn on the map, so the
+    axv.set_title(stitle, fontsize=10, color=RED)
+    # frame this panel in the same red as the section line on the map, so the
     # section and its location read as one object
     for sp in axv.spines.values():
-        sp.set_color(BLUE)
+        sp.set_color(RED)
         sp.set_linewidth(2.0)
-    axv.tick_params(color=BLUE)
+    axv.tick_params(color=RED)
 else:
     axv.axis('off')
 
 # moving markers
 mark = axs.axvline(TT[0], color='k', lw=1.5, zorder=8)
-dot = axs.plot([TT[0]], [SSH[0]], 'o', ms=8, color=RED, zorder=9)[0]
+dot = axs.plot([TT[0]], [SSH[0]], 'o', ms=8, color='k', zorder=9)[0]
 
 if args.transparent:
     fig.patch.set_alpha(0.0)
