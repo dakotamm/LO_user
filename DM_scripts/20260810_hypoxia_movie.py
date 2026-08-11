@@ -430,9 +430,31 @@ def band_colour(th):
     return LEVEL_COLORS[min(max(k, 0), len(LEVELS) - 2)]
 
 
+def gapped(d):
+    """Break the series wherever days are missing.
+
+    fill_between joins whatever points it is given, so a run with a hole in it
+    draws a straight ramp across the hole -- weeks of invented, monotonic
+    hypoxia. A NaN row dropped into the middle of each gap makes the hole a
+    hole. (The 2024-25 run is continuous and this is a no-op there; the 2017
+    test bed is nothing but gaps.)
+    """
+    if len(d) < 3:
+        return d
+    dt = d.index.to_series().diff()
+    med = dt.median()
+    hole = np.where(dt.values[1:] > 1.5 * med)[0] + 1
+    if len(hole) == 0:
+        return d
+    mid = pd.DatetimeIndex([d.index[i - 1] + (d.index[i] - d.index[i - 1]) / 2
+                            for i in hole])
+    return pd.concat([d, pd.DataFrame(np.nan, index=mid,
+                                      columns=d.columns)]).sort_index()
+
+
 def series_panel(ax, nm, pct):
     """Nested hypoxic-area bands for one region; returns the marker artists."""
-    d = S[nm]
+    d = gapped(S[nm])
     sc = 100.0 / RAREA[nm] if pct else 1e-6           # % of floor, or km2
     for k, th in enumerate(reversed(THRESH)):         # widest band first
         y = d['A_%g' % th] * sc
@@ -442,10 +464,12 @@ def series_panel(ax, nm, pct):
     ax.set_ylim(0, None if not pct else 100)
     ax.set_xlim(TT[0], TT[-1])
     ax.grid(**GRID)
+    # the marker rides the UNgapped series, so its index still lines up frame
+    # for frame with the map
+    y = S[nm]['A_%g' % T0] * sc
     mark = ax.axvline(TT[0], color='k', lw=1.5, zorder=20)
-    dot = ax.plot([TT[0]], [d['A_%g' % T0].iloc[0] * sc], 'o', ms=7, color='k',
-                  zorder=21)[0]
-    return mark, dot, d['A_%g' % T0] * sc
+    dot = ax.plot([TT[0]], [y.iloc[0]], 'o', ms=7, color='k', zorder=21)[0]
+    return mark, dot, y
 
 
 m1, d1, y1 = series_panel(ax1, args.region, pct=False)

@@ -55,6 +55,7 @@ import pandas as pd
 import xarray as xr
 from matplotlib.path import Path as MplPath
 from matplotlib.colors import Normalize
+from scipy import ndimage
 from matplotlib.ticker import MaxNLocator
 from cmocean import cm
 
@@ -76,6 +77,9 @@ p.add_argument('--ds0', default='2025.09.01')
 p.add_argument('--ds1', default='2025.09.07')            # 1 week -> 169 hourly frames
 p.add_argument('--lt', default='hourly0')                # clean hour-0 start on ds0
 p.add_argument('--region', default='wb_north', help='polygon that sets the map window')
+p.add_argument('--exclude', default='skagit_delta',
+               help='comma-separated polygons to cut out of the map, and to '
+                    'zoom past; empty string keeps the whole region')
 p.add_argument('--quiver-step', default=8, type=int, dest='quiver_step',
                help='draw one arrow every N grid cells')
 p.add_argument('--quiver-scale', type=float, dest='quiver_scale',
@@ -177,9 +181,41 @@ pc = load_sect(args.pc_poly)
 sect_line = load_sect(args.sect)              # drawn on the map in BLUE
 in_wb = poly_mask(load_sect('wb'))            # master clip, every wb1 region plot
 
-# rectangular window around the WHOLE region polygon + a margin of cells
-aa = [reg.x.min() - args.pad_cells * dx, reg.x.max() + args.pad_cells * dx,
-      reg.y.min() - args.pad_cells * dy, reg.y.max() + args.pad_cells * dy]
+# Cells to draw: inside wb, minus anything in --exclude. The standing region
+# convention is "extent from the region polygon, content clipped to wb"; this
+# adds a subtraction, so the window is taken from the cells that SURVIVE
+# rather than from the region outline -- otherwise dropping the Skagit delta
+# would leave a big empty rectangle where it used to be.
+keep = wet & in_wb
+excl = [s for s in args.exclude.split(',') if s]
+for nm in excl:
+    keep &= ~poly_mask(load_sect(nm))
+in_win = keep & poly_mask(reg)
+if not in_win.any():
+    raise SystemExit('nothing left after excluding %s from %s'
+                     % (excl, args.region))
+# The window comes from the LARGEST CONNECTED PIECE of what survives, not from
+# its outright min/max. Cutting a polygon out of another one leaves stray cells
+# behind -- with skagit_delta removed from wb_north exactly ONE cell survives
+# up by Deception Pass, and letting it set the northern edge stretched the map
+# to 144 rows instead of 84 for a single cell. Drawing still uses the full
+# `keep`, so nothing inside the window is hidden; only the extent is robustified.
+lab, nlab = ndimage.label(in_win)
+if nlab > 1:
+    sizes = ndimage.sum(in_win, lab, range(1, nlab + 1))
+    main = lab == (1 + int(np.argmax(sizes)))
+    print('  %d disconnected pieces; window taken from the largest (%d cells, '
+          '%d stray)' % (nlab, main.sum(), in_win.sum() - main.sum()))
+else:
+    main = in_win
+aa = [lon[main].min() - args.pad_cells * dx,
+      lon[main].max() + args.pad_cells * dx,
+      lat[main].min() - args.pad_cells * dy,
+      lat[main].max() + args.pad_cells * dy]
+if excl:
+    print('excluding %s from %s -> %d cells kept (was %d)'
+          % (', '.join(excl), args.region, in_win.sum(),
+             (wet & in_wb & poly_mask(reg)).sum()))
 
 # index bounds of that window, so the workers only ship back the subset
 jj = np.where((lat[:, 0] >= aa[2]) & (lat[:, 0] <= aa[3]))[0]
@@ -189,7 +225,7 @@ i0, i1 = int(ii[0]), int(ii[-1]) + 1
 SUB = (slice(j0, j1), slice(i0, i1))
 lon_s, lat_s = lon[SUB], lat[SUB]
 plon_s, plat_s = pfun.get_plon_plat(lon_s, lat_s)
-draw_s = (wet & in_wb)[SUB]                   # rectangular extent, wb-clipped content
+draw_s = keep[SUB]                            # wb-clipped, minus --exclude
 print('window %s -> %d x %d cells, %d drawn'
       % (['%.4f' % v for v in aa], lat_s.shape[0], lat_s.shape[1], draw_s.sum()))
 
