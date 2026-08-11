@@ -76,6 +76,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scipy import ndimage
 from matplotlib.path import Path as MplPath
 from matplotlib.colors import BoundaryNorm, ListedColormap, Normalize
 from matplotlib.ticker import MaxNLocator
@@ -89,6 +90,10 @@ from lo_tools import plotting_functions as pfun
 GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 RED = '#e04256'
 GREY = '0.45'
+# Land fill, same value as the velocity movie. Light enough to sit under the
+# data without competing with it, and distinct from white: on the map white
+# means "water not drawn" (outside wb, or inside --exclude), grey means land.
+LAND = '0.85'
 
 # DO classes, low to high: dark red = anoxic, red = hypoxic, warm = low-DO,
 # cool = oxygenated. Warm and cool are mixed on purpose -- this is a
@@ -107,11 +112,26 @@ p.add_argument('--ds0', default='2025.05.01')
 p.add_argument('--ds1', default='2025.11.30')
 p.add_argument('--stride', default=1, type=int,
                help='keep every Nth day (1 = every lowpassed file)')
-p.add_argument('--region', default='wb',
-               help='polygon that sets the map window and the top-left series')
-p.add_argument('--pc-poly', default='pc', dest='pc_poly',
-               help='polygon boxed on the map and used for the lower-left '
-                    'series; same as --region drops that panel')
+p.add_argument('--region', default='wb_north',
+               help='polygon the map window is taken from')
+p.add_argument('--exclude', default='skagit_delta',
+               help='comma-separated polygons to cut out of the map, and to '
+                    'zoom past; empty string keeps the whole region')
+p.add_argument('--zoom', default=0.6, type=float,
+               help='window = the --zoom-poly box extended EAST by this many '
+                    'of its widths, so 1.0 reaches about halfway up Saratoga '
+                    'Passage. 0 or less falls back to the whole --region '
+                    'window. Default matches the wbnorth velocity movie.')
+p.add_argument('--zoom-poly', default='pc', dest='zoom_poly',
+               help='polygon the --zoom window is built around')
+p.add_argument('--aa', default='',
+               help='explicit lon0,lon1,lat0,lat1 window; overrides --zoom')
+p.add_argument('--series', default=['pc'], nargs='+',
+               help='polygon(s) the area series are computed for, 1 or 2. One '
+                    'gives a side-by-side figure and that polygon outlined on '
+                    'the map; two stacks them, the second as a percent of its '
+                    'own floor and boxed on the map. Need not be --region -- '
+                    'the default is the basin window with the cove series.')
 p.add_argument('--thresh', default=[2.0, 3.0, 5.0], type=float, nargs='+',
                help='mg/L bands, low to high; the lowest is the one contoured '
                     'on the map and named in the title')
@@ -130,7 +150,7 @@ p.add_argument('--pct', default='auto', choices=['auto', 'on', 'off'],
                help='units on the top (or only) series panel: auto = percent '
                     'of the floor when the map is zoomed to that one region, '
                     'km2 otherwise')
-p.add_argument('--pad-cells', default=6, type=int)
+p.add_argument('--pad-cells', default=10, type=int)
 p.add_argument('--fps', default=8, type=int)
 p.add_argument('--dpi', default=150, type=int,
                help='render dpi for the movie frames -- 100 makes the labels '
@@ -239,13 +259,19 @@ def poly_mask(df):
 
 
 reg = load_sect(args.region)
-pc = load_sect(args.pc_poly)
 in_wb = poly_mask(load_sect('wb'))            # master clip, every wb1 region plot
 
-# The two series regions. These are the POLYGONS intersected with water, not
-# the wb clip and not the map window -- the area series has to mean the same
-# thing as the pickle's A_bot_*, which is per polygon.
-SER = [args.region] + ([args.pc_poly] if args.pc_poly != args.region else [])
+# The series regions. These are the POLYGONS intersected with water, not the wb
+# clip and not the map window -- the area series has to mean the same thing as
+# the pickle's A_bot_*, which is per polygon. They are deliberately NOT tied to
+# --region: the map can show the basin a cove sits in while the curve counts
+# only the cove.
+SER = list(dict.fromkeys(args.series))        # de-dupe, keep order
+if not 1 <= len(SER) <= 2:
+    raise SystemExit('--series takes 1 or 2 polygons, got %d: %s'
+                     % (len(SER), SER))
+SER0 = SER[0]
+SINGLE = len(SER) == 1
 RMASK = {nm: poly_mask(load_sect(nm)) & wet for nm in SER}
 IDX = {nm: np.where(RMASK[nm]) for nm in SER}          # index once, reuse daily
 RAREA = {nm: float(cell_area[RMASK[nm]].sum()) for nm in SER}
@@ -254,20 +280,78 @@ for nm in SER:
     print('  region %-14s %6d cells, %8.1f km2, mean h %5.1f m, max h %5.1f m'
           % (nm, m.sum(), RAREA[nm] / 1e6, h[m].mean(), h[m].max()))
 
-# rectangular window around the WHOLE region polygon + a margin of cells
-aa = [reg.x.min() - args.pad_cells * dx, reg.x.max() + args.pad_cells * dx,
-      reg.y.min() - args.pad_cells * dy, reg.y.max() + args.pad_cells * dy]
+# ---- map window ------------------------------------------------------------
+# Lifted from 20260810_wbnorth_velocity_movie.py so the two movies frame the
+# same water and can be played side by side. Everything here is about what is
+# DRAWN; the area series are per polygon and are untouched by it.
+#
+# Cells to draw: inside wb, minus anything in --exclude. The standing region
+# convention is "extent from the region polygon, content clipped to wb"; this
+# adds a subtraction, so the window is taken from the cells that SURVIVE rather
+# than from the region outline -- otherwise dropping the Skagit delta would
+# leave a big empty rectangle where it used to be.
+keep = wet & in_wb
+excl = [s for s in args.exclude.split(',') if s]
+for nm in excl:
+    keep &= ~poly_mask(load_sect(nm))
+in_win = keep & poly_mask(reg)
+if not in_win.any():
+    raise SystemExit('nothing left after excluding %s from %s'
+                     % (excl, args.region))
+# The window comes from the LARGEST CONNECTED PIECE of what survives, not from
+# its outright min/max. Cutting a polygon out of another one leaves stray cells
+# behind -- with skagit_delta removed from wb_north exactly ONE cell survives up
+# by Deception Pass, and letting it set the northern edge stretched the map to
+# 144 rows instead of 84 for a single cell. Drawing still uses the full `keep`.
+lab, nlab = ndimage.label(in_win)
+if nlab > 1:
+    sizes = ndimage.sum(in_win, lab, range(1, nlab + 1))
+    main = lab == (1 + int(np.argmax(sizes)))
+    print('  %d disconnected pieces; window taken from the largest (%d cells, '
+          '%d stray)' % (nlab, main.sum(), in_win.sum() - main.sum()))
+else:
+    main = in_win
+aa = [lon[main].min() - args.pad_cells * dx,
+      lon[main].max() + args.pad_cells * dx,
+      lat[main].min() - args.pad_cells * dy,
+      lat[main].max() + args.pad_cells * dy]
+
+# Penn Cove zoom, built from the polygon box rather than hard-coded degrees so
+# it follows the polygon if it is redrawn. The cove opens EAST into Saratoga
+# Passage, so the window is extended asymmetrically: --zoom widths to the east,
+# and only a little west, where the cove already ends at its head.
+if args.aa:
+    aa = [float(s) for s in args.aa.split(',')]
+    print('window: explicit --aa')
+elif args.zoom > 0:
+    zp = load_sect(args.zoom_poly)
+    zw = float(zp.x.max() - zp.x.min())
+    zh = float(zp.y.max() - zp.y.min())
+    aa = [zp.x.min() - 0.10 * zw, zp.x.max() + args.zoom * zw,
+          zp.y.min() - 0.60 * zh, zp.y.max() + 0.90 * zh]
+    print('window: %s box + %.2f of its widths east (velocity-movie zoom)'
+          % (args.zoom_poly, args.zoom))
+if excl:
+    print('excluding %s from %s -> %d cells kept (was %d)'
+          % (', '.join(excl), args.region, in_win.sum(),
+             (wet & in_wb & poly_mask(reg)).sum()))
+
 jj = np.where((lat[:, 0] >= aa[2]) & (lat[:, 0] <= aa[3]))[0]
 ii = np.where((lon[0, :] >= aa[0]) & (lon[0, :] <= aa[1]))[0]
 SUB = (slice(int(jj[0]), int(jj[-1]) + 1), slice(int(ii[0]), int(ii[-1]) + 1))
 lon_s, lat_s = lon[SUB], lat[SUB]
 plon_s, plat_s = pfun.get_plon_plat(lon_s, lat_s)
-draw_s = (wet & in_wb)[SUB]                   # rectangular extent, wb-clipped
+draw_s = keep[SUB]                            # wb-clipped, minus --exclude
+land_s = (~wet)[SUB]                          # true land, filled grey
 print('window %s -> %d x %d cells, %d drawn'
       % (['%.4f' % v for v in aa], lat_s.shape[0], lat_s.shape[1], draw_s.sum()))
 
-box = [float(pc.x.min()), float(pc.x.max()),
-       float(pc.y.min()), float(pc.y.max())]
+# the second series region gets a dotted box on the map; the single-series case
+# gets its polygon outlined instead (see the map block)
+if not SINGLE:
+    p2 = load_sect(SER[1])
+    box = [float(p2.x.min()), float(p2.x.max()),
+           float(p2.y.min()), float(p2.y.max())]
 
 # ---- read one lowpassed file -----------------------------------------------
 def read_one(fn):
@@ -346,13 +430,13 @@ for nm in SER:
 # so it shrinks inside its own gridspec cell and a hand-placed colorbar ends up
 # stranded out in the whitespace.
 #
-# Two shapes, picked by whether there is one series or two:
-#   --region wb   (default)  2x2: basin series over cove series, map spanning
-#                            the right -- the cove read against its basin
-#   --region pc              1x2 side by side: one series, one map. A single
-#                            panel stacked over an empty half is just a tall
-#                            thin map and a lot of white.
-SINGLE = args.pc_poly == args.region
+# Two shapes, picked by how many series were asked for:
+#   --series pc      (default)  1x2 side by side: one series, one map. A single
+#                               panel stacked over an empty half is just a tall
+#                               thin map and a lot of white.
+#   --series wb pc              2x2: basin series over cove series, map
+#                               spanning the right -- the cove read against the
+#                               basin it sits in.
 plt.close('all')
 if SINGLE:
     # the series gets the wider half: a seven-month record read sideways in a
@@ -370,9 +454,11 @@ else:
     ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)  # pc area series
     axm = fig.add_subplot(gs[:, 1])              # map
 
-# Units on the top/only panel. A percent needs a denominator the reader
-# already has in mind: the cove's own floor is one (the map IS the cove), the
-# whole basin's is not, so km2 is the default there. --pct forces either way.
+# Units on the top/only panel. A percent needs a denominator the reader already
+# has in mind. With one series the panel and the outline on the map are the
+# same object, so "% of that floor" reads straight off the figure; with two,
+# the top one is the basin and km2 keeps it comparable to the cove's absolute
+# area. --pct forces either way, and the percent panels carry km2 on the right.
 PCT1 = (args.pct == 'on') or (args.pct == 'auto' and SINGLE)
 
 # --- map
@@ -393,6 +479,12 @@ else:
     cmap, norm = cm.oxy, Normalize(vmin=args.vmin, vmax=args.vmax)
     lo, hi = args.vmin, args.vmax
     cb_kw = dict(ticks=sorted(set([lo] + list(THRESH) + [hi])))
+# land under everything else. Only true land (mask_rho == 0) is filled -- water
+# that is simply not drawn (outside wb, or inside --exclude) stays white, so
+# the two are never confused.
+axm.pcolormesh(plon_s, plat_s,
+               np.ma.masked_where(~land_s, np.ones(land_s.shape)),
+               cmap=ListedColormap([LAND]), shading='flat', zorder=0)
 cs = axm.pcolormesh(plon_s, plat_s, FLD[0], cmap=cmap, norm=norm,
                     shading='flat', zorder=1)
 f_lo = float(np.nanmean(FLD < lo))
@@ -407,13 +499,15 @@ print('colour scale %s, %.1f to %.1f mg/L; %.1f%% of cell-days above the top '
 
 pfun.add_coast(axm, color='gray', linewidth=0.5)
 if SINGLE:
-    # zoomed to one region: draw the POLYGON, not its bounding box. At this
-    # scale the box is nearly the whole window and says nothing, while the
-    # outline says exactly which cells the series counts -- the window is
-    # padded, so some of the water on screen is not in the series.
-    axm.plot(np.append(reg.x.values, reg.x.values[0]),
-             np.append(reg.y.values, reg.y.values[0]), '-',
-             color=RED, lw=1.8, zorder=8)
+    # one series: draw its POLYGON, not a bounding box. The outline says
+    # exactly which cells the curve counts, which matters most here -- the map
+    # window is the whole basin and most of the hypoxic water on screen is NOT
+    # in the series. A box would claim a rectangle of coast that isn't the
+    # region.
+    s0 = load_sect(SER0)
+    axm.plot(np.append(s0.x.values, s0.x.values[0]),
+             np.append(s0.y.values, s0.y.values[0]), '-',
+             color=RED, lw=2.0, zorder=8)
 else:
     pfun.draw_box(axm, box, color=GREY, linewidth=1.5, linestyle=':')
 axm.axis(aa)
@@ -517,22 +611,22 @@ def series_panel(ax, nm, pct):
 
 def panel1_title(ax):
     ax.set_title('bottom hypoxic area, %s (%s of sea floor%s)'
-                 % (args.region,
-                    ('%.1f km$^2$' if RAREA[args.region] < 5e7 else '%.0f km$^2$')
-                    % (RAREA[args.region] / 1e6),
-                    ', outlined on the map' if SINGLE else ''),
+                 % (SER0,
+                    ('%.1f km$^2$' if RAREA[SER0] < 5e7 else '%.0f km$^2$')
+                    % (RAREA[SER0] / 1e6),
+                    ', outlined in red on the map' if SINGLE else ''),
                  fontsize=11, color=RED if SINGLE else GREY)
 
 
-m1, d1, y1 = series_panel(ax1, args.region, pct=PCT1)
+m1, d1, y1 = series_panel(ax1, SER0, pct=PCT1)
 panel1_title(ax1)
 ax1.legend(loc='upper left', fontsize=9, framealpha=0.9)
 
 if ax2 is not None:
     plt.setp(ax1.get_xticklabels(), visible=False)
-    m2, d2, y2 = series_panel(ax2, args.pc_poly, pct=True)
+    m2, d2, y2 = series_panel(ax2, SER[1], pct=True)
     ax2.set_title('%s, as a percent of its own floor (%.1f km$^2$, dotted box '
-                  'on the map)' % (args.pc_poly, RAREA[args.pc_poly] / 1e6),
+                  'on the map)' % (SER[1], RAREA[SER[1]] / 1e6),
                   fontsize=11, color=RED)
     for sp in ax2.spines.values():                    # tie panel to the box
         sp.set_color(RED)

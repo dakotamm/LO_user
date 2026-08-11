@@ -47,7 +47,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from matplotlib.path import Path as MplPath
-from matplotlib.colors import BoundaryNorm, Normalize, PowerNorm
+from matplotlib.colors import (BoundaryNorm, ListedColormap, Normalize,
+                               PowerNorm)
 from matplotlib.ticker import MaxNLocator
 from cmocean import cm
 
@@ -60,6 +61,10 @@ GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 RED = '#e04256'
 BLUE = '#4565e8'
 GREY = '0.45'
+# Land fill. Light enough to sit under the data without competing with it, and
+# distinct from white: on the map white now means "water not drawn" (outside
+# wb), grey means land. In the section it is the seabed.
+LAND = '0.85'
 
 # ---- arguments -------------------------------------------------------------
 p = argparse.ArgumentParser()
@@ -358,6 +363,12 @@ axv = fig.add_subplot(gs[1, 0])                  # cross-section, lower left
 axm = fig.add_subplot(gs[:, 1])                  # map, right
 
 # --- map
+# land under everything else. Only true land (mask_rho == 0) is filled --
+# water that is simply not drawn stays white, so the two are never confused.
+land_s = (~wet)[SUB]
+axm.pcolormesh(plon_s, plat_s,
+               np.ma.masked_where(~land_s, np.ones(land_s.shape)),
+               cmap=ListedColormap([LAND]), shading='flat', zorder=0)
 cs = axm.pcolormesh(plon_s, plat_s, FLD[0], cmap=CMAP, norm=norm,
                     shading='flat', zorder=1)
 cb_kw = dict(shrink=0.75, pad=0.01, aspect=35,
@@ -459,8 +470,14 @@ if VEL is not None:
                                    cmap=scmap, vmin=s0, vmax=s1,
                                    shading='flat'))
     cbv = fig.colorbar(csv_[0], ax=axv, pad=0.01, aspect=12, label=slab)
-    axv.plot(x_e, -np.concatenate([VEL['h'][:1], VEL['h']]), '-',
-             color='0.3', lw=1.0, drawstyle='steps-pre')
+    # seabed: same grey as land on the map, filled from the bed to the bottom
+    # of the axes. step='pre' matches the stairstep the faces actually have,
+    # so the fill meets the mesh exactly instead of cutting corners off it.
+    bed = -np.concatenate([VEL['h'][:1], VEL['h']])
+    zbot = float(bed.min()) * 1.04
+    axv.fill_between(x_e, bed, zbot, step='pre', color=LAND, lw=0, zorder=0)
+    axv.plot(x_e, bed, '-', color='0.3', lw=1.0, drawstyle='steps-pre')
+    axv.set_ylim(zbot, 0.0)
     axv.set_xlim(x_e[0], x_e[-1])
     axv.set_xlabel('distance across %s [km]  (north on the left)' % args.sect)
     axv.set_ylabel('z [m]')
