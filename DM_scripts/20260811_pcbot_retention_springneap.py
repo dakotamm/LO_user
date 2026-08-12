@@ -4,22 +4,51 @@ Retention of inner Penn Cove BOTTOM water, NEAP week vs SPRING week.
 THE EXPERIMENT
 Two pcbot releases (LO_user/tracker2/experiments.py), identical in space --
 the same particles at the same cells and the same 0.25-4.75 m above the bed
-inside pc_cp_m -- launched into two adjacent August 2024 windows picked by
+inside pc_cp_m -- launched into two adjacent August 2025 windows picked by
 20260811_pc_springneap_weeks.py:
 
-  neap    2024.08.08 02:00 UTC   envelope 1.40 m, mean daily range 2.71 m
-  spring  2024.08.14 05:00 UTC   envelope 1.95 m, mean daily range 3.65 m
+  neap    2025.07.31 04:00 UTC   qprism 232 m3/s
+  spring  2025.08.09 00:00 UTC   qprism 408 m3/s
 
 This is the MIRROR IMAGE of 20260811_pcbot_retention.py. That script matched
 the tide and let the season vary, so a difference between its curves was
 seasonal. Here the season is held as fixed as it can be -- the windows are
-seven days apart, bottom DO 2.73 vs 2.62 mg/L, dstrat 1.95 vs 1.99 g/kg,
-Skagit 227 vs 210 m3/s -- and the TIDE is the variable, x1.40 in envelope.
-A difference between these curves is tidal.
+nine days apart, bottom DO 2.10 vs 1.92 mg/L, Skagit 205 vs 237 m3/s -- and
+the TIDE is the variable, x1.76 in tidal prism. A difference between these
+curves is tidal.
 
 Read the two scripts together: one gives the seasonal sensitivity of
 inner-cove bottom-water residence time, the other the tidal sensitivity, and
-only the pair says which control dominates.
+only the pair says which control dominates. NOTE they are in different years
+-- the hiDO/loDO pair is 2024, this pair is 2025, matching the year the rest
+of the recent Penn Cove tidal work is plotted for. Each stands on its own, but
+the four runs are not one four-way comparison.
+
+THE CONTRAST IS IN PRISM, NOT IN RANGE
+The windows are centred on QPRISM, not on sea-level amplitude, because at
+pc_cp the diurnal and semidiurnal bands are equal in amplitude but not in
+transport, and their fortnightly cycles have different periods (13.66 d
+tropic vs 14.77 d spring-neap). Centring on the blended sea-level envelope
+picks dates 2-3 days off the true spring-neap cycle -- see the header of
+20260811_pc_springneap_weeks.py for the diagnosis. The consequence to carry
+into any interpretation here:
+
+  qprism           x1.76      the intended contrast
+  semidiurnal env  x2.00
+  diurnal env      x0.63      OPPOSITE: the neap week has the larger
+                              diurnal inequality
+  total ssh env    x1.14
+  mean daily range x1.21
+
+So this pair separates a strong-exchange week from a weak-exchange week, NOT
+a large-range week from a small-range week, and the neap cohort experiences
+MORE flood/ebb asymmetry than the spring cohort. If a difference appears that
+scales with asymmetry rather than with prism, that is where it comes from.
+
+Stratification is not a control here either: dstrat is 1.44 g/kg in the neap
+week and 1.30 in the spring week. That drop is partly caused BY the spring
+tide, so it is part of the treatment rather than a confound -- but it means
+"tidal" here includes the mixing the tide does, not just the advection.
 
 WHAT TO EXPECT, AND WHAT WOULD BE INTERESTING
 Naively a spring tide flushes harder and retention should drop. Two things
@@ -35,10 +64,13 @@ are where that appears.
 
 WHY THE RECORDS ARE TRIMMED
 tracker2 counts -dtt in calendar days from the START DAY, so a release at -sh
-h loses those h hours off the far end: at -dtt 7 the neap run (-sh 2) returns
-more frames than the spring run (-sh 5). Comparing curves of different length
-would put a spurious difference into every end-of-run number, so both are cut
-to the common length.
+h loses those h hours off the far end. Both runs go at -dtt 8 rather than 7 so
+that the later start hour (-sh 4, the neap run) still leaves a full week:
+8*24 - 4 = 188 h = 7.83 d common to both. The spring run (-sh 0) returns more
+than that and is cut back, because comparing curves of different length would
+put a spurious difference into every end-of-run number. The last 0.83 d sits
+slightly past the matched window, where the qprism ratio has decayed from 1.76
+toward 1.4, so read the end of the record with that in mind.
 
 WHAT IS MEASURED
   still inside   fraction of the cohort in the region right now. Rises and
@@ -88,9 +120,10 @@ Lfun.make_dir(out_dir)
 
 # tag, tracker output directory, colour, legend label. tracker.py builds the
 # directory name as <exp>_3d[_sh<h>]_<sub_tag>, and the _sh part is present
-# only when the release hour is non-zero -- both of these have one.
-RUNS = [('neap', 'pcbot_3d_sh2_neap', '#2b8cbe', 'neap    2024.08.08'),
-        ('spring', 'pcbot_3d_sh5_spring', '#d94801', 'spring  2024.08.14')]
+# only when the release hour is NON-ZERO -- which is why the spring run, at
+# -sh 0, has no _sh in its name while the neap run does.
+RUNS = [('neap', 'pcbot_3d_sh4_neap', '#2b8cbe', 'neap    2025.07.31'),
+        ('spring', 'pcbot_3d_spring', '#d94801', 'spring  2025.08.09')]
 GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 
 # ------------------------------------------------------------------ setup ---
@@ -318,7 +351,7 @@ ax.set_title('the spring-neap contrast as the runs saw it (std x%.2f, r = %.3f)'
 ax.set_xlabel('days from release'); ax.grid(**GRID)
 
 fig.suptitle('%s: inner Penn Cove bottom-water retention, neap vs spring week '
-             '(both August 2024)' % args.gtx, fontsize=12)
+             '(both August 2025, qprism x1.76)' % args.gtx, fontsize=12)
 fig.tight_layout()
 fn_out = out_dir / 'pcbot_retention_springneap.png'
 fig.savefig(fn_out, dpi=200, transparent=True)
