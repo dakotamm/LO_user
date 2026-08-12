@@ -70,6 +70,9 @@ p = argparse.ArgumentParser()
 p.add_argument('-gtx', default='wb1_t0_xn11abbur00')
 p.add_argument('-hab_layer', type=float, default=5.0,
                help='height above bed defining "still bottom water" [m]')
+p.add_argument('-year', type=int, default=2024, choices=[2024, 2025],
+               help='which matched pair to analyse; 2024 and 2025 are two '
+                    'independent realisations of the same experiment')
 args = p.parse_args()
 
 Ldir = Lfun.Lstart(gridname='wb1')
@@ -77,8 +80,20 @@ trk = Ldir['LOo'] / 'tracks2' / args.gtx
 out_dir = Ldir['LOo'] / 'DM_outs' / '20260811_pcbot_retention'
 Lfun.make_dir(out_dir)
 
-RUNS = [('hiDO', 'pcbot_3d_sh13_hiDO', '#4565e8', 'high-DO  2024.02.25'),
-        ('loDO', 'pcbot_3d_loDO', '#e8455e', 'low-DO   2024.09.03')]
+# Two independent realisations of the same experiment. The 2024 pair was
+# selected on RMS(ssh') and the 2025 pair on qprism + diurnal envelope after
+# 20260811_pc_matched_weeks.py was revised; the 2024 pair survived the revision
+# unchanged because it was already matched to +0.1% in qprism, so the two are
+# comparable and the pair of pairs is a replication test, not a methods change.
+# 2025 also carries the full matched window: it was run at -dtt 15 so the
+# -sh 14 start no longer eats the end (2024 lost 13 h and trims to 13.46 d).
+RUNSETS = {
+    2024: [('hiDO', 'pcbot_3d_sh13_hiDO', '#4565e8', 'high-DO  2024.02.25'),
+           ('loDO', 'pcbot_3d_loDO', '#e8455e', 'low-DO   2024.09.03')],
+    2025: [('hiDO', 'pcbot_3d_sh14_hiDO_2025', '#4565e8', 'high-DO  2025.02.16'),
+           ('loDO', 'pcbot_3d_sh2_loDO_2025', '#e8455e', 'low-DO   2025.08.27')],
+}
+RUNS = RUNSETS[args.year]
 GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 
 # ------------------------------------------------------------------ setup ---
@@ -195,7 +210,7 @@ T = pd.DataFrame(rows)
 pd.set_option('display.width', 200)
 print('\n---- retention (days to 1/e; fractions at %.1f d) ----' % ((nmin - 1) / 24))
 print(T.to_string(index=False, float_format=lambda x: '%.3f' % x))
-T.to_csv(out_dir / 'pcbot_retention.csv', index=False)
+T.to_csv(out_dir / ('pcbot_retention_%d.csv' % args.year), index=False)
 
 # by starting height above the bed: does the deepest water behave differently?
 print('\n---- inner-cove retention by starting height above bed ----')
@@ -216,7 +231,8 @@ for lo, hi in bins:
              e['hiDO'] - e['loDO']))
     brows.append(dict(hab_lo=lo, hab_hi=hi, n=int(m.sum()),
                       efold_hiDO=e['hiDO'], efold_loDO=e['loDO']))
-pd.DataFrame(brows).to_csv(out_dir / 'pcbot_retention_by_hab.csv', index=False)
+pd.DataFrame(brows).to_csv(
+    out_dir / ('pcbot_retention_by_hab_%d.csv' % args.year), index=False)
 
 # ----------------------------------------------------------------- figure ---
 days = hours / 24
@@ -268,10 +284,10 @@ ax.set_title('the matched tide as the two runs actually saw it (r = %.3f)'
              % np.corrcoef(za, zb)[0, 1], fontsize=10)
 ax.set_xlabel('days from release'); ax.grid(**GRID)
 
-fig.suptitle('%s: inner Penn Cove bottom-water retention, tide-matched weeks'
-             % args.gtx, fontsize=12)
+fig.suptitle('%s: inner Penn Cove bottom-water retention, tide-matched weeks (%d)'
+             % (args.gtx, args.year), fontsize=12)
 fig.tight_layout()
-fn_out = out_dir / 'pcbot_retention.png'
+fn_out = out_dir / ('pcbot_retention_%d.png' % args.year)
 fig.savefig(fn_out, dpi=200, transparent=True)
 plt.close(fig)
 print('\nwrote %s' % fn_out)

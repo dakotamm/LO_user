@@ -363,11 +363,18 @@ for r, tag in [(n, 'neap'), (s, 'spring')]:
     # -sh is an integer hour and both candidates sit at :30 (ssh samples are
     # hour-centred), so both releases are floored by the SAME 30 min and stay
     # phase-locked to each other, which is the alignment that matters.
+    #
+    # nohup + </dev/null + & so the run survives the ssh session: tracker2
+    # takes hours on a week of hourly history, and a dropped connection would
+    # otherwise SIGHUP it half way through and leave a partial release file
+    # that -clb True would happily overwrite on the retry.
+    log = '%s_%s_%d.log' % (args.exp, tag, args.year)
     print('# %s window, %s at %02d:%02d UTC -> released %02d:00'
           % (tag, args.start_phase, ts.hour, ts.minute, ts.hour))
-    print('python tracker.py -gtx %s -ro 2 -exp %s -d %s -dtt %d -sh %d '
-          '-3d True -clb True -sub_tag %s'
-          % (args.gtx, args.exp, ts.strftime('%Y.%m.%d'), dtt, ts.hour, tag))
+    print('nohup python tracker.py -gtx %s -ro 2 -exp %s -d %s -dtt %d -sh %d '
+          '-3d True -clb True -sub_tag %s < /dev/null > %s 2>&1 &'
+          % (args.gtx, args.exp, ts.strftime('%Y.%m.%d'), dtt, ts.hour, tag, log))
+print('# watch:  tail -f %s_neap_%d.log' % (args.exp, args.year))
 print('# two separate commands on purpose, same as the matched-week pair:')
 print('# -nsd/-dbs steps in whole days and would break the phase lock.')
 print('# tracker2 counts -dtt from the START DAY, so -sh h costs h hours off')

@@ -49,7 +49,6 @@ import xarray as xr
 from matplotlib.path import Path as MplPath
 from matplotlib.colors import (BoundaryNorm, ListedColormap, Normalize,
                                PowerNorm)
-from matplotlib.ticker import MaxNLocator
 from cmocean import cm
 
 from lo_tools import Lfun
@@ -61,10 +60,11 @@ GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 RED = '#e04256'
 BLUE = '#4565e8'
 GREY = '0.45'
-# Land fill. Light enough to sit under the data without competing with it, and
-# distinct from white: on the map white now means "water not drawn" (outside
-# wb), grey means land. In the section it is the seabed.
-LAND = '0.85'
+# Land fill, matching the wb1 grid map (20260807_grid_bathy_ppt.py). Warm
+# off-white rather than neutral grey, and distinct from white: on the map white
+# means "water not drawn" (outside wb), this means land. In the section it is
+# the seabed.
+LAND = '#e8e4dc'
 
 # ---- arguments -------------------------------------------------------------
 p = argparse.ArgumentParser()
@@ -379,7 +379,7 @@ if isinstance(norm, BoundaryNorm):
     cb.ax.set_yticklabels(['%.1f' % b for b in norm.boundaries], fontsize=8)
 else:
     cb = fig.colorbar(cs, ax=axm, extend=CB_EXT, **cb_kw)
-pfun.add_coast(axm, color='gray', linewidth=0.5)
+pfun.add_coast(axm, color='k', linewidth=0.8)
 # Penn Cove: dotted grey box (this is also what SSH is averaged over), with
 # the pc_lp side picked out in red -- drawn as the actual section line rather
 # than the box edge, so the red shows the section's true extent
@@ -387,12 +387,30 @@ pfun.draw_box(axm, box, color=GREY, linewidth=1.5, linestyle=':')
 if args.vel:
     axm.plot(sect_line.x, sect_line.y, '-', color=RED, lw=3.0, zorder=9,
              solid_capstyle='butt')
+# Map styling from the wb1 grid map (20260807_grid_bathy_ppt.py): evenly spaced
+# ticks placed by hand, unrotated labels, degree units spelled out.
+# set_xticks/set_yticks re-autoscale and a rounded tick outside the grid would
+# drag the view past the domain edge, so the limits are pinned afterwards.
+#
+# Two departures from that script, both forced by this window being small:
+#   - it rounds to 1 decimal, which collapses to duplicate ticks over
+#     wb_north's ~0.3 deg of latitude. This rounds to 2.
+#   - it puts ticks at the linspace ENDPOINTS, i.e. on the axis corners, where
+#     the labels crowd the neighbouring axis; and rounding an endpoint outward
+#     drops it entirely (48.48 fell outside a 48.479 limit and vanished).
+#     These are interior points, so every tick asked for is a tick drawn.
+def _ticks(a0, a1, n):
+    return np.unique(np.linspace(a0, a1, n + 2)[1:-1].round(2))
+
+
+axm.set_xticks(_ticks(aa[0], aa[1], 4))
+axm.set_yticks(_ticks(aa[2], aa[3], 5))
 axm.axis(aa)
+axm.set_autoscale_on(False)
 pfun.dar(axm)
-axm.xaxis.set_major_locator(MaxNLocator(nbins=4))
-axm.tick_params(axis='x', labelrotation=45, labelsize=9)
-axm.set_xlabel('Longitude')
-axm.set_ylabel('Latitude')
+axm.tick_params(length=6, labelrotation=0)
+axm.set_xlabel('Longitude [$^{\\circ}$E]')
+axm.set_ylabel('Latitude [$^{\\circ}$N]')
 ttl = axm.set_title('', fontsize=13)
 
 # --- SSH
@@ -424,7 +442,7 @@ if VEL is not None:
         vs = args.vscale if args.vscale else float(np.percentile(np.abs(uu), 99))
         s0, s1, scmap = -vs, vs, cm.balance
         slab = 'u [m s$^{-1}$]'
-        stitle = '%s velocity: red = out of the cove, blue = in' % args.sect
+        stitle = 'section velocity: red = out of the cove, blue = in'
     else:
         # Same scale as the map when it is the same variable, so the two
         # panels are directly comparable. NOTE the consequence: the map is
@@ -446,7 +464,7 @@ if VEL is not None:
         slab = '%s [%s]' % (args.sect_var,
                             'g kg$^{-1}$' if args.sect_var == 'salt'
                             else '$^{\\circ}$C')
-        stitle = '%s %s cross-section' % (args.sect, args.sect_var)
+        stitle = 'section %s cross-section' % args.sect_var
     print('  cross-section colour limits %.3f to %.3f%s'
           % (s0, s1, '  (shared with the map)'
              if args.sect_var != 'u' and s0 == vmin and s1 == vmax else ''))
@@ -479,7 +497,7 @@ if VEL is not None:
     axv.plot(x_e, bed, '-', color='0.3', lw=1.0, drawstyle='steps-pre')
     axv.set_ylim(zbot, 0.0)
     axv.set_xlim(x_e[0], x_e[-1])
-    axv.set_xlabel('distance across %s [km]  (north on the left)' % args.sect)
+    axv.set_xlabel('distance across section [km]  (north on the left)')
     axv.set_ylabel('z [m]')
     # for u the sign convention is not assumed -- q runs minus-side to
     # plus-side, which at pc_lp is eastward, i.e. OUT of Penn Cove

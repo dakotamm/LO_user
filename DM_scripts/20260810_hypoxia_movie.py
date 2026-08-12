@@ -94,7 +94,6 @@ import xarray as xr
 from scipy import ndimage
 from matplotlib.path import Path as MplPath
 from matplotlib.colors import BoundaryNorm, ListedColormap, Normalize
-from matplotlib.ticker import MaxNLocator
 from cmocean import cm
 
 from lo_tools import Lfun
@@ -105,10 +104,14 @@ from lo_tools import plotting_functions as pfun
 GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 RED = '#e04256'
 GREY = '0.45'
-# Land fill, same value as the velocity movie. Light enough to sit under the
-# data without competing with it, and distinct from white: on the map white
-# means "water not drawn" (outside wb, or inside --exclude), grey means land.
-LAND = '0.85'
+# Land fill and map furniture, taken from 20260807_grid_bathy_ppt.py (the wb1
+# grid map) rather than the velocity movie's neutral '0.85' -- one warm land
+# colour across the wb1 figures. Land is FILLED rather than left transparent: a
+# see-through landmask reads as whatever is behind it, which kills the
+# coastline. White still means "water not drawn" (outside wb, or inside
+# --exclude); the warm fill is land.
+LAND = '#e8e4dc'
+COAST = 'k'
 
 # DO classes, low to high: dark red = anoxic, red = hypoxic, warm = low-DO,
 # cool = oxygenated. Warm and cool are mixed on purpose -- this is a
@@ -512,7 +515,7 @@ print('colour scale %s, %.1f to %.1f mg/L; %.1f%% of cell-days above the top '
       'class, %.1f%% below the bottom' % (args.cmap, lo, hi,
                                           100 * f_hi, 100 * f_lo))
 
-pfun.add_coast(axm, color='gray', linewidth=0.5)
+pfun.add_coast(axm, color=COAST, linewidth=0.8)
 if SINGLE:
     # one series: draw its POLYGON, not a bounding box. The outline says
     # exactly which cells the curve counts, which matters most here -- the map
@@ -525,12 +528,36 @@ if SINGLE:
              color=RED, lw=2.0, zorder=8)
 else:
     pfun.draw_box(axm, box, color=GREY, linewidth=1.5, linestyle=':')
+# Ticks and labels as on the wb1 grid map: evenly spaced round values, upright,
+# and the axes named with their units. set_xticks/set_yticks re-autoscale, and a
+# rounded tick outside the window then drags the view past its edge -- so the
+# limits are pinned AFTERWARDS. Decimals follow the span: the grid map's one
+# decimal collapses to a single repeated value across a 0.16 deg cove zoom.
+DEC = 1 if (aa[1] - aa[0]) >= 1.0 else 2
+
+
+def nice_ticks(v0, v1, n, dec):
+    """n evenly spaced round values, both ends INSIDE [v0, v1].
+
+    Rounding the endpoints outward (which plain linspace+round does) puts the
+    first and last tick past the window, and pinning the limits then simply
+    drops them -- three ticks on a four-tick axis. Rounding inward first keeps
+    all n.
+    """
+    q = 10.0 ** dec
+    return np.linspace(np.ceil(v0 * q) / q, np.floor(v1 * q) / q, n).round(dec)
+
+
+axm.set_xticks(nice_ticks(aa[0], aa[1], 4, DEC))
+axm.set_yticks(nice_ticks(aa[2], aa[3], 5, DEC))
 axm.axis(aa)
+axm.set_autoscale_on(False)
 pfun.dar(axm)
-axm.xaxis.set_major_locator(MaxNLocator(nbins=4))
-axm.tick_params(axis='x', labelrotation=45, labelsize=9)
-axm.set_xlabel('Longitude')
-axm.set_ylabel('Latitude')
+axm.tick_params(length=6, labelrotation=0)
+axm.set_xlabel('Longitude [$^{\\circ}$E]')
+axm.set_ylabel('Latitude [$^{\\circ}$N]')
+for s in axm.spines.values():
+    s.set_visible(True)
 ttl = axm.set_title('', fontsize=13)
 
 # The hypoxic edge. Contoured rather than hatched so it does not compete with

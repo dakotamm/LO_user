@@ -173,19 +173,17 @@ dstr.close()
 # sigma level is not a fixed z across the section and averaging profiles first
 # would smear the structure before it is measured.
 #
-# N2  Depth-averaged buoyancy frequency squared, the column's mean stratification:
-#         N2_avg = (g/rho0) * (sigma_bot - sigma_top) / H        [s-2]
-#     which is the exact depth-average of the local N2 = -(g/rho0) dsigma/dz,
-#     since integrating dsigma/dz over the column telescopes to the endpoints.
-#     NOTE what that means: a depth-averaged N2 carries no information about
-#     interior structure beyond what the endpoints and H already say. What it
-#     adds over a bare top-minus-bottom density difference is the 1/H
-#     normalisation, which matters here because pc_lp is deeper than pc_cp, so
-#     the same density difference is weaker stratification at the mouth. If you
-#     want a measure that does respond to interior structure, the one to use is
-#     N2_max (pycnocline sharpness) from 20260811_pc_pycnocline.py, not this.
-#     sigma0 comes from the standard gsw chain: p_from_z -> SA_from_SP ->
-#     CT_from_pt -> sigma0. Positive N2 is stable.
+# DSIG  Potential density difference, BOTTOM MINUS TOP, so positive is denser at
+#     depth i.e. stably stratified -- the same sign convention strat_*.nc uses
+#     for its salinity version. Built per face from the full profile, so the
+#     pressure fed to gsw is each cell's own z_rho rather than a section-mean
+#     depth. sigma0 comes from the standard chain: p_from_z -> SA_from_SP ->
+#     CT_from_pt -> sigma0. Salinity difference alone would miss the thermal
+#     term, which opposes the haline one once the surface warms in summer.
+#     This is NOT normalised by depth: pc_lp is the deeper section, so the same
+#     density difference there is spread over more water than at pc_cp. Divide
+#     by H (i.e. plot depth-averaged N2 instead) if that normalisation is what
+#     you want to see.
 #
 # SPD Area-weighted mean of |u| over the section. Cell velocity is q/(DZ*dd), so
 #         sum(|u| * DZ*dd) / sum(DZ*dd)  =  sum(|q|) / sum(DZ*dd)
@@ -216,9 +214,8 @@ for sn in [MOUTH, HEAD]:
     CT = gsw.CT_from_pt(SA, ds.temp.values.astype(float))
     sig = gsw.sigma0(SA, CT)                           # z index 0 = bed
 
-    H = h[None, :] + zeta                              # column depth (time, p)
-    n2 = (G / RHO0) * (sig[:, 0, :] - sig[:, -1, :]) / H
-    DS[sn] = pd.Series(godin((n2 * dd[None, :]).sum(axis=1) / dd.sum()),
+    dsig = sig[:, 0, :] - sig[:, -1, :]                # bottom minus top
+    DS[sn] = pd.Series(godin((dsig * dd[None, :]).sum(axis=1) / dd.sum()),
                        index=tt, name=sn)
 
     area = ds.DZ * ds.dd
@@ -276,8 +273,8 @@ S['do_cp'] = DO['cp_mid']
 S['do_M5'] = DO['M5']
 S['qp_lp'] = on_daily(QP[MOUTH])
 S['qp_cp'] = on_daily(QP[HEAD])
-S['n2_lp'] = on_daily(DS[MOUTH])
-S['n2_cp'] = on_daily(DS[HEAD])
+S['ds_lp'] = on_daily(DS[MOUTH])
+S['ds_cp'] = on_daily(DS[HEAD])
 S['sp_lp'] = on_daily(SPD[MOUTH])
 S['sp_cp'] = on_daily(SPD[HEAD])
 S['wa'] = on_daily(WA)
@@ -299,8 +296,8 @@ for c_, lbl, u in [('do_cp', 'bottom DO cp_mid', 'mg/L'),
                    ('do_M5', 'bottom DO M5', 'mg/L'),
                    ('qp_lp', 'Qprism pc_lp', 'm3/s'),
                    ('qp_cp', 'Qprism pc_cp', 'm3/s'),
-                   ('n2_lp', 'N2 pc_lp', 's-2'),
-                   ('n2_cp', 'N2 pc_cp', 's-2'),
+                   ('ds_lp', 'dsigma0 pc_lp', 'kg/m3'),
+                   ('ds_cp', 'dsigma0 pc_cp', 'kg/m3'),
                    ('sp_lp', 'mean |u| pc_lp', 'm/s'),
                    ('sp_cp', 'mean |u| pc_cp', 'm/s'),
                    ('wa', 'w_along', 'm/s'),
@@ -309,7 +306,7 @@ for c_, lbl, u in [('do_cp', 'bottom DO cp_mid', 'mg/L'),
           % (lbl, S[c_].min(), S[c_].mean(), S[c_].max(), u))
 print('  wind blows into the cove %.0f%% of days' % (100 * (S.wa > 0).mean()))
 print('\ncorrelation with bottom DO at cp_mid (daily, no lag):')
-for c_ in ['do_M5', 'n2_lp', 'n2_cp', 'qp_lp', 'qp_cp', 'sp_lp', 'sp_cp',
+for c_ in ['do_M5', 'ds_lp', 'ds_cp', 'qp_lp', 'qp_cp', 'sp_lp', 'sp_cp',
            'wa', 'riv']:
     print('  %-6s r = %+.2f' % (c_, S.do_cp.corr(S[c_])))
 
@@ -354,10 +351,10 @@ def p_wind(ax):
     ax.legend(loc='lower left', frameon=False, fontsize=FS - 2, ncol=2)
 
 
-def p_n2(ax):
-    ax.plot(t, S.n2_lp, color=C_LP, lw=1.8)
-    ax.plot(t, S.n2_cp, color=C_CP, lw=1.8)
-    ax.set_ylabel('$N^2$ depth-avg\n[s$^{-2}$]', fontsize=FS)
+def p_dsig(ax):
+    ax.plot(t, S.ds_lp, color=C_LP, lw=1.8)
+    ax.plot(t, S.ds_cp, color=C_CP, lw=1.8)
+    ax.set_ylabel('$\\Delta\\sigma_0$ bottom - top\n[kg m$^{-3}$]', fontsize=FS)
 
 
 def p_spd(ax):
@@ -372,7 +369,10 @@ def p_qp(ax):
     ax.set_ylabel('$Q_{prism}$\n[m$^3$ s$^{-1}$]', fontsize=FS)
 
 
-def build(panels, h_per_panel, tag):
+def build(panels, h_per_panel, tag, months=None):
+    """months = (first, last) inclusive, to window the x axis. The series are
+    still built and filtered over the whole record, so a windowed figure is a
+    zoom, not a re-computation on a shorter record."""
     fig, axes = plt.subplots(len(panels), 1, sharex=True,
                              figsize=(11.5, h_per_panel * len(panels)))
     axes = np.atleast_1d(axes)
@@ -380,9 +380,19 @@ def build(panels, h_per_panel, tag):
         fn_p(ax)
         ax.grid(**GRID)
         ax.tick_params(labelsize=FS - 2)
+    if months is None:
+        t0, t1 = t[0], t[-1]
+    else:
+        m = (t.month >= months[0]) & (t.month <= months[1])
+        t0, t1 = t[m][0], t[m][-1]
     axes[-1].xaxis.set_major_locator(mdates.MonthLocator())
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%b'))
-    axes[-1].set_xlim(t[0], t[-1])
+    axes[-1].set_xlim(t0, t1)
+    # y limits are set from the visible window, otherwise a zoom keeps the full
+    # year's range and the zoomed detail stays squashed
+    for ax in axes:
+        ax.relim(visible_only=True)
+        ax.autoscale_view(scalex=False)
     fig.tight_layout()
     fn_out = out_dir / ('pc_%s_%s_%s.png' % (tag, args.gtagex, args.year))
     fig.savefig(fn_out, dpi=500, bbox_inches='tight', transparent=True)
@@ -391,8 +401,9 @@ def build(panels, h_per_panel, tag):
 
 
 print()
-# forcing stack: what happened, the two external drivers, then the cove's own
+# forcing stack: what happened, the freshwater forcing, then the cove's own
 # response in stratification and exchange speed
-build([p_do, p_riv, p_wind, p_n2, p_spd], 1.96, 'forcing_stack')
-# tidal stack: the same DO series against the tidal exchange and the wind
-build([p_do, p_qp, p_wind], 2.6, 'tidal_stack')
+build([p_do, p_riv, p_dsig, p_spd], 2.2, 'forcing_stack')
+# tidal stack: the same DO series against the two measures of tidal exchange --
+# Qprism (volume) and mean |u| (speed) -- over the low-oxygen season
+build([p_do, p_qp, p_spd], 2.6, 'tidal_stack', months=(7, 11))

@@ -88,6 +88,43 @@ WHAT IS MEASURED
                  inner+bottom curve requires both at once and is what an
                  inner-cove DO budget needs.
 
+RESULT (runs completed 2026-08-11, -dtt 8, common record 7.83 d)
+Spring flushes inner-cove bottom water ~6x faster than neap: e-folding 0.67 d
+vs 4.17 d inside pc_cp, 2.67 vs 6.42 d for the whole cove. In the first 24 h
+the spring cohort loses 47% of itself and the neap cohort 11%.
+
+THE MECHANISM IS HORIZONTAL, NOT VERTICAL, and that is the interesting part.
+The two cohorts climb off the bed at essentially the SAME rate (bottom panel:
+both go from 0.2 to ~0.6 of the column in two days), and "still within 5 m of
+the bed anywhere" is nearly identical in the two runs (e-fold 1.42 vs 1.00 d),
+converging by day 5 with spring in fact slightly HIGHER at the end (0.144 vs
+0.102). So the spring tide is not mixing bottom water upward faster -- it is
+carrying it out of the cove. That is the opposite finding from the hiDO/loDO
+pair, where vertical escape was the loss pathway; the two experiments are
+therefore not two views of one mechanism.
+
+The prediction written above -- that spring would widen the gap between
+"still inside" and "never left" -- was WRONG as stated. The absolute gap is
+larger for neap (0.087 vs 0.022), but only because more cohort is left to be
+in it: as a fraction of what is still inside, reentry is 90% (neap) and 95%
+(spring). Tidal reversibility is not what separates the two runs. The sloshing
+measure does behave as expected (whole cove x1.62).
+
+Retention by starting height above bed is flat: every 1 m bin from 0-5 m gives
+the same ~3.4 d spring-minus-neap difference, so the whole seeded layer
+responds together rather than the deepest water behaving differently.
+
+Read the 6x against the x1.76 in prism with care. Because the windows are
+CENTRED on their extrema, the spring cohort meets RISING energy (qprism
+374 -> 431 m3/s across its first two days) exactly when most of the loss
+happens, while the neap cohort meets falling energy (266 -> 207). That is the
+design working as intended, but it front-loads the contrast, and the e-fold
+ratio is not the response to a steady x1.76 forcing.
+
+Both weeks replace inner-cove bottom water completely within the record:
+"never left" ends at 0.010 (neap) and 0.001 (spring). The question the pair
+answers is how fast, not whether.
+
 Regions are the tef2 wb1_pc1 segments, the same definition the release used:
   inner cove  pc_cp_m                        (landward of pc_cp)
   whole cove  pc_cp_m + pc_cp_p + pc_lp_m    (landward of pc_lp)
