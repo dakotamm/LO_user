@@ -249,6 +249,11 @@ def get_ic(TR):
         # whole days, and that is exactly how the earlier pcret pair ended up
         # ~9 h out of tidal phase, which made its early retention curves
         # incomparable.
+        #
+        # The same release is also used for the spring-neap pair picked by
+        # 20260811_pc_springneap_weeks.py (sub_tags neap / spring), which
+        # holds the season fixed and varies the tide instead. Nothing about
+        # the release changes between the two experiments -- only the window.
         plon00, plat00, pcs00 = ic_from_tef2_segs_bottom(
             fn00, gridname, ctag='pc1', riv='trapsN00',
             seg_list=['pc_cp_m'], hab_max=5.0, dz=0.5, frac_max=0.5)
