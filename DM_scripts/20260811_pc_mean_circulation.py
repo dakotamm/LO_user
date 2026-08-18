@@ -66,6 +66,7 @@ import warnings
 
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -75,6 +76,7 @@ from scipy.ndimage import convolve1d
 from cmocean import cm
 
 from lo_tools import Lfun, zfun
+from lo_tools import plotting_functions as pfun
 
 p = argparse.ArgumentParser()
 p.add_argument('-gtx', '--gtagex', default='wb1_t0_xn11abbur00', type=str)
@@ -106,11 +108,38 @@ for fn in [turn_fn, sect_fn]:
         print('*** missing: %s' % fn)
         sys.exit(1)
 
-RED = '#e04256'
-LAND = '0.85'
-FS = 13
 GODIN = zfun.godin_shape()
 NPAD = len(GODIN) // 2
+
+# ---------------------------------------------------------------------------
+# style: the wb1 grid plots of 20260807_grid_bathy_ppt.py, minus the
+# bathymetry. Slide-sized fonts, transparent background, flat land fill, and
+# the same red used there for the box is used here for the section.
+# TEXT_COLOR flips the whole figure between light-slide and dark-slide use.
+# ---------------------------------------------------------------------------
+TEXT_COLOR = 'k'                     # 'w' for dark slides
+LAND_COLOR = '#e8e4dc'               # land on the map, the seabed in the section
+RED = '#e04256'
+mpl.rcParams.update({
+    'font.size': 18,
+    'axes.labelsize': 20,
+    'axes.titlesize': 22,
+    'xtick.labelsize': 16,
+    'ytick.labelsize': 16,
+    'legend.fontsize': 16,
+    'axes.linewidth': 1.5,
+    'xtick.major.width': 1.5,
+    'ytick.major.width': 1.5,
+    'text.color': TEXT_COLOR,
+    'axes.labelcolor': TEXT_COLOR,
+    'axes.edgecolor': TEXT_COLOR,
+    'xtick.color': TEXT_COLOR,
+    'ytick.color': TEXT_COLOR,
+    'savefig.transparent': True,
+    'figure.facecolor': 'none',
+    'axes.facecolor': 'none',
+})
+SAVE_KW = dict(dpi=300, bbox_inches='tight', transparent=True, facecolor='none')
 
 # ---------------------------------------------------------------------------
 # a. the map: mean depth-averaged velocity over the cove
@@ -258,8 +287,7 @@ plt.close('all')
 # cove's own shape or it shrinks inside its gridspec cell and leaves a band of
 # white on either side. The cove box is ~1.5 wide for 1 tall at this latitude,
 # and the section is given the same height so the two read as a pair.
-DAR = 1 / np.cos(np.deg2rad(float(np.mean(latr))))
-fig = plt.figure(figsize=(16, 4.6), layout='constrained')
+fig = plt.figure(figsize=(19, 6.2), layout='constrained')
 gs = fig.add_gridspec(1, 2, width_ratios=[1.15, 1])
 axm = fig.add_subplot(gs[0])
 axv = fig.add_subplot(gs[1])
@@ -275,10 +303,16 @@ for lbl, a in [('map', u_rho), ('section', u_sect)]:
           % (lbl, 100 * np.max(np.abs(v)) / VMAX, 100 * np.mean(np.abs(v) > VMAX)))
 
 # --- map
-land = (~D['mask_rho'])
-axm.pcolormesh(lonr, latr, np.ma.masked_where(~land, np.ones(land.shape)),
-               cmap=ListedColormap([LAND]), shading='nearest', zorder=0)
-pcm = axm.pcolormesh(lonr, latr, u_rho, shading='nearest', zorder=1, **KW)
+# Cell CORNERS and shading='flat', as in the grid plots: the mesh then covers
+# exactly the cells it describes, with no half-cell margin to patch up.
+plonr, platr = pfun.get_plon_plat(lonr, latr)
+aa = [plonr.min(), plonr.max(), platr.min(), platr.max()]
+land = ~D['mask_rho']
+axm.pcolormesh(plonr, platr, np.ma.masked_where(~land, np.ones(land.shape)),
+               cmap=ListedColormap([LAND_COLOR]), shading='flat', zorder=0,
+               rasterized=True)
+pcm = axm.pcolormesh(plonr, platr, u_rho, shading='flat', zorder=1,
+                     rasterized=True, **KW)
 
 qs = max(1, args.quiver_step)
 spd95 = float(np.nanpercentile(spd, 95))
@@ -287,21 +321,25 @@ qscale = (args.quiver_scale if args.quiver_scale
 Q = axm.quiver(lonr[::qs, ::qs], latr[::qs, ::qs],
                u_rho[::qs, ::qs], v_rho[::qs, ::qs],
                scale=qscale, scale_units='width', units='width',
-               width=0.0026, color='k', zorder=6)
+               width=0.0026, color=TEXT_COLOR, zorder=6)
 axm.quiverkey(Q, 0.90, 0.05, round(spd95, 3), '%.3f m s$^{-1}$' % spd95,
-              labelpos='W', coordinates='axes', fontproperties=dict(size=FS - 3))
+              labelpos='W', coordinates='axes',
+              fontproperties=dict(size=mpl.rcParams['xtick.labelsize']))
 
 axm.plot(SL.x, SL.y, '-', color=RED, lw=3.5, zorder=9, solid_capstyle='butt')
-# half a cell of margin: shading='nearest' centres each cell on its rho point,
-# so limits set to the rho points themselves cut the outer cells in half
-dlon = float(np.diff(lonr[0, :]).mean())
-dlat = float(np.diff(latr[:, 0]).mean())
-axm.set_xlim(lonr.min() - dlon / 2, lonr.max() + dlon / 2)
-axm.set_ylim(latr.min() - dlat / 2, latr.max() + dlat / 2)
-axm.set_aspect(DAR)
-axm.set_xlabel('longitude', fontsize=FS)
-axm.set_ylabel('latitude', fontsize=FS)
-axm.tick_params(labelsize=FS - 2)
+pfun.add_coast(axm, color=TEXT_COLOR, linewidth=0.8)
+# set_xticks re-autoscales, and a rounded tick outside the grid then drags the
+# view past the domain edge -- so pin the limits afterwards. Three decimals, not
+# the one the wb1-wide plots use: the cove spans 0.08 deg and would otherwise
+# get a single tick.
+axm.set_xticks(np.linspace(aa[0], aa[1], 4).round(3))
+axm.set_yticks(np.linspace(aa[2], aa[3], 5).round(3))
+axm.axis(aa)
+axm.set_autoscale_on(False)
+pfun.dar(axm)
+axm.tick_params(length=6, labelrotation=0)
+axm.set_xlabel('Longitude [$^{\\circ}$E]')
+axm.set_ylabel('Latitude [$^{\\circ}$N]')
 
 # --- section
 x_e = np.concatenate([[0.0], np.cumsum(dd)]) / 1000.0          # km across
@@ -323,34 +361,40 @@ zc = 0.5 * (zw[:-1] + zw[1:])
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')
     axv.contour(np.tile(xc, (zc.shape[0], 1)), zc, u_sect, levels=[0.0],
-                colors='k', linewidths=1.2, zorder=3)
+                colors=TEXT_COLOR, linewidths=1.2, zorder=3)
 
 bed = -np.concatenate([hh[:1], hh])
 zbot = float(bed.min()) * 1.04
-axv.fill_between(x_e, bed, zbot, step='pre', color=LAND, lw=0, zorder=4)
-axv.plot(x_e, bed, '-', color='0.3', lw=1.0, drawstyle='steps-pre', zorder=5)
+axv.fill_between(x_e, bed, zbot, step='pre', color=LAND_COLOR, lw=0, zorder=4)
+axv.plot(x_e, bed, '-', color=TEXT_COLOR, lw=1.0, drawstyle='steps-pre',
+         zorder=5)
 axv.set_ylim(zbot, 0.0)
 axv.set_xlim(x_e[0], x_e[-1])
-axv.set_xlabel('distance across %s [km]  (north on the left)' % args.sect,
-               fontsize=FS)
-axv.set_ylabel('z [m]', fontsize=FS)
-axv.tick_params(labelsize=FS - 2)
+# the section is named and oriented on the map, by the red line -- it does not
+# need its own name or a compass direction here
+axv.set_xlabel('Distance along section [km]')
+axv.set_ylabel('Z [m]')
+axv.tick_params(length=6)
 # framed in the same red as the line on the map, so the section and its
 # location read as one object
 for sp in axv.spines.values():
     sp.set_color(RED)
-    sp.set_linewidth(2.0)
+    sp.set_linewidth(3)
 axv.tick_params(color=RED)
 
 # one colourbar for the pair, spanning both panels
 cb = fig.colorbar(pcm, ax=[axm, axv], pad=0.015, aspect=28, fraction=0.05)
-cb.ax.tick_params(labelsize=FS - 2)
-cb.set_label('mean velocity [m s$^{-1}$]  (red = out of the cove)', fontsize=FS)
+# two lines: rotated vertically at this font size, the one-line version is
+# longer than the colourbar and gets clipped at both ends
+cb.set_label('Mean velocity [m s$^{-1}$]\nred = out of the cove',
+             color=TEXT_COLOR)
+cb.ax.yaxis.set_tick_params(color=TEXT_COLOR, labelcolor=TEXT_COLOR)
+cb.outline.set_edgecolor(TEXT_COLOR)
 
 stem = ('pc_mean_circulation_%s_%s_%s'
         % (args.gtagex, t0.strftime('%Y.%m.%d'), t1.strftime('%Y.%m.%d')))
 fn_out = out_dir / (stem + '.png')
-fig.savefig(fn_out, dpi=300, bbox_inches='tight', transparent=True)
+fig.savefig(fn_out, **SAVE_KW)
 print('\nwrote %s' % fn_out)
 
 # the numbers behind both panels, so they can be replotted without the pickle

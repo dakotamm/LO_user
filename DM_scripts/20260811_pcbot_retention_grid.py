@@ -69,16 +69,40 @@ Lfun.make_dir(out_dir)
 FS = 15
 GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
 
+# Assigned by COLUMN, not by run. The first pass gave the seasonal pair blue/red
+# and the spring-neap pair a second blue and a second orange, so the four curves
+# read as two blues and two warms and the eye grouped them across columns
+# instead of within one. Here the seasonal pair is chromatic (blue = winter,
+# red = summer, which the reader already has an intuition for) and the
+# spring-neap pair is achromatic, so a glance says which experiment a curve
+# belongs to before you read the legend. Spring takes black rather than grey:
+# it is the stronger tide and the one whose curve carries the result.
+C_HI, C_LO = '#0072B2', '#D62728'        # blue, red
+C_NEAP, C_SPRING = '#8C8C8C', '#000000'  # grey, black
+
+# Legend labels carry no dates -- the release dates are in the docstring and in
+# the printout, and on a four-curve figure they were the longest thing in the
+# panel for the least return.
+#
+# winter / summer, in the plain-language sense, not the three-season bin names
+# used across the Mascarenas et al. figures (Winter Dec-Mar, Spring Apr-Jul,
+# Low-DO Aug-Nov). 2025.02.16 sits in that Winter bin either way; 2025.08.27
+# sits in Low-DO, and is called summer here because that is what a reader will
+# take from a late-August release and because "low DO" is what the panel is
+# measuring rather than a name for when it happened.
+#
+# Neither is called SPRING. That word already means a tide in the right-hand
+# column, and one legend cannot carry it as a season and a tide at once.
 SEASONAL = {
-    2024: [('pcbot_3d_sh13_hiDO', '#4565e8', 'high DO   2024.02.25'),
-           ('pcbot_3d_loDO', '#e8455e', 'low DO    2024.09.03')],
-    2025: [('pcbot_3d_sh14_hiDO_2025', '#4565e8', 'high DO   2025.02.16'),
-           ('pcbot_3d_sh2_loDO_2025', '#e8455e', 'low DO    2025.08.27')],
+    2024: [('pcbot_3d_sh13_hiDO', C_HI, 'winter'),
+           ('pcbot_3d_loDO', C_LO, 'summer')],
+    2025: [('pcbot_3d_sh14_hiDO_2025', C_HI, 'winter'),
+           ('pcbot_3d_sh2_loDO_2025', C_LO, 'summer')],
 }
-COLUMNS = [('seasonal, tide matched', SEASONAL[args.year]),
-           ('spring-neap, season held',
-            [('pcbot_3d_sh4_neap', '#2b8cbe', 'neap      2025.07.31'),
-             ('pcbot_3d_spring', '#d94801', 'spring    2025.08.09')])]
+COLUMNS = [('seasonal, tide-matched', SEASONAL[args.year]),
+           ('spring-neap, phase-matched',
+            [('pcbot_3d_sh4_neap', C_NEAP, 'neap'),
+             ('pcbot_3d_spring', C_SPRING, 'spring')])]
 
 # ------------------------------------------------------------------ setup ---
 g = xr.open_dataset(Ldir['grid'] / 'grid.nc')
@@ -154,7 +178,8 @@ for k, C in enumerate(COL):
     # than the axes and the two columns' labels run into each other
     for row, (key, ylab) in enumerate(
             [('still', 'fraction still inside\nthe inner cove'),
-             ('elev', 'height in the column\n[0 = bed, 1 = surface]')]):
+             ('elev', 'cohort-mean height in the column\n'
+                      '[0 = bed, 1 = surface]')]):
         ax = axs[row, k]
         for label, r in C['R'].items():
             ax.plot(C['days'], r[key], color=r['color'], lw=1.8, label=label)
