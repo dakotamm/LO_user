@@ -144,13 +144,30 @@ def get_box(job, Lon, Lat):
         aa = [-122.737995, -122.658319, 48.210705, 48.250686]
         vn_list = 'h,f,pm,pn,mask_rho,salt,temp,zeta,u,v,ubar,vbar,oxygen,NO3,phytoplankton,Uwind,Vwind'
 
-    elif job == 'pc_lat': #DM added 2026/08/18 -- lateral circulation in Penn Cove
-        # Wider than pc0 on purpose: pc0's east edge (-122.6583) sits INSIDE the
-        # pc_lp mouth section (lon -122.6534), so pc0 cannot see the mouth. This
-        # box reaches into Saratoga Passage. Carries w, and u/v are written to
-        # the rho grid with -uv_to_rho True so they can be rotated into
-        # along/cross-cove components without a second interpolation.
-        aa = [-122.760, -122.640, 48.205, 48.258]
+    elif job == 'pc_cove': #DM added 2026/08/18 -- lateral circulation in Penn Cove
+        # Bounds pulled in to the cove water itself, not to the pc polygon: the
+        # polygon runs ~1.2 km west of the last wet cove cell, so tracking it
+        # buys columns of pure land. Flood-filling from inside the cove (sealed
+        # at pc_lp) gives cove water over i 38-67, j 210-228; this keeps one
+        # cell of margin W/N/S and captures all 317 cove cells.
+        # The EAST edge is rho column 68, one past the pc_lp u-face. This is
+        # the choice that only makes sense WITHOUT -uv_to_rho: ncks takes
+        # xi_u = ilon0..ilon1-1, so stopping at rho 67 puts xi_u at 37..66 and
+        # the pc_lp u-faces (xi_u = 67) are NOT IN THE BOX AT ALL. Going to 68
+        # gives xi_u = 37..67, so the box carries the mouth section's own face
+        # velocities -- exact on the native grid, and directly comparable to the
+        # tef2 pc_lp extraction. It also makes u_rho two-sided at the mouth if
+        # you average to rho points in post-processing.
+        # v needs no such help: xi_v spans the FULL rho range, so v already
+        # exists at every rho column including the mouth, and the only
+        # one-sided rho rows are the all-land y margins.
+        # Cost: 13 Saratoga cells enter the box, so mask_rho is no longer
+        # exactly the cove. Slice them off with xi_rho <= 30 (one slice, not a
+        # flood fill) when you want the cove alone.
+        # Do NOT reuse the older pc0 job for mouth work: its east edge
+        # (-122.6583) falls INSIDE the pc_lp section and cannot see the mouth.
+        # 32 x 21 cells, 330 wet (317 cove + 13 Saratoga), ~11.4 GB 2024-2025.
+        aa = [-122.735882, -122.652000, 48.213109, 48.249196]
         vn_list = 'h,f,pm,pn,mask_rho,salt,temp,zeta,u,v,w,ubar,vbar'
 
     return aa, vn_list
