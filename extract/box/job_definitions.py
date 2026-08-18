@@ -144,4 +144,13 @@ def get_box(job, Lon, Lat):
         aa = [-122.737995, -122.658319, 48.210705, 48.250686]
         vn_list = 'h,f,pm,pn,mask_rho,salt,temp,zeta,u,v,ubar,vbar,oxygen,NO3,phytoplankton,Uwind,Vwind'
 
+    elif job == 'pc_lat': #DM added 2026/08/18 -- lateral circulation in Penn Cove
+        # Wider than pc0 on purpose: pc0's east edge (-122.6583) sits INSIDE the
+        # pc_lp mouth section (lon -122.6534), so pc0 cannot see the mouth. This
+        # box reaches into Saratoga Passage. Carries w, and u/v are written to
+        # the rho grid with -uv_to_rho True so they can be rotated into
+        # along/cross-cove components without a second interpolation.
+        aa = [-122.760, -122.640, 48.205, 48.258]
+        vn_list = 'h,f,pm,pn,mask_rho,salt,temp,zeta,u,v,w,ubar,vbar'
+
     return aa, vn_list

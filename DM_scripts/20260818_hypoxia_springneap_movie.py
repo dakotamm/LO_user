@@ -61,6 +61,14 @@ does, and it is deliberate: there the map is context for an area series, here
 the edge is the subject, and a black line reads as an object that moves in a
 way that a boundary between two fills does not.
 
+WHAT THE COLOURS MEAN, INCLUDING WHITE. Warm grey is land. White is water that
+is deliberately not drawn: outside the `wb` clip, or inside --exclude. Nothing
+else should be white -- in particular a cell with no data would also come out
+white, which is why the land mask is read from the RUN rather than from grid.nc
+(see --mask; for wb1 the two disagree at 16 cells around Penn Cove) and why
+negative oxygen is clamped to zero rather than discarded. Any drawn cell that
+is NaN in every frame gets counted and reported at startup.
+
 Region-plot convention (DM 2026.08.04): with --zoom 0 the window is the
 rectangular bounding box of the region polygon plus --pad-cells of margin, and
 in either case only cells inside `wb` are drawn.
@@ -181,6 +189,11 @@ p.add_argument('--levels', default=[0.0, 0.5, 2.0, 3.0, 5.0, 7.0, 10.0],
 p.add_argument('--vmin', default=0.0, type=float, help='--cmap oxy only')
 p.add_argument('--vmax', default=10.0, type=float, help='--cmap oxy only')
 p.add_argument('--pad-cells', default=10, type=int, dest='pad_cells')
+p.add_argument('--mask', default='run', choices=['run', 'grid'],
+               help='where the land mask comes from. run = mask_rho out of the '
+                    'output file (default, and the only one consistent with '
+                    'the data); grid = grid.nc, which for wb1 disagrees at 16 '
+                    'cells around Penn Cove -- see the comment at the mask')
 p.add_argument('--fps', default=6, type=int)
 p.add_argument('--dpi', default=150, type=int,
                help='render dpi for the movie frames -- 100 makes the labels '
@@ -284,10 +297,44 @@ if n_days < 30:
 dsg = xr.open_dataset(Ldir['grid'] / 'grid.nc')
 lon = dsg.lon_rho.values
 lat = dsg.lat_rho.values
-wet = dsg.mask_rho.values == 1
+wet_grid = dsg.mask_rho.values == 1
 h = dsg.h.values
 cell_area = (1 / dsg.pm.values) * (1 / dsg.pn.values)      # m2, cell by cell
 dsg.close()
+
+# THE LAND MASK COMES FROM THE RUN, NOT FROM grid.nc (--mask).
+#
+# They are not the same. For wb1 the grid.nc that Lstart points at and the mask
+# wb1_r0_xn11b actually ran with differ at 16 cells, ALL of them in or beside
+# Penn Cove: 4 that grid.nc calls water and the run treats as land, and 12 the
+# other way. Taking the mask from grid.nc has two visible consequences:
+#   - the 4 run-land cells come back NaN in every output file, for every
+#     variable, at every level, so they are drawn as WHITE SPECKS in the middle
+#     of the cove -- white being this figure's colour for "water not drawn".
+#   - the 12 run-water cells (8 of them inside `pc`) are painted as land and
+#     left out of the region's sea-floor area, so every "% of floor" is
+#     computed against the wrong denominator.
+# Reading mask_rho out of the output file itself fixes both. Geometry (h, pm,
+# pn, lon, lat) still comes from grid.nc, which is where it belongs.
+if args.mask == 'run':
+    with xr.open_dataset(fn_list[0]) as d0:
+        if 'mask_rho' in d0.variables:
+            wet = d0.mask_rho.values == 1
+        else:
+            wet = wet_grid
+            print('no mask_rho in %s -- falling back on grid.nc' % fn_list[0])
+else:
+    wet = wet_grid
+n_gl = int((wet_grid & ~wet).sum())       # grid says water, run says land
+n_lg = int((wet & ~wet_grid).sum())       # grid says land, run says water
+if n_gl or n_lg:
+    print('mask: using the %s mask; it differs from the other at %d cells '
+          '(%d grid-water/run-land, %d grid-land/run-water)'
+          % (args.mask, n_gl + n_lg, n_gl, n_lg))
+    if args.mask == 'grid':
+        print('  --mask grid keeps the mismatch: expect white specks where the '
+              'run has no data, and a region area that counts cells the run '
+              'never wrote to')
 dx = float(np.diff(lon[0, :]).mean())
 dy = float(np.diff(lat[:, 0]).mean())
 XY = np.column_stack([lon.ravel(), lat.ravel()])
@@ -406,11 +453,23 @@ def read_one(fn):
         o = o.isel(s_rho=0)
     bot = np.atleast_3d(o.values)[-1] if o.values.ndim == 3 else o.values
     ds.close()
-    bot = np.where(wet & (bot > 0), bot * DO_MMOL_TO_MGL, np.nan)
+    # Masked cells already come back as NaN, and any unconverted fill (1e37)
+    # is caught by the magnitude test. What is NOT done here is throwing away
+    # oxygen <= 0: ROMS can undershoot to exactly zero or slightly negative in
+    # genuinely anoxic water, and a `bot > 0` test -- which is what
+    # 20260810_hypoxia_movie.py and 20260806_hypoxia_reduce.py use -- turns the
+    # most hypoxic cells in the domain into white holes in the middle of the
+    # patch and drops them from the area count. Negatives are clamped to zero
+    # instead, which puts them in the lowest colour class where they belong,
+    # and the count is reported.
+    bad = ~np.isfinite(bot) | (np.abs(bot) > 1e10)
+    n_neg = int(np.sum(wet & ~bad & (bot < 0)))
+    bot = np.where(wet & ~bad, np.maximum(bot, 0.0) * DO_MMOL_TO_MGL, np.nan)
 
     i, j = IDX
     v, a_ = bot[i, j], cell_area[i, j]
-    row = {'do_mean': float(np.nanmean(v)), 'do_min': float(np.nanmin(v))}
+    row = {'do_mean': float(np.nanmean(v)), 'do_min': float(np.nanmin(v)),
+           'n_neg': n_neg, 'n_nodata': int(np.sum(np.isnan(v)))}
     for th in THRESH:
         row['A_%g' % th] = float(a_[v < th].sum())      # NaN < th is False
     return t, bot[SUB].astype(np.float32), row
@@ -428,6 +487,22 @@ else:
 TT_ALL = pd.to_datetime([r[0] for r in res])
 FLD = np.where(draw_s[None, :, :], np.stack([r[1] for r in res]), np.nan)
 S = pd.DataFrame([r[2] for r in res], index=TT_ALL)
+
+# Where the white cells on the map come from, said out loud. White is "water
+# not drawn": outside `wb`, inside --exclude, or -- the case worth knowing
+# about -- a cell the run has no data for. With --mask run the last group
+# should be empty; anything else means the output itself has holes in it.
+n_hole = int((draw_s & ~np.isfinite(FLD).any(axis=0)).sum())
+if n_hole:
+    print('%d drawn cells are NaN in EVERY frame -- they will be white specks '
+          'on the map. With --mask run that should not happen; check the '
+          'output files.' % n_hole)
+if S['n_neg'].sum():
+    print('%d cell-days of negative oxygen (numerical undershoot in anoxic '
+          'water) clamped to 0 rather than discarded' % int(S['n_neg'].sum()))
+print('drawn cells: %d of %d in the window; %d white because they are outside '
+      'wb or inside --exclude'
+      % (draw_s.sum(), draw_s.size, int((wet[SUB] & ~draw_s).sum())))
 
 # which of the frames read are actually animated (the pad is filter-only)
 INWIN = np.where((TT_ALL >= T_LO) & (TT_ALL <= T_HI))[0]
