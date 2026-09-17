@@ -170,4 +170,36 @@ def get_box(job, Lon, Lat):
         aa = [-122.735882, -122.652000, 48.213109, 48.249196]
         vn_list = 'h,f,pm,pn,mask_rho,salt,temp,zeta,u,v,w,ubar,vbar'
 
+    elif job == 'pc_cove_o2': #DM added 2026/09/17 -- oxygen budget in Penn Cove
+        # SAME FOOTPRINT as pc_cove, tracer-only. Read the pc_cove comment above
+        # for why these bounds are what they are -- do not re-derive them, and do
+        # not "tidy" the east edge in: rho column 68 is deliberate.
+        #
+        # WHY THIS EXISTS the pc_cove box carries no oxygen, so the cove's
+        # oxygen inventory cannot be split vertically and no bottom-layer budget
+        # can be formed. The whole-cove budget is net autotrophic in every
+        # season (Winter +63, Spring +90, Low-DO +126 g/s internal source), so
+        # depth-integrated numbers cannot explain hypoxia at all -- it is a
+        # vertical redistribution. That needs the 3D oxygen field.
+        #
+        # It DOES NOT overwrite the velocity box. extract_box.py names output
+        # <job>_<ds0>_<ds1>.nc and only cleans its own temp_<bname> directory,
+        # so this writes pc_cove_o2_*.nc alongside pc_cove_*.nc and the 11.4 GB
+        # file is untouched. Keep the job name distinct for that reason alone.
+        #
+        # salt and temp are here for density, so the pycnocline can be located
+        # per column and per time rather than splitting at a fixed depth (a
+        # fixed 10 m split moves the deep O2 supply by ~40% between seasons, so
+        # the interface has to be real). No velocities: u/v/w are already in
+        # pc_cove on the same grid and can be read from there.
+        #
+        # Use -lt hourly (ocean_his, instantaneous), matching pc_cove and
+        # extract_segments_SV.py: the budget pairs an instantaneous state
+        # difference with an avg-file flux across the same interval.
+        #
+        # 32 x 21 cells, 30 levels. Three 3D rho tracers at ~1.4 GB each over
+        # 2024-2025, so roughly 4-5 GB -- about 40% of the velocity box.
+        aa = [-122.735882, -122.652000, 48.213109, 48.249196]
+        vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,temp,oxygen'
+
     return aa, vn_list

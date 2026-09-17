@@ -168,23 +168,47 @@ for name, xlon in STATIONS:
           % (name, len(wetr), len(kk), nwall, int(ok.sum()), len(tt)))
     vG, DZG = vG[ok], DZG[ok]
 
+    jr = np.arange(k0 + 1, k1 + 1)                  # rho rows with a v face each side
+    pmc = ds.pm.isel(xi_rho=i).values
     vbar = (vG * DZG).sum(1) / DZG.sum(1)
     vp = vG - vbar[:, None, :]
     psi = np.cumsum(vp * DZG, axis=1)
     psi_m = psi.mean(0)
     kmax = np.unravel_index(np.abs(psi_m).argmax(), psi_m.shape)
 
-    # ---- exact C-grid continuity check at interior rho rows
-    jr = np.arange(k0 + 1, k1 + 1)                              # rho rows with a face each side
-    dyr = 1.0 / pn[jr, i]
-    div = (vG[:, :, jr - k0] - vG[:, :, jr - k0 - 1]) / dyr[None, None, :]
-    DZr = godin_t(np.diff(zwr, axis=1)[:, :, jr])[ok]
-    w2d = -np.cumsum(div * DZr, axis=1)                         # at w-levels 1..N
-    wmod = godin_t(ds.w.isel(xi_rho=i, eta_rho=jr).values)[ok][:, 1:, :]
-    a, b = w2d.ravel(), wmod.ravel()
-    gd = np.isfinite(a) & np.isfinite(b)
-    r_cont = np.corrcoef(a[gd], b[gd])[0, 1]
-    amp = np.sqrt((a[gd] ** 2).mean()) / np.sqrt((b[gd] ** 2).mean())
+    # ---- IS THE LATERAL PLANE CLOSED?  flux-form du/dx vs dv/dy
+    # The w-based check that used to live here is NOT recoverable from this
+    # output: ROMS saves `w` (true vertical velocity), not `omega` (the
+    # sigma-coordinate flux that closes discrete continuity), so -int(dv/dy)dz
+    # and w differ by the sigma grid-motion terms and the comparison is
+    # uninterpretable. Instead compare the two HORIZONTAL flux divergences
+    # directly, in flux form on the native faces. If |du/dx| << |dv/dy| the
+    # lateral plane is nearly closed and psi is a material circulation; if they
+    # are comparable, along-channel divergence does the work and psi is a
+    # diagnostic only. Needs a u face on BOTH sides of the column -- which is
+    # exactly what the east edge at rho col 68 buys at pc_lp.
+    dzc = np.diff(zwr, axis=1)
+    have_u = (i - 1 >= 0) and (i < ds.sizes['xi_u']) and (i + 1 < ds.sizes['xi_rho'])
+    if have_u:
+        dzw_ = np.diff(ds.z_w.isel(xi_rho=i - 1).values, axis=1)
+        dze_ = np.diff(ds.z_w.isel(xi_rho=i + 1).values, axis=1)
+        dyc = (1.0 / pn[:, i])[None, None, :]
+        Fw_ = ds.u.isel(xi_u=i - 1).values * 0.5 * (dzw_ + dzc) * dyc
+        Fe_ = ds.u.isel(xi_u=i).values * 0.5 * (dzc + dze_) * dyc
+        divx = godin_t(np.nan_to_num(Fe_) - np.nan_to_num(Fw_))[ok][:, :, jr]
+    else:
+        divx = None
+    dxv = 0.5 * ((1.0 / pmc)[None, None, :-1] + (1.0 / pmc)[None, None, 1:])
+    Fv_ = godin_t(np.nan_to_num(ds.v.isel(xi_v=i).values) *
+                  np.diff(0.5 * (zwr[:, :, :-1] + zwr[:, :, 1:]), axis=1) * dxv)[ok]
+    divy = Fv_[:, :, jr] - Fv_[:, :, jr - 1]
+    if divx is not None:
+        gd = np.isfinite(divx) & np.isfinite(divy)
+        rms_x = float(np.sqrt((divx[gd] ** 2).mean()))
+        rms_y = float(np.sqrt((divy[gd] ** 2).mean()))
+        ratio = rms_x / rms_y
+    else:
+        rms_x = rms_y = ratio = np.nan
 
     zm = (0.5 * (zw_v[ok][:, :-1, :] + zw_v[ok][:, 1:, :])).mean(0)
     dx_cell = 1.0 / ds.pm.isel(xi_rho=i, eta_rho=kk).values.mean()
@@ -204,7 +228,7 @@ for name, xlon in STATIONS:
                         hmax=float(h[wetr, i].max()), psi_mean=float(psi_m[kmax]),
                         z_core=float(zm[kmax]), y_core=float(y[kmax[1]]),
                         Q_equiv=float(psi_m[kmax] * dx_cell),
-                        r_continuity=float(r_cont), amp_ratio=float(amp),
+                        rms_dudx=rms_x, rms_dvdy=rms_y, dudx_over_dvdy=ratio,
                         vprime_rms=float(np.sqrt(np.nanmean(vp ** 2)))))
     panels.append((name, y, zm, psi_m, vp.mean(0)))
 
@@ -213,9 +237,10 @@ txt = ['PENN COVE LATERAL OVERTURNING (native C-grid) -- %s, %s to %s'
        % (args.gtagex, args.ds0, args.ds1), '',
        'psi_mean: time-mean subtidal lateral overturning streamfunction at its core (m2/s).',
        'Q_equiv: psi scaled by one along-channel cell (m3/s).',
-       'r_continuity: model w vs w from lateral divergence alone (exact C-grid test) --',
-       '  if low, the lateral plane is NOT non-divergent and psi is a diagnostic,',
-       '  not a material circulation.', '',
+       'dudx_over_dvdy: rms along-channel / rms lateral flux divergence.',
+       '  <<1 means the lateral plane is closed and psi is a material circulation;',
+       '  ~1 or more means along-channel divergence dominates and psi is a diagnostic.',
+       '  (A w-based check is impossible here: ROMS saves w, not omega.)', '',
        R.to_string(index=False, float_format=lambda v: '%.3f' % v)]
 
 DD = {}
@@ -234,7 +259,12 @@ for name, sf in series.items():
                % (mon.idxmax(), mon.max(), mon.idxmin(), mon.min()))
     if tef_csv.is_file() and name.startswith('pc_lp'):
         tf = pd.read_csv(tef_csv, index_col=0, parse_dates=True)
-        j = d.join(tf[['QLAT_BC']], how='inner').dropna()
+        # tef2 hourly times are on the half hour, so its daily means land at
+        # 00:30 while the box resamples to midnight -> normalise or the join
+        # silently returns zero rows.
+        tf.index = tf.index.normalize()
+        dd_ = d.copy(); dd_.index = dd_.index.normalize()
+        j = dd_.join(tf[['QLAT_BC']], how='inner').dropna()
         if len(j) > 120:
             r, ne, pv = neff_r(j['psi_absmax'].values, j['QLAT_BC'].values)
             txt.append('   corr(|psi|max, tef2 QLAT_BC) = %+.3f  (n_eff %.0f, p = %.2g)'
@@ -268,8 +298,8 @@ for c, (name, y, zm, psi_m, vpm) in enumerate(panels):
     pc = ax.pcolormesh(Y, zm, 100 * vpm, cmap='PuOr_r', vmin=-lim, vmax=lim, shading='gouraud')
     ax.contour(Y, zm, vpm, [0], colors='k', linewidths=1.2)
     plt.colorbar(pc, ax=ax, label='cm s$^{-1}$')
-    ax.set_title(r"cross-channel $v'$   (r$_{cont}$ = %+.2f)" % R.iloc[c].r_continuity,
-                 fontsize=FS)
+    ax.set_title(r"cross-channel $v'$   (|du/dx|/|dv/dy| = %.2f)"
+                 % R.iloc[c].dudx_over_dvdy, fontsize=FS)
     ax.set_xlabel('distance north of section centre (km)')
     ax.set_ylabel('z (m)')
 
