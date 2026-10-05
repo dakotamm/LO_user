@@ -51,6 +51,7 @@ collide on the shared tracks2/exp_info.csv that trackfun.py reads on import):
 
 run 20261005_pcmap_release_times.py
 run 20261005_pcmap_release_times.py -month 1      (one month, for timing)
+run 20261005_pcmap_release_times.py -every 3      (every 3rd lunar day)
 """
 import argparse
 
@@ -72,6 +73,9 @@ p.add_argument('-ds1', default='2025.12.31', help='tef2 extraction end')
 p.add_argument('-ref', default='pc_lp', help='section whose qnet defines ebb/flood')
 p.add_argument('-year', type=int, default=2025)
 p.add_argument('-month', type=int, default=0, help='0 = whole year')
+p.add_argument('-every', type=int, default=1,
+               help='keep every Nth release of each set (N lunar days apart), '
+                    'counted from the first of the year so -month subsets match')
 p.add_argument('-ds_end', default='2025.12.31',
                help='last day of ROMS output on apogee')
 p.add_argument('-dtt', type=int, default=15)
@@ -117,8 +121,6 @@ for set_name, sgn in [('E', 1.0), ('F', -1.0)]:
         t_rel = t_pk.round('h')
         if t_rel.year != args.year or t_rel.normalize() > last_start_day:
             continue
-        if args.month and t_rel.month != args.month:
-            continue
         ds = t_rel.strftime('%Y.%m.%d')
         sub_tag = '%s_%s' % (set_name, ds)
         out_name = args.exp + '_3d' + ('_sh%d' % t_rel.hour if t_rel.hour > 0 else '') + '_' + sub_tag
@@ -131,7 +133,13 @@ for set_name, sgn in [('E', 1.0), ('F', -1.0)]:
                          out_name=out_name, cmd=cmd))
 
 R = pd.DataFrame(rows).sort_values('t_release').reset_index(drop=True)
-tag = '%d' % args.year + ('_%02d' % args.month if args.month else '')
+if args.every > 1:
+    R = pd.concat([R[R.set == s].iloc[::args.every] for s in ['E', 'F']])
+    R = R.sort_values('t_release').reset_index(drop=True)
+if args.month:
+    R = R[R.t_release.dt.month == args.month].reset_index(drop=True)
+tag = ('%d' % args.year + ('_every%d' % args.every if args.every > 1 else '')
+       + ('_%02d' % args.month if args.month else ''))
 R.drop(columns='cmd').to_csv(out_dir / ('pcmap_release_times_%s.csv' % tag), index=False)
 with open(out_dir / ('pcmap_commands_%s.txt' % tag), 'w') as f:
     f.write('\n'.join(R.cmd) + '\n')

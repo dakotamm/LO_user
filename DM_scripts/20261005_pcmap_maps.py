@@ -10,6 +10,9 @@ sets.
          there. Only cove cells are drawn, in a box around the cove.
   fig 2  quadrant-mean exposure vs release time, E and F as separate markers
          (needs many releases to be worth looking at)
+  fig 3  retention curves: fraction still inside the cove (solid) and never
+         left (dashed) vs days, for the whole cove and each quadrant of
+         origin, one line per release, coloured by set
   csv    region x set: n, mean/median first exit and exposure, fraction
          censored, fraction still inside at each cutoff
 
@@ -167,3 +170,30 @@ if len(M) >= 4:
     fig.savefig(fn_out, dpi=200, transparent=True)
     plt.close(fig)
     print('wrote %s' % fn_out)
+
+# ------------------------------------------------------- retention curves ---
+SETC = {'E': '#e8455e', 'F': '#4565e8', 'other': '0.4'}
+fig, axs = plt.subplots(1, 5, figsize=(18, 4), sharey=True)
+for ax, gname in zip(axs, ['cove'] + QNAMES):
+    for s, cv in curves:
+        if gname not in cv:
+            continue
+        dd = np.arange(len(cv[gname]['still'])) / 24
+        ax.plot(dd, cv[gname]['still'], color=SETC[s], lw=0.8, alpha=0.7)
+        ax.plot(dd, cv[gname]['never'], color=SETC[s], lw=0.6, ls='--', alpha=0.7)
+    ax.axhline(1 / np.e, color='0.5', lw=0.8, ls=':')
+    ax.set_title('%s (started there)' % gname if gname != 'cove' else 'whole cove', fontsize=10)
+    ax.set_xlabel('days from release')
+    ax.grid(**GRID)
+axs[0].set_ylabel('fraction still inside the cove')
+axs[0].set_ylim(0, 1.02)
+for s in sorted(set(s for s, _ in curves)):
+    axs[-1].plot([], [], color=SETC[s], label=s)
+axs[-1].plot([], [], color='0.3', ls='--', label='never left')
+axs[-1].legend(fontsize=8)
+fig.suptitle('%s pcmap retention, set %s, %d releases' % (args.gtx, args.set, len(M)), fontsize=12)
+fig.tight_layout()
+fn_out = out_dir / ('pcmap_curves_%s.png' % tag)
+fig.savefig(fn_out, dpi=200, transparent=True)
+plt.close(fig)
+print('wrote %s' % fn_out)

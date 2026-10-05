@@ -30,6 +30,7 @@ Output: LO_output/DM_outs/20261005_pcmap_reduce/<gtx>/<dir>__<release>.p
 
 run 20261005_pcmap_reduce.py
 run 20261005_pcmap_reduce.py -dir_glob 'pcmap_3d*_H_2025.01.*'
+run 20261005_pcmap_reduce.py -done_only                      (while the launcher runs)
 run 20261005_pcmap_reduce.py -dir_glob pcret_3d -days 14     (mac test)
 """
 import argparse
@@ -47,6 +48,9 @@ p.add_argument('-dir_glob', default='pcmap_3d*')
 p.add_argument('-days', type=float, default=14.0, help='common record length')
 p.add_argument('-cutoffs', default='7,10,14', help='exposure cutoffs [days]')
 p.add_argument('-clobber', action='store_true')
+p.add_argument('-done_only', action='store_true',
+               help='only releases the launcher logged as finished (returncode 0); '
+                    'use while other releases are still running')
 args = p.parse_args()
 cutoffs = [float(c) for c in args.cutoffs.split(',')]
 
@@ -112,7 +116,13 @@ def first_false(a):
 # --------------------------------------------------------------- reduce ---
 fns = sorted(f for dd in sorted(trk.glob(args.dir_glob)) if dd.is_dir()
              for f in dd.glob('release_*.nc'))
-print('%d release files under %s/%s' % (len(fns), trk.name, args.dir_glob))
+if args.done_only:
+    tfn = Ldir['LOo'] / 'DM_outs' / '20261005_pcmap_launch' / 'pcmap_timing.csv'
+    T = pd.read_csv(tfn)
+    ok = set(T.log[T.returncode == 0].str.replace('.log', '', regex=False))
+    fns = [f for f in fns if f.parent.name in ok]
+print('%d release files under %s/%s%s' % (len(fns), trk.name, args.dir_glob,
+                                        ' (finished only)' if args.done_only else ''))
 nf = int(round(args.days * 24)) + 1
 for fn in fns:
     out_fn = out_dir / ('%s__%s.p' % (fn.parent.name, fn.stem))

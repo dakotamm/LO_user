@@ -20,6 +20,7 @@ session, just run the same command again. -redo ignores that.
 On apogee, after running the picker there (it writes the release table):
   nohup python 20261005_pcmap_launch.py -month 1 > pcmap_launch_01.log 2>&1 &
   nohup python 20261005_pcmap_launch.py > pcmap_launch_2025.log 2>&1 &
+  nohup python 20261005_pcmap_launch.py -every 3 -nproc 15 > pcmap_launch_every3.log 2>&1 &
 
 run 20261005_pcmap_launch.py -month 1 -dry      (mac test: sleeps instead of tracking)
 """
@@ -38,6 +39,8 @@ p = argparse.ArgumentParser()
 p.add_argument('-gtx', default='wb1_t0_xn11abbur00')
 p.add_argument('-year', type=int, default=2025)
 p.add_argument('-month', type=int, default=0, help='0 = every release in the table')
+p.add_argument('-every', type=int, default=1,
+               help='use the picker table made with the same -every')
 p.add_argument('-set', default='both', choices=['both', 'E', 'F'])
 p.add_argument('-nproc', type=int, default=12)
 p.add_argument('-stagger', type=float, default=2.0, help='min seconds between launches')
@@ -49,7 +52,8 @@ p.add_argument('-dry', action='store_true', help='sleep 1-3 s instead of running
 args = p.parse_args()
 
 Ldir = Lfun.Lstart(gridname='wb1')
-tbl = Ldir['LOo'] / 'DM_outs' / '20261005_pcmap_release_times' / ('pcmap_release_times_%d.csv' % args.year)
+tbl = Ldir['LOo'] / 'DM_outs' / '20261005_pcmap_release_times' / ('pcmap_release_times_%d%s.csv'
+       % (args.year, '_every%d' % args.every if args.every > 1 else ''))
 out_dir = Ldir['LOo'] / 'DM_outs' / '20261005_pcmap_launch'
 log_dir = out_dir / 'logs'
 Lfun.make_dir(log_dir)
