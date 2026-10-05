@@ -258,6 +258,24 @@ def get_ic(TR):
             fn00, gridname, ctag='pc1', riv='trapsN00',
             seg_list=['pc_cp_m'], hab_max=5.0, dz=0.5, frac_max=0.5)
 
+    elif exp_name == 'pcmap':
+        # Penn Cove residence-time MAPS (DM 2026.10.05).
+        #
+        # The whole cove landward of pc_lp, seeded volume-uniformly (DZ = 2 m,
+        # no per-segment cap) so every wet cell and depth gets particles in
+        # proportion to its volume. Regions (inner/outer, north/south,
+        # surface/bottom) are NOT built in here; the analysis tags each
+        # particle by its initial cell, so any split can be made afterwards.
+        #
+        # Released at the peak of the strongest ebb (sub_tag E_*) and of the
+        # strongest flood (sub_tag F_*) of each lunar day through 2025 -- at
+        # peak flow the water is near its tidal-mean position -- one tracker
+        # command per release; see DM_scripts/*_pcmap_release_times.py.
+        # -nsd/-dbs would step in whole days and break the tidal phase lock.
+        plon00, plat00, pcs00 = ic_from_tef2_segs(
+            fn00, gridname, ctag='pc1', riv='trapsN00',
+            seg_list=['pc_cp_m', 'pc_cp_p', 'pc_lp_m'], DZ=2)
+
     return plon00, plat00, pcs00
 
 

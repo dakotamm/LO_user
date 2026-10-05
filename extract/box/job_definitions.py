@@ -193,9 +193,19 @@ def get_box(job, Lon, Lat):
         # the interface has to be real). No velocities: u/v/w are already in
         # pc_cove on the same grid and can be read from there.
         #
-        # Use -lt hourly (ocean_his, instantaneous), matching pc_cove and
+        # Use -lt hourly0 (ocean_his, instantaneous), matching pc_cove and
         # extract_segments_SV.py: the budget pairs an instantaneous state
         # difference with an avg-file flux across the same interval.
+        #
+        # hourly0, NOT hourly. Plain -lt hourly defaults to his_num=2, which
+        # starts at ocean_his_0025.nc on the day BEFORE ds0 -- f2023.12.31 for a
+        # 2024.01.01 start, which does not exist for this run, and the job dies
+        # with FileNotFoundError before extracting anything. hourly0 reads
+        # ocean_his_0001.nc of ds0 instead. Those are the SAME INSTANT
+        # (f2023.12.31/0025 == f2024.01.01/0001 == 2024-01-01 00:00), so the
+        # time axis is unchanged at 17545 points and still lines up cell for
+        # cell with pc_cove and the segments file. -lt hourly -his_num 1 is
+        # equivalent if you prefer.
         #
         # 32 x 21 cells, 30 levels. Three 3D rho tracers at ~1.4 GB each over
         # 2024-2025, so roughly 4-5 GB -- about 40% of the velocity box.
