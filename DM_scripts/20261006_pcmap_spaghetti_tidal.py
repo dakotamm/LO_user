@@ -120,7 +120,13 @@ surf0 = cs0 >= -0.5
 
 # ------------------------------------------------------------- the map ---
 aa = [lon[cove].min() - 0.005, lon[cove].max() + 0.07, lat[cove].min() - 0.03, lat[cove].max() + 0.025]
-hm = np.ma.masked_where(mask == 0, h)
+# bathymetry cropped to the panel frame: every movie frame redraws all eight
+# panels, and drawing the full 368 x 272 grid eight times per frame is most of
+# the run time
+jb = np.where((lat_ax >= aa[2] - 2 * dlat) & (lat_ax <= aa[3] + 2 * dlat))[0]
+ib = np.where((lon_ax >= aa[0] - 2 * dlon) & (lon_ax <= aa[1] + 2 * dlon))[0]
+bs = (slice(jb[0], jb[-1] + 1), slice(ib[0], ib[-1] + 1))
+hm = np.ma.masked_where(mask[bs] == 0, h[bs])
 hrs = (ot - ot[0]) / pd.Timedelta(hours=1)
 norm = plt.Normalize(0, hrs[-1])
 cmap = plt.get_cmap('viridis')
@@ -145,9 +151,9 @@ def base_panels(fig_w=18, fig_h=7.0):
     fig, axs = plt.subplots(2, 4, figsize=(fig_w, fig_h), sharex=True, sharey=True)
     for (r, c), (idx, n_all, lab) in SEL.items():
         ax = axs[r, c]
-        ax.pcolormesh(lon, lat, hm, cmap='Greys', vmin=0, vmax=120, shading='nearest', alpha=0.35)
+        ax.pcolormesh(lon[bs], lat[bs], hm, cmap='Greys', vmin=0, vmax=120, shading='nearest', alpha=0.35)
         pfun.add_coast(ax, color='k', linewidth=0.6)
-        ax.contour(lon, lat, cove.astype(float), [0.5], colors='k', linewidths=1.0)
+        ax.contour(lon[bs], lat[bs], cove[bs].astype(float), [0.5], colors='k', linewidths=1.0)
         pfun.dar(ax)
         ax.axis(aa)
         ax.locator_params(axis='x', nbins=4)
