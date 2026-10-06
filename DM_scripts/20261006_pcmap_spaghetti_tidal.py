@@ -221,6 +221,15 @@ def base_panels(fig_w=18, fig_h=9.0):
         lim = 1.1 * np.abs(TIDE['qout']).max()
         ax2.set_ylim(-lim, lim)
         ax2.set_ylabel('transport out of cove\n[m$^3$ s$^{-1}$], dashed (+ ebb)')
+        # the maps keep their aspect (and lose width to the colorbar), so line
+        # the tide panel up with the left edge of the first map column and the
+        # right edge of the last
+        for ax in axs.ravel():
+            ax.apply_aspect()
+        p0, p3, pt = axs[1, 0].get_position(), axs[1, 3].get_position(), axt.get_position()
+        box = [p0.x0, pt.y0, p3.x1 - p0.x0, pt.height]
+        axt.set_position(box)
+        ax2.set_position(box)
     return fig, axs, axt
 
 
