@@ -13,6 +13,13 @@ direction of travel through the tide reads off the colour. Dot = start,
 x = end. Map framed on the cove and its mouth. The release starts at peak ebb
 (E) or peak flood (F).
 
+Below the maps, a tidal time series over the same window: ssh at pc_lp (tef2
+hourly_flux, hour-centred, interpolated onto the track clock) coloured by
+hours since release on the same scale as the paths, and the net transport at
+pc_lp (positive = out of the cove, ebb; sign taken from the data as in
+20261005_pcmap_release_times.py) on the right axis. In the movie a vertical
+line marks the current time.
+
 -mode movie (or both) also animates the same window: the same eight panels,
 paths growing behind each particle (coloured by hours since release) and the
 particles as dots, with ssh at pc_lp and the hour in the title. Positions are
@@ -146,9 +153,36 @@ phase = {'E': 'peak of the strongest ebb', 'F': 'peak of the strongest flood'}.g
 
 WINDOW = 'one tidal day' if args.hours > 20 else 'one tidal cycle'
 
+# tide over the window, every 10 min, from the unfiltered tef2 hourly series
+TIDE = None
+hf_fn = Ldir['LOo'] / 'extract' / args.gtx / 'tef2' / 'hourly_flux_2024.01.01_2025.12.31_wb1_pc1.nc'
+if hf_fn.is_file():
+    hf = xr.open_dataset(hf_fn)
+    th_ = pd.to_datetime(hf.time.values).values.astype('int64')
+    ssh_s = hf.ssh.sel(sect='pc_lp').values
+    q_s = hf.qnet.sel(sect='pc_lp').values
+    hf.close()
+    sgn = -np.sign(np.corrcoef(q_s, np.gradient(ssh_s))[0, 1])   # + = out of the cove (ebb)
+    t_ts = np.linspace(0, hrs[-1], int(round(hrs[-1] * 6)) + 1)
+    ta = (ot[0] + pd.to_timedelta(t_ts, unit='h')).values.astype('datetime64[ns]').astype('int64')
+    TIDE = dict(t=t_ts, ssh=np.interp(ta, th_, ssh_s), qout=sgn * np.interp(ta, th_, q_s))
+else:
+    print('no %s -- tide panel skipped' % hf_fn.name)
 
-def base_panels(fig_w=18, fig_h=7.0):
-    fig, axs = plt.subplots(2, 4, figsize=(fig_w, fig_h), sharex=True, sharey=True)
+
+def tide_value(t):
+    return np.interp(t, TIDE['t'], TIDE['ssh']) if TIDE is not None else np.nan
+
+
+def base_panels(fig_w=18, fig_h=9.0):
+    fig = plt.figure(figsize=(fig_w, fig_h))
+    gs = fig.add_gridspec(3, 4, height_ratios=[1, 1, 0.55] if TIDE is not None else [1, 1, 0.001],
+                          hspace=0.35)
+    axs = np.empty((2, 4), dtype=object)
+    for r in range(2):
+        for c in range(4):
+            axs[r, c] = fig.add_subplot(gs[r, c], sharex=axs[0, 0] if (r or c) else None,
+                                        sharey=axs[0, 0] if (r or c) else None)
     for (r, c), (idx, n_all, lab) in SEL.items():
         ax = axs[r, c]
         ax.pcolormesh(lon[bs], lat[bs], hm, cmap='Greys', vmin=0, vmax=120, shading='nearest', alpha=0.35)
@@ -161,11 +195,33 @@ def base_panels(fig_w=18, fig_h=7.0):
         ax.set_title('%s (%d of %d)' % (lab, len(idx), n_all), fontsize=10)
         if r == 1:
             ax.set_xlabel('Longitude')
+        else:
+            ax.tick_params(labelbottom=False)
         if c == 0:
             ax.set_ylabel('Latitude')
-    fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=axs, shrink=0.85, pad=0.01,
+        else:
+            ax.tick_params(labelleft=False)
+    fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=list(axs.ravel()), shrink=0.85, pad=0.01,
                  label='hours since release')
-    return fig, axs
+    axt = None
+    if TIDE is not None:
+        axt = fig.add_subplot(gs[2, :])
+        pts = np.column_stack([TIDE['t'], TIDE['ssh']])
+        axt.add_collection(LineCollection(np.stack([pts[:-1], pts[1:]], axis=1),
+                                          colors=cmap(norm(TIDE['t'][:-1])), linewidths=2.5))
+        axt.set_xlim(0, hrs[-1])
+        pad = 0.1 * np.ptp(TIDE['ssh'])
+        axt.set_ylim(TIDE['ssh'].min() - pad, TIDE['ssh'].max() + pad)
+        axt.set_ylabel('ssh at pc_lp [m]\n(coloured by time)')
+        axt.set_xlabel('hours since release')
+        axt.grid(color='lightgray', linestyle='--', alpha=0.5)
+        ax2 = axt.twinx()
+        ax2.plot(TIDE['t'], TIDE['qout'], color='0.45', lw=1.0, ls='--')
+        ax2.axhline(0, color='0.6', lw=0.6)
+        lim = 1.1 * np.abs(TIDE['qout']).max()
+        ax2.set_ylim(-lim, lim)
+        ax2.set_ylabel('transport out of cove\n[m$^3$ s$^{-1}$], dashed (+ ebb)')
+    return fig, axs, axt
 
 
 def path_segments(idx, x_all, y_all, t_all):
@@ -183,7 +239,7 @@ def path_segments(idx, x_all, y_all, t_all):
 
 # ------------------------------------------------------------- static ---
 if args.mode in ['static', 'both']:
-    fig, axs = base_panels()
+    fig, axs, axt = base_panels()
     for (r, c), (idx, n_all, lab) in SEL.items():
         ax = axs[r, c]
         segs, cols = path_segments(idx, plon, plat, hrs)
@@ -210,15 +266,8 @@ if args.mode in ['movie', 'both']:
                 out[:, k] = np.interp(tf, hrs[ok], A[ok, k], left=np.nan, right=np.nan)
         return out
     XI, YI = interp_t(plon), interp_t(plat)
-    ssh_f = None
-    hf_fn = Ldir['LOo'] / 'extract' / args.gtx / 'tef2' / 'hourly_flux_2024.01.01_2025.12.31_wb1_pc1.nc'
-    if hf_fn.is_file():
-        hf = xr.open_dataset(hf_fn)
-        s_all = pd.Series(hf.ssh.sel(sect='pc_lp').values, index=pd.to_datetime(hf.time.values))
-        hf.close()
-        tfa = (ot[0] + pd.to_timedelta(tf, unit='h')).values.astype('datetime64[ns]').astype('int64')
-        ssh_f = np.interp(tfa, s_all.index.values.astype('int64'), s_all.values)
-    fig, axs = base_panels()
+    fig, axs, axt = base_panels()
+    mark = axt.axvline(0, color='k', lw=1.5) if axt is not None else None
     arts = {}
     for (r, c), (idx, n_all, lab) in SEL.items():
         ax = axs[r, c]
@@ -238,7 +287,9 @@ if args.mode in ['movie', 'both']:
         ttl.set_text('%s: released %s UTC at the %s;  t = %.1f h  (%s UTC)%s'
                      % (name, ot[0].strftime('%Y-%m-%d %H:%M'), phase, tf[fi],
                         (ot[0] + pd.Timedelta(hours=tf[fi])).strftime('%H:%M'),
-                        '   ssh at pc_lp %+.2f m' % ssh_f[fi] if ssh_f is not None else ''))
+                        '   ssh at pc_lp %+.2f m' % tide_value(tf[fi]) if TIDE is not None else ''))
+        if mark is not None:
+            mark.set_xdata([tf[fi], tf[fi]])
         return []
 
     anim = animation.FuncAnimation(fig, update, frames=len(tf), interval=1000 / args.fps, blit=False)
