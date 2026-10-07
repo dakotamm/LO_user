@@ -57,8 +57,8 @@ reload(wwtp_was24)
 #################################################################################
 
 # LOGICAL SWITCH TO ENABLE OR DISABLE TINY RIVERS OR WWTPS
-enable_trivs = False # DM trapsN00noTRAPS: tiny rivers off
-enable_wwtps = False # DM trapsN00noTRAPS: WWTPs off
+enable_trivs = True
+enable_wwtps = False # DM trapsN00noWWTP: WWTPs off
 
 #################################################################################
 #                              Argument parsing                                 #
