@@ -163,8 +163,8 @@ for c, rel in enumerate(rels):
     ax.grid(**GRID)
 axs[0, 0].set_ylabel('height in column [0 bed, 1 surface]')
 axs[0, 0].legend(fontsize=7.5, loc='upper right')
-fig.suptitle('%s: vertical random walk alone (-no_advection), solid vs %s, dashed; even = %.2f'
-             % (args.gtx, CMPL, even), fontsize=12)
+fig.suptitle('%s: vertical random walk alone\nsolid = %s, dashed = %s; even = %.2f'
+             % (args.gtx, NL, CMPL, even), fontsize=11 if len(rels) == 1 else 12)
 fig.tight_layout()
 fn_out = out_dir / ('pcmap_nadv_test_profiles%s.png' % ('' if args.cmp == 'real' else '_vs_' + args.cmp))
 fig.savefig(fn_out, dpi=200, transparent=True)
