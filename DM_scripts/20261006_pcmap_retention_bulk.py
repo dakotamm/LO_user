@@ -97,6 +97,16 @@ up-cove (most positive); year-wide and within season, as for stratification.
 Up-cove wind is what reversed the vertical exchange at the mouth in
 20260818_pc_exchange_reversal.py.
 
+TIDAL ASYMMETRY (diurnal inequality)
+  pcmap_retention_bulk_<group>_tideF.png, _tideF_series.png
+  pcmap_retention_bulk_<group>_<seasons>_tideF_season_panels.png, _season_series.png
+Each release is classed by F = A_diurnal / A_semidiurnal, from a least-squares
+fit of a mean plus one diurnal (24.84 h) and one semidiurnal (12.42 h) harmonic
+to ssh at pc_lp (tef2 hourly_flux) over its first -sn_days. Low F: two
+near-equal tides a day; high F: one dominant tide a day (strong diurnal
+inequality). Terciles: semidiurnal / mid / diurnal, year-wide and within
+season. The series panel shows F from the same fit on windows stepped every 6 h.
+
 INITIAL DO
   pcmap_retention_bulk_<group>_DO.png
 Every release's curve coloured by the mean DO at release of the particles in
@@ -946,3 +956,36 @@ if hyp_fn.is_file():
     fig.savefig(fn_out, dpi=200, transparent=True, bbox_inches='tight')
     plt.close(fig)
     print('wrote %s' % fn_out)
+
+
+# -------------------------------------------- tidal asymmetry: F ratio ---
+hfx = __import__('xarray').open_dataset(tef2 / 'hourly_flux_2024.01.01_2025.12.31_wb1_pc1.nc')
+t_h = pd.to_datetime(hfx.time.values)
+ssh_lp = hfx.ssh.sel(sect='pc_lp').values
+hfx.close()
+WD, WS = 2 * np.pi / 24.84, 2 * np.pi / 12.42
+
+
+def f_ratio(t_start, hours):
+    m = (t_h >= t_start) & (t_h < t_start + pd.Timedelta(hours=hours))
+    tt = (t_h[m] - t_start) / pd.Timedelta(hours=1)
+    y = ssh_lp[m]
+    ok = np.isfinite(y)
+    if ok.sum() < 0.8 * hours:
+        return np.nan
+    X = np.column_stack([np.ones(ok.sum()), np.cos(WD * tt[ok]), np.sin(WD * tt[ok]),
+                         np.cos(WS * tt[ok]), np.sin(WS * tt[ok])])
+    b = np.linalg.lstsq(X, y[ok], rcond=None)[0]
+    return np.hypot(b[1], b[2]) / np.hypot(b[3], b[4])
+
+
+win_h = args.sn_days * 24
+frel = np.array([f_ratio(t, win_h) for t in t0s])
+tser = pd.date_range(yr0 - pd.Timedelta(days=args.sn_days), yr1, freq='6h')
+fser = np.array([f_ratio(t, win_h) for t in tser])
+# plot each window at its start time, matching the release markers (release = window start)
+classify_family('tideF', tser, fser, frel, ('semidiurnal', 'diurnal'),
+                {'semidiurnal': '#1b7837', 'diurnal': '#762a83', 'mid': '0.65'},
+                'F (diurnal/semidiurnal)', 'ratio', 'tidal asymmetry at pc_lp: diurnal / semidiurnal amplitude, '
+                'window starting at each time')
+print('  corr(F, qprism) over releases r = %+.2f' % np.corrcoef(frel, qrel)[0, 1])
