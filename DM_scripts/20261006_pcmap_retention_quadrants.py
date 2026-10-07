@@ -158,14 +158,12 @@ def seg_mask(names):
     return m
 
 
-cove = seg_mask(['pc_cp_m', 'pc_cp_p', 'pc_lp_m'])
-inner = seg_mask(['pc_cp_m'])
-jj, ii = np.where(cove)
-north = np.zeros((NR, NC), dtype=bool)
-for i in np.unique(ii):
-    north[jj[(ii == i) & (jj > jj[ii == i].mean())], i] = True
-QUAD = np.full((NR, NC), np.nan)
-QUAD[cove] = (2 * (~inner) + (~north))[cove]
+# cove, inner/outer and the pc_ew north/south split: the shared definition
+from pcmap_regions import regions
+REG = regions(Ldir, lon, lat)
+cove, inner, north = REG['cove'], REG['inner'], REG['north']
+QUAD = REG['QUAD'].copy()
+QUAD = np.where(QUAD >= 0, QUAD, np.nan)
 
 fig = plt.figure(figsize=(17, 5))
 gs = fig.add_gridspec(1, 3, width_ratios=[1.1, 1, 1])

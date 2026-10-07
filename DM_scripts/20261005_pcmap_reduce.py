@@ -9,8 +9,8 @@ COVE AND REGIONS (all from each particle's INITIAL rho cell)
                  water landward of pc_lp (317 cells) -- the release footprint.
                  Particles that start outside it are dropped.
   inner/outer    inner = pc_cp_m (landward of pc_cp, the Coupeville pinch)
-  north/south    split at the along-cove centreline: per rho column, the mean
-                 j of that column's cove cells; north if j > it
+  north/south    north of the pc_ew line drawn along the cove (pcmap_regions.py;
+                 adopted 2026-10-06, replacing a per-column mean-j split)
   surf/bot       split at mid-column: surf if the initial cs >= -0.5
 The quadrant is inner/outer x north/south; region3 adds surf/bot.
 
@@ -95,17 +95,11 @@ def seg_mask(names):
     return m
 
 
-cove = seg_mask(['pc_cp_m', 'pc_cp_p', 'pc_lp_m'])
-inner = seg_mask(['pc_cp_m'])
-jj, ii = np.where(cove)
-north = np.zeros((NR, NC), dtype=bool)
-for i in np.unique(ii):
-    jc = jj[ii == i].mean()
-    js = jj[(ii == i) & (jj > jc)]
-    north[js, i] = True
-# quadrant code on the grid: 0 inner-N, 1 inner-S, 2 outer-N, 3 outer-S, -1 not cove
-QUAD = np.full((NR, NC), -1, dtype=int)
-QUAD[cove] = (2 * (~inner) + (~north))[cove]
+# cove, inner/outer and the pc_ew north/south split: the shared definition
+from pcmap_regions import regions
+REG = regions(Ldir, lon, lat)
+cove, inner, north = REG['cove'], REG['inner'], REG['north']
+QUAD = REG['QUAD'].copy()
 QNAMES = ['inner-N', 'inner-S', 'outer-N', 'outer-S']
 print('cove %d cells; quadrants %s'
       % (cove.sum(), ', '.join('%s %d' % (n, (QUAD == k).sum()) for k, n in enumerate(QNAMES))))
@@ -227,7 +221,7 @@ for fn in fns:
     meta = dict(file=str(fn.relative_to(trk)), dir=fn.parent.name,
                 t0=ot[0], hours=np.arange(nf), zeta_mean=np.nanmean(zeta, axis=1),
                 n_dropped=int((~keep).sum()), days=args.days, cutoffs=cutoffs,
-                nf=nf, fn_his=str(fn_his))
+                nf=nf, fn_his=str(fn_his), quad_def='pc_ew')
     pickle.dump(dict(meta=meta, P=P, curves=curves,
                      inside_bits=np.packbits(inside, axis=0)), open(out_fn, 'wb'))
     print('%-45s t0 %s  NP %d (dropped %d)  censored %.1f%%  median exit %.1f h  '

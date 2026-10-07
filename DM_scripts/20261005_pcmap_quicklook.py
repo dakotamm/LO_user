@@ -7,7 +7,7 @@ releases still running are partly written.
 
 Same cove and quadrants as 20261005_pcmap_reduce.py (from each particle's
 initial cell): cove = pc_cp_m + pc_cp_p + pc_lp_m, inner = pc_cp_m, N/S split
-at each column's mean j, surface/bottom split at cs = -0.5.
+by the pc_ew line (pcmap_regions.py), surface/bottom split at cs = -0.5.
 
   fig 1  fraction still inside the cove (solid) and never left (dashed) vs
          days, whole cove and each quadrant of origin, one line per release,
@@ -69,14 +69,11 @@ def seg_mask(names):
     return m
 
 
-cove = seg_mask(['pc_cp_m', 'pc_cp_p', 'pc_lp_m'])
-inner = seg_mask(['pc_cp_m'])
-jj, ii = np.where(cove)
-north = np.zeros((NR, NC), dtype=bool)
-for i in np.unique(ii):
-    north[jj[(ii == i) & (jj > jj[ii == i].mean())], i] = True
-QUAD = np.full((NR, NC), -1, dtype=int)
-QUAD[cove] = (2 * (~inner) + (~north))[cove]
+# cove, inner/outer and the pc_ew north/south split: the shared definition
+from pcmap_regions import regions
+REG = regions(Ldir, lon, lat)
+cove, inner, north = REG['cove'], REG['inner'], REG['north']
+QUAD = REG['QUAD'].copy()
 
 # ---------------------------------------------------------------- files ---
 fns = sorted(f for dd in sorted(trk.glob(args.dir_glob)) if dd.is_dir()

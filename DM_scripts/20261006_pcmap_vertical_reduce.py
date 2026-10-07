@@ -8,7 +8,7 @@ already reduced unless -clobber.
 
 Same cove, quadrants and starting half as 20261005_pcmap_reduce.py, all from
 each particle's INITIAL position: cove = pc_cp_m + pc_cp_p + pc_lp_m, inner =
-pc_cp_m, N/S at each column's mean j, surface half if the initial cs >= -0.5.
+pc_cp_m, N/S by the pc_ew line (pcmap_regions.py), surface half if the initial cs >= -0.5.
 Particles that start outside the cove are dropped.
 
 Height is FRACTIONAL height in the column, cs + 1 (0 = bed, 1 = surface), not
@@ -75,14 +75,11 @@ def seg_mask(names):
     return m
 
 
-cove = seg_mask(['pc_cp_m', 'pc_cp_p', 'pc_lp_m'])
-inner = seg_mask(['pc_cp_m'])
-jj, ii = np.where(cove)
-north = np.zeros((NR, NC), dtype=bool)
-for i in np.unique(ii):
-    north[jj[(ii == i) & (jj > jj[ii == i].mean())], i] = True
-QUAD = np.full((NR, NC), -1, dtype=int)
-QUAD[cove] = (2 * (~inner) + (~north))[cove]
+# cove, inner/outer and the pc_ew north/south split: the shared definition
+from pcmap_regions import regions
+REG = regions(Ldir, lon, lat)
+cove, inner, north = REG['cove'], REG['inner'], REG['north']
+QUAD = REG['QUAD'].copy()
 QNAMES = ['inner-N', 'inner-S', 'outer-N', 'outer-S']
 
 # --------------------------------------------------------------- reduce ---
