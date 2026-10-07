@@ -25,6 +25,10 @@ Per release and per cohort -- surf, bot (whole cove) and each quadrant-half
                            all / inside-only
   n, n_in                  cohort size, number inside the cove right now
 Inside-only values are NaN where no particle of the cohort is inside.
+  hist_all, hist_in        particle COUNTS per height bin per hour, shape
+                           (nf, -nbins), bins of cs + 1 from 0 (bed) to 1
+                           (surface), all particles / inside the cove only;
+                           stored for the cohorts all, surf, bot (whole cove)
 
 Output: LO_output/DM_outs/20261006_pcmap_vertical_reduce/<gtx>/<dir>__<release>.p
 
@@ -47,6 +51,7 @@ p.add_argument('-gtx', default='wb1_t0_xn11abbur00')
 p.add_argument('-dir_glob', default='pcmap_3d*')
 p.add_argument('-days', type=float, default=14.0, help='common record length')
 p.add_argument('-clobber', action='store_true')
+p.add_argument('-nbins', type=int, default=10, help='height bins for the histograms')
 p.add_argument('-done_only', action='store_true',
                help='only releases the launcher logged as finished (returncode 0)')
 args = p.parse_args()
@@ -118,7 +123,7 @@ for fn in fns:
     in_surf = hgt >= 0.5                                  # current half (NaN -> False)
     valid = np.isfinite(hgt)
 
-    groups = {'surf': surf0, 'bot': ~surf0}
+    groups = {'all': np.ones(len(surf0), dtype=bool), 'surf': surf0, 'bot': ~surf0}
     for k, qn in enumerate(QNAMES):
         groups['%s-surf' % qn] = (q[0] == k) & surf0
         groups['%s-bot' % qn] = (q[0] == k) & ~surf0
@@ -142,8 +147,15 @@ for fn in fns:
                 sw_all=(other.sum(axis=1) / np.maximum(V.sum(axis=1), 1)).astype(np.float32),
                 sw_in=np.where(n_in > 0, (other & INS).sum(axis=1) / np.maximum(n_in, 1),
                                np.nan).astype(np.float32))
+            if gname in ('all', 'surf', 'bot'):
+                kb = np.clip(np.floor(H * args.nbins), 0, args.nbins - 1)   # NaN stays NaN
+                for key, sel in [('hist_all', V), ('hist_in', V & INS)]:
+                    hc = np.zeros((H.shape[0], args.nbins), dtype=np.int32)
+                    for b in range(args.nbins):
+                        hc[:, b] = ((kb == b) & sel).sum(axis=1)
+                    G[gname][key] = hc
     meta = dict(file=str(fn.relative_to(trk)), dir=fn.parent.name, t0=t0, nf=nf, days=args.days,
-                n_dropped=int((~keep).sum()))
+                n_dropped=int((~keep).sum()), nbins=args.nbins, quad_def='pc_ew')
     pickle.dump(dict(meta=meta, groups=G), open(out_fn, 'wb'))
     print('%-45s t0 %s  surf %d bot %d  height at end: surf %.2f bot %.2f  switched: surf %.2f bot %.2f'
           % (out_fn.name, t0, G['surf']['n'], G['bot']['n'], G['surf']['h_mean_all'][-1],
