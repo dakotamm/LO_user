@@ -350,7 +350,11 @@ def make_forcing(N,NT,NRIV,NTRIV,NWWTP_moh,dt_ind, yd_ind,ot_vec,Ldir,enable,tra
                     bvals_post2020 = qtbio_wwtp_df_dict[rn][var_post].values
                     # concatenate the values
                     bvals = np.concatenate([bvals_thru2020, bvals_post2020])
-                    
+                # DM trapsN00noPCwwtpN: zero N loads for the Penn Cove WWTPs (flow, T/S, DO, carbon kept)
+                if rn in ['COUPEVILLE STP', 'PENN COVE WWTP'] and var in ['NO3', 'NH4']:
+                    print('Zeroing out %s for %s' % (var,rn))
+                    bvals = bvals*0
+
                 for nn in range(N):
                     B_mat[:, nn, rr] = bvals
             # check for nans
