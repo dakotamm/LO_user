@@ -212,4 +212,27 @@ def get_box(job, Lon, Lat):
         aa = [-122.735882, -122.652000, 48.213109, 48.249196]
         vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,temp,oxygen'
 
+    elif job == 'sp_head_tide': #DM added 2026/10/08 -- tidal ellipses, head of Saratoga Passage
+        # Input to DM_scripts/20261008_tidal_ellipses.py (harmonic analysis of
+        # zeta + depth-averaged, surface and bottom velocity). Footprint = the
+        # wet cells inside section_lines/sp_head.p (2919; skagit_sp to ~48.18 N,
+        # Penn Cove included) + 1 cell margin: rho i 37-136, j 192-258,
+        # 100 x 67, 3363 wet. West edge is the same rho column as pc_cove.
+        # Bounds are rho-centre values so find_nearest_ind lands exactly.
+        # Run it TWICE, once per layer:
+        #   python extract_box.py -gtx wb1_t0_xn11abbur00 -ro 2 -0 2024.01.01 -1 2025.12.31 -lt hourly0 -job sp_head_tide -surf True > sp_head_tide_surf.log &
+        #   python extract_box.py -gtx wb1_t0_xn11abbur00 -ro 2 -0 2024.01.01 -1 2025.12.31 -lt hourly0 -job sp_head_tide -bot True > sp_head_tide_bot.log &
+        # -surf / -bot keep only the top / bottom s_rho level of u and v, and
+        # they SKIP the z_rho/z_w step. Without one of them extract_box reads
+        # ds.salt (not on this list -> crash), and full 3D u,v + salt + float64
+        # z arrays would be ~50 GB held in memory. The full vertical structure
+        # in the cove is already in pc_cove.
+        # Outputs sp_head_tide_surf_*.nc and sp_head_tide_bot_*.nc (zeta/ubar/
+        # vbar are duplicated in both; the fit script reads them once).
+        # No -uv_to_rho: the fit script averages faces to rho itself.
+        # hourly0 for the same reason as pc_cove (no f2023.12.31 for t0).
+        # 2024-2025 to match pc_cove; ~0.47 GB per 2D field, ~2.4 GB per run.
+        aa = [-122.735882, -122.468000, 48.182435, 48.301522]
+        vn_list = 'h,f,pm,pn,mask_rho,zeta,ubar,vbar,u,v'
+
     return aa, vn_list
