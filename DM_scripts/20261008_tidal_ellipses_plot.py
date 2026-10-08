@@ -12,16 +12,22 @@ Plot the harmonic fits from 20261008_tidal_ellipses.py.
 -fld  bar (depth-averaged), surf / bot (top / bottom layer: the -surf/-bot
       fits for sp_head_tide), or top / bot from the 3D fit for pc_cove.
 
-Figures (to ~/Desktop/pltz):
+Figures (to LO_output/DM_outs/20261008_tidal_ellipses/):
   tidal_ellipses_<job>_<dom>_<fld>_<CON>.png  major axis + glyphs, signed
       eccentricity (Lsmin/Lsmaj, + = counterclockwise), inclination, phase
-  tidal_cotidal_<job>_<dom>.png               zeta amplitude and phase
+  tidal_cotidal_<job>_<dom>_<CON>.png         zeta amplitude and phase
+  tidal_ellipses_<job>_<dom>_<fld>_allcons.png overview: major axis + glyphs,
+      one panel per constituent (own color scale each)
+  tidal_cotidal_<job>_<dom>_allcons.png       overview: zeta amplitude, one
+      panel per constituent
+-cons  'all' (default, every constituent in the fit) or e.g. M2,K1
+  tidal_residual_<job>_<dom>.png              Eulerian residual (time-mean
+      velocity): depth-averaged, top and bottom layers, one shared scale
   tidal_ellipses_<job>_vertical_<CON>.png     (3D fits only) surface vs bottom
       glyphs and the ellipse along the mouth (last rho column west of pc_lp)
 """
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -42,20 +48,22 @@ parser.add_argument('-0', '--ds0', default='2024.01.01', type=str)
 parser.add_argument('-1', '--ds1', default='2025.12.31', type=str)
 parser.add_argument('-dom', default='box', type=str)
 parser.add_argument('-fld', default='bar', type=str)
-parser.add_argument('-cons', default='M2,K1', type=str)
+parser.add_argument('-cons', default='all', type=str)
 args = parser.parse_args()
 
 gridname, tag, ex_name = args.gtagex.split('_')
 Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)
 fn = Ldir['LOo'] / 'extract' / args.gtagex / 'tidal_ellipses' / (args.job + '_' + args.ds0 + '_' + args.ds1 + '.nc')
-out_dir = Path.home() / 'Desktop' / 'pltz'
+out_dir = Ldir['LOo'] / 'DM_outs' / '20261008_tidal_ellipses'
 Lfun.make_dir(out_dir)
 sect_dir = Ldir['LOo'] / 'section_lines'
-CONS = args.cons.split(',')
 PAD_CELLS = 10
 NGLYPH = 16 # target glyphs across the window
 
 ds = xr.open_dataset(fn)
+CONS = [str(c) for c in ds.con.values] if args.cons == 'all' else args.cons.split(',')
+PERIOD = {'M2': 12.42, 'S2': 12.00, 'N2': 12.66, 'K2': 11.97, 'K1': 23.93, 'O1': 25.82,
+    'P1': 24.07, 'Q1': 26.87, 'M4': 6.21, 'MS4': 6.10, 'M6': 4.14} # hours
 lon = ds.lon_rho.values
 lat = ds.lat_rho.values
 dx = np.nanmedian(np.diff(lon[0]))
@@ -110,13 +118,14 @@ def nice(x):
     return max(m for m in [1, 2, 5, 10] if m * e <= x) * e
 
 def glyphs(ax, Lsmaj, Lsmin, theta, color='k'):
-    """Ellipse outlines on every step-th cell; scale set so the 95th pctl major
-    axis fills half the glyph spacing. Adds a reference bar, returns the scale."""
+    """Ellipse outlines on every step-th cell; scale set so the 99th pctl major
+    axis fills half the glyph spacing (no overlap). Adds a reference bar."""
     jj, ii = np.meshgrid(np.arange(0, lon.shape[0], step), np.arange(0, lon.shape[1], step), indexing='ij')
     sel = show[jj, ii] & inwin[jj, ii] & np.isfinite(Lsmaj[jj, ii])
     jj, ii = jj[sel], ii[sel]
-    ref = nice(np.nanpercentile(np.where(show & inwin, Lsmaj, np.nan), 95))
-    sc = 0.5 * step * cell_m / ref # map metres per (m/s)
+    big = np.nanpercentile(np.where(show & inwin, Lsmaj, np.nan), 99)
+    sc = 0.5 * step * cell_m / big # map metres per (m/s)
+    ref = nice(big) # bar length, a round number <= big
     ph = np.linspace(0, 2 * np.pi, 41)
     segs = []
     for j, i in zip(jj, ii):
@@ -158,27 +167,104 @@ for con in CONS:
     glyphs(axd['a'], Lsmaj, Lsmin, theta)
     fig.suptitle('%s tidal ellipses (%s): %s, %s to %s' % (con, args.fld, args.gtagex, args.ds0, args.ds1))
     out_fn = out_dir / ('tidal_ellipses_%s_%s_%s_%s.png' % (args.job, args.dom, args.fld, con))
-    fig.savefig(out_fn, dpi=200, bbox_inches='tight', transparent=True)
+    fig.savefig(out_fn, dpi=200, bbox_inches='tight', facecolor='white') # white for now; was transparent=True
     plt.close(fig)
     print('Saved ' + str(out_fn))
 
 # ---------------------------------------------------------------- cotidal ---
-fig, axd = plt.subplot_mosaic([[c + 'A', c + 'g'] for c in CONS], layout='constrained', figsize=(fig_w, (fig_h - 1.0) * len(CONS) / 2 + 1.0))
-for n, con in enumerate(CONS):
+for con in CONS:
+    fig, axd = plt.subplot_mosaic([[con + 'A', con + 'g']], layout='constrained', figsize=(fig_w, (fig_h - 1.0) / 2 + 1.0))
     A = 100 * ds.zeta_A.sel(con=con).values
     g = ds.zeta_g.sel(con=con).values
-    for k, f, cmap, (v0, v1), lab in [(con + 'A', A, cmocean.cm.amp, vrange(A), con + ' amplitude [cm]'), (con + 'g', g, cmocean.cm.phase, vrange(g), con + ' Greenwich phase [deg]')]:
+    # unwrap around the circular mean so a field straddling 0/360 stays continuous;
+    # cyclic colormap only when the phase spread is large enough to need it
+    gr = np.deg2rad(g[show & inwin & np.isfinite(g)])
+    gm = np.rad2deg(np.arctan2(np.sin(gr).mean(), np.cos(gr).mean())) % 360
+    g = (g - gm + 180) % 360 - 180 + gm
+    gcmap = cmocean.cm.phase if np.ptp(vrange(g)) > 90 else cmocean.cm.tempo
+    for k, f, cmap, (v0, v1), lab in [(con + 'A', A, cmocean.cm.amp, vrange(A), con + ' amplitude [cm]'), (con + 'g', g, gcmap, vrange(g), con + ' Greenwich phase [deg]')]:
         ax = axd[k]
         cs = ax.pcolormesh(plon, plat, masked(f), cmap=cmap, vmin=v0, vmax=v1, shading='flat')
-        fig.colorbar(cs, ax=ax, shrink=0.85, label=lab)
+        cb = fig.colorbar(cs, ax=ax, shrink=0.85, label=lab)
+        cb.formatter.set_useOffset(False)
+        cb.update_ticks()
         setup(ax)
-    letter(axd[con + 'A'], 'abcdefgh'[2 * n])
-    letter(axd[con + 'g'], 'abcdefgh'[2 * n + 1])
-fig.suptitle('Cotidal (zeta): %s, %s to %s' % (args.gtagex, args.ds0, args.ds1))
-out_fn = out_dir / ('tidal_cotidal_%s_%s.png' % (args.job, args.dom))
-fig.savefig(out_fn, dpi=200, bbox_inches='tight', transparent=True)
-plt.close(fig)
-print('Saved ' + str(out_fn))
+    letter(axd[con + 'A'], 'a')
+    letter(axd[con + 'g'], 'b')
+    fig.suptitle('%s cotidal (zeta): %s, %s to %s' % (con, args.gtagex, args.ds0, args.ds1))
+    out_fn = out_dir / ('tidal_cotidal_%s_%s_%s.png' % (args.job, args.dom, con))
+    fig.savefig(out_fn, dpi=200, bbox_inches='tight', facecolor='white') # white for now; was transparent=True
+    plt.close(fig)
+    print('Saved ' + str(out_fn))
+
+# --------------------------------------------- overviews, one panel per con ---
+NCOL = 4
+rows = [CONS[i:i + NCOL] for i in range(0, len(CONS), NCOL)]
+rows[-1] = rows[-1] + ['.'] * (NCOL - len(rows[-1]))
+row_h = (fig_h - 1.0) / 2 * 5 / 6 # same panel aspect as the 2-col figures at 5 in wide
+for kind in ['ellipses', 'cotidal']:
+    fig, axd = plt.subplot_mosaic(rows, layout='constrained', figsize=(5 * NCOL, row_h * len(rows) + 1.0))
+    for n, con in enumerate(CONS):
+        ax = axd[con]
+        if kind == 'ellipses':
+            Lsmaj = fld_slice('Lsmaj', con)
+            f, cmap, lab = 100 * Lsmaj, cmocean.cm.speed, 'Semi-major axis [cm/s]'
+        else:
+            f, cmap, lab = 100 * ds.zeta_A.sel(con=con).values, cmocean.cm.amp, 'Amplitude [cm]'
+        v0, v1 = (0, vrange(f)[1]) if kind == 'ellipses' else vrange(f)
+        cs = ax.pcolormesh(plon, plat, masked(f), cmap=cmap, vmin=v0, vmax=v1, shading='flat')
+        cb = fig.colorbar(cs, ax=ax, shrink=0.85, label=lab)
+        cb.formatter.set_useOffset(False)
+        cb.update_ticks()
+        setup(ax)
+        if kind == 'ellipses':
+            glyphs(ax, Lsmaj, fld_slice('Lsmin', con), fld_slice('theta', con))
+        ax.set_title('%s (%.2f h)' % (con, PERIOD.get(con, np.nan)), fontsize=11)
+        letter(ax, 'abcdefghijklmnop'[n])
+    if kind == 'ellipses':
+        fig.suptitle('Tidal ellipses (%s), all constituents: %s, %s to %s' % (args.fld, args.gtagex, args.ds0, args.ds1))
+        out_fn = out_dir / ('tidal_ellipses_%s_%s_%s_allcons.png' % (args.job, args.dom, args.fld))
+    else:
+        fig.suptitle('Cotidal (zeta) amplitude, all constituents: %s, %s to %s' % (args.gtagex, args.ds0, args.ds1))
+        out_fn = out_dir / ('tidal_cotidal_%s_%s_allcons.png' % (args.job, args.dom))
+    fig.savefig(out_fn, dpi=200, bbox_inches='tight', facecolor='white') # white for now; was transparent=True
+    plt.close(fig)
+    print('Saved ' + str(out_fn))
+
+# ----------------------------------------------------- Eulerian residual ---
+def mean_uv(P):
+    """(u, v) time-mean velocity for bar/surf/bot, or top/bot of the 3D fit."""
+    if P + '_umean' in ds:
+        return ds[P + '_umean'].values, ds[P + '_vmean'].values
+    iz = -1 if P == 'top' else 0
+    return ds['3d_umean'].values[iz], ds['3d_vmean'].values[iz]
+
+if 'bar_umean' in ds:
+    PANELS = ['bar'] + (['surf'] if 'surf_umean' in ds else ['top'] if '3d_umean' in ds else [])
+    PANELS += ['bot'] if ('bot_umean' in ds or '3d_umean' in ds) else []
+    LABEL = {'bar': 'depth-averaged', 'surf': 'top layer', 'top': 'top layer', 'bot': 'bottom layer'}
+    UV = {P: mean_uv(P) for P in PANELS}
+    spd = {P: np.hypot(*UV[P]) for P in PANELS}
+    big = np.nanpercentile(np.concatenate([spd[P][show & inwin] for P in PANELS]), 98)
+    ref = nice(big)
+    fig, axd = plt.subplot_mosaic([PANELS], layout='constrained', figsize=(6 * len(PANELS), (fig_h - 1.0) / 2 + 1.0))
+    jj, ii = np.meshgrid(np.arange(0, lon.shape[0], step), np.arange(0, lon.shape[1], step), indexing='ij')
+    for n, P in enumerate(PANELS):
+        ax = axd[P]
+        u, v = UV[P]
+        cs = ax.pcolormesh(plon, plat, masked(100 * spd[P]), cmap=cmocean.cm.speed, vmin=0, vmax=100 * big, shading='flat')
+        setup(ax)
+        sel = show[jj, ii] & inwin[jj, ii] & np.isfinite(u[jj, ii])
+        q = ax.quiver(lon[jj, ii][sel], lat[jj, ii][sel], u[jj, ii][sel], v[jj, ii][sel], scale=big / 0.3, scale_units='inches', width=0.004, color='k', zorder=3)
+        ax.quiverkey(q, 0.12, 0.06, ref, '%g cm/s' % (100 * ref), labelpos='N', coordinates='axes', fontproperties={'size': 9})
+        ax.set_title(LABEL[P], fontsize=11)
+        letter(ax, 'abcd'[n])
+    fig.colorbar(cs, ax=[axd[P] for P in PANELS], shrink=0.85, label='Eulerian residual speed [cm/s]')
+    fig.suptitle('Eulerian residual (time-mean velocity): %s, %s to %s' % (args.gtagex, args.ds0, args.ds1))
+    out_fn = out_dir / ('tidal_residual_%s_%s.png' % (args.job, args.dom))
+    fig.savefig(out_fn, dpi=200, bbox_inches='tight', facecolor='white') # white for now; was transparent=True
+    plt.close(fig)
+    print('Saved ' + str(out_fn))
 
 # --------------------------------------------------- vertical (3D fit only) ---
 if '3d_Lsmaj' in ds:
@@ -211,6 +297,6 @@ if '3d_Lsmaj' in ds:
             letter(axd[k], {'top': 'a', 'bot': 'b', 'smaj': 'c', 'ecc': 'd'}[k])
         fig.suptitle('%s tidal ellipses vs depth: %s, %s to %s' % (con, args.gtagex, args.ds0, args.ds1))
         out_fn = out_dir / ('tidal_ellipses_%s_vertical_%s.png' % (args.job, con))
-        fig.savefig(out_fn, dpi=200, bbox_inches='tight', transparent=True)
+        fig.savefig(out_fn, dpi=200, bbox_inches='tight', facecolor='white') # white for now; was transparent=True
         plt.close(fig)
         print('Saved ' + str(out_fn))
