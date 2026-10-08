@@ -42,8 +42,16 @@ field P in {bar, surf, bot, 3d}:
   P_theta           inclination of the major axis [deg CCW from east, 0-180]
   P_g               Greenwich phase of max current along +theta [deg]
   and *_ci          95% confidence half-widths (utide 'linear')
+  P_umean, P_vmean   EULERIAN residual: time mean of the rho-point velocity
+                    over the record [m s-1]. Plain mean, not utide's mean term
+                    (identical to within noise over a 2-year record). This is
+                    NOT the Lagrangian residual -- Stokes drift is not in it.
 zeta_A [m], zeta_g [deg] (+ _ci) for the cotidal maps. z0_rho (s_rho, eta,
 xi) is the depth of each layer at zeta = 0, for plotting the 3D fit vs depth.
+
+-mean_only True adds/overwrites only the *_umean/*_vmean fields in an EXISTING
+output file -- no fits, a few minutes of reading. For files made before the
+means were added.
 """
 
 import sys
@@ -65,6 +73,7 @@ parser.add_argument('-1', '--ds1', default='2025.12.31', type=str)
 parser.add_argument('-Nproc', default=8, type=int)
 parser.add_argument('-do_3d', default=True, type=Lfun.boolean_string) # fit every layer of 3D u/v if present
 parser.add_argument('-test', default=False, type=Lfun.boolean_string) # one month, every 4th cell
+parser.add_argument('-mean_only', default=False, type=Lfun.boolean_string) # add Eulerian means to an existing output file
 args = parser.parse_args()
 
 # the 8 constituents in the parent's tide forcing (tide00) + shallow-water overtides
@@ -151,15 +160,22 @@ def run(fun, a, b=None):
     sys.stdout.flush()
     return full.reshape(res.shape[:2] + (NR, NC))
 
-out = xr.Dataset(coords={'con': CONS, 'lon_rho': (('eta_rho', 'xi_rho'), ds.lon_rho.values), 'lat_rho': (('eta_rho', 'xi_rho'), lat)})
-out['h'] = (('eta_rho', 'xi_rho'), ds.h.values)
-out['mask_rho'] = (('eta_rho', 'xi_rho'), ds.mask_rho.values)
-dims2 = ('con', 'eta_rho', 'xi_rho')
+def rho_mean(ur, vr):
+    """Eulerian residual: time mean at each wet rho point."""
+    return np.where(mask, np.nanmean(ur, axis=0), np.nan), np.where(mask, np.nanmean(vr, axis=0), np.nan)
 
-print('zeta')
-res = run(fit_z, ds.zeta.values)
-for i, vn in enumerate(Z_OUT):
-    out['zeta_' + vn] = (dims2, res[i])
+dims2 = ('con', 'eta_rho', 'xi_rho')
+if args.mean_only:
+    print('Adding means to ' + str(out_fn))
+    out = xr.load_dataset(out_fn)
+else:
+    out = xr.Dataset(coords={'con': CONS, 'lon_rho': (('eta_rho', 'xi_rho'), ds.lon_rho.values), 'lat_rho': (('eta_rho', 'xi_rho'), lat)})
+    out['h'] = (('eta_rho', 'xi_rho'), ds.h.values)
+    out['mask_rho'] = (('eta_rho', 'xi_rho'), ds.mask_rho.values)
+    print('zeta')
+    res = run(fit_z, ds.zeta.values)
+    for i, vn in enumerate(Z_OUT):
+        out['zeta_' + vn] = (dims2, res[i])
 
 pairs = [('bar', ds, 'ubar', 'vbar')]
 for k in ['surf', 'bot']: # -surf / -bot boxes: u/v are one layer only
@@ -171,22 +187,31 @@ for k in ['surf', 'bot']: # -surf / -bot boxes: u/v are one layer only
 for P, dp, vu, vv in pairs:
     print(P)
     ur, vr = to_rho(dp[vu].values, dp[vv].values)
-    res = run(fit_uv, ur, vr)
-    for i, vn in enumerate(UV_OUT):
-        out[P + '_' + vn] = (dims2, res[i])
+    um, vm = rho_mean(ur, vr)
+    out[P + '_umean'] = (('eta_rho', 'xi_rho'), um)
+    out[P + '_vmean'] = (('eta_rho', 'xi_rho'), vm)
+    if not args.mean_only:
+        res = run(fit_uv, ur, vr)
+        for i, vn in enumerate(UV_OUT):
+            out[P + '_' + vn] = (dims2, res[i])
     del ur, vr
 
 if args.do_3d and ('u' in ds) and (ds.u.ndim == 4):
     NZ = ds.sizes['s_rho']
     res3 = np.full((len(UV_OUT), len(CONS), NZ, NR, NC), np.nan)
+    mean3 = np.full((2, NZ, NR, NC), np.nan)
     for iz in range(NZ):
         print('3d layer %d of %d' % (iz + 1, NZ))
         ur, vr = to_rho(ds.u[:, iz].values, ds.v[:, iz].values)
-        res = run(fit_uv, ur, vr)
-        res3[:, :, iz] = res
+        mean3[:, iz] = rho_mean(ur, vr)
+        if not args.mean_only:
+            res3[:, :, iz] = run(fit_uv, ur, vr)
+    out['3d_umean'] = (('s_rho', 'eta_rho', 'xi_rho'), mean3[0])
+    out['3d_vmean'] = (('s_rho', 'eta_rho', 'xi_rho'), mean3[1])
     dims3 = ('con', 's_rho', 'eta_rho', 'xi_rho')
-    for i, vn in enumerate(UV_OUT):
-        out['3d_' + vn] = (dims3, res3[i])
+    if not args.mean_only:
+        for i, vn in enumerate(UV_OUT):
+            out['3d_' + vn] = (dims3, res3[i])
     # layer depths at zeta = 0 (Vtransform 2): z = h * (hc*s + Cs*h) / (hc + h)
     h = ds.h.values[None]
     s = ds.s_rho.values[:, None, None]
@@ -196,12 +221,13 @@ if args.do_3d and ('u' in ds) and (ds.u.ndim == 4):
     out = out.assign_coords(s_rho=ds.s_rho.values)
 
 for vn in out.data_vars:
-    if 'Lsm' in vn:
+    if ('Lsm' in vn) or vn.endswith('mean'):
         out[vn].attrs['units'] = 'm s-1'
     elif vn.endswith(('theta', 'g', 'theta_ci', 'g_ci')):
         out[vn].attrs['units'] = 'deg'
-out.attrs = {'source': ', '.join(str(fn) for fn in found.values()), 'times': '%s to %s, %d hourly' % (str(T[0])[:16], str(T[-1])[:16], len(T)),
-    'method': 'utide.solve ' + str({k: v for k, v in KW.items() if k != 'constit'}),
-    'sign': 'Lsmin > 0 counterclockwise; theta deg CCW from east; g Greenwich phase deg'}
+if not args.mean_only:
+    out.attrs = {'source': ', '.join(str(fn) for fn in found.values()), 'times': '%s to %s, %d hourly' % (str(T[0])[:16], str(T[-1])[:16], len(T)),
+        'method': 'utide.solve ' + str({k: v for k, v in KW.items() if k != 'constit'}),
+        'sign': 'Lsmin > 0 counterclockwise; theta deg CCW from east; g Greenwich phase deg'}
 out.to_netcdf(out_fn, encoding={vn: {'dtype': 'float32'} for vn in out.data_vars})
 print('Saved ' + str(out_fn))
