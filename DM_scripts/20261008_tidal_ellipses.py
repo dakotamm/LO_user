@@ -131,7 +131,9 @@ LAT = lat.ravel()[wet]
 
 def fit_uv(k):
     a, b = A[:, k], B[:, k]
-    if np.isfinite(a).mean() < MIN_GOOD:
+    # both components: on the box edge u can be finite where v is all NaN
+    # (one-sided faces), and utide drops any hour where either is NaN
+    if (np.isfinite(a) & np.isfinite(b)).mean() < MIN_GOOD:
         return np.full((len(UV_OUT), len(CONS)), np.nan)
     c = utide.solve(T, a, b, lat=LAT[k], **KW)
     ii = [list(c.name).index(n) for n in CONS]
