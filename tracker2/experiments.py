@@ -276,6 +276,72 @@ def get_ic(TR):
             fn00, gridname, ctag='pc1', riv='trapsN00',
             seg_list=['pc_cp_m', 'pc_cp_p', 'pc_lp_m'], DZ=2)
 
+    elif exp_name in ['pcsrc', 'pcsrc_nc']:
+        # Penn Cove SOURCE WATER (DM 2026.10.12).
+        #
+        # Seed all of wb.p (Whidbey Basin north of to_mb), volume-weighted,
+        # densest near the cove and sparser away from it. In the analysis, cove
+        # water at a later time T is broken down by where its particles were
+        # at release, using the volume each particle stands for. Regions,
+        # densities and weights all live in DM_scripts/pcsrc_regions.py, which
+        # the analysis imports too.
+        #
+        # 'pcsrc' includes the cove itself, seeded exactly as pcmap (same
+        # helper, segments and DZ = 2). It is used for the pilot only, to test
+        # whether pcmap's still-inside curve can be extrapolated past its 14 d.
+        # 'pcsrc_nc' leaves the cove out; for those releases the cove cohort
+        # comes from the pcmap run at the same release time (pcmap F set).
+        rn_list = ['spu', 'skb', 'south']
+        if exp_name == 'pcsrc':
+            rn_list = ['cove'] + rn_list
+        plon00, plat00, pcs00 = ic_graded_volume(fn00, gridname, rn_list)
+
+    return plon00, plat00, pcs00
+
+
+def ic_graded_volume(fn00, gridname, rn_list):
+    """Seed the pcsrc origin regions, each at its own density.
+
+    The cove goes through ic_from_tef2_segs(), so it is bit-for-bit the pcmap
+    release. Every other region uses the same per-column rule (n levels at
+    sigma centres) on the cells kept by its horizontal stride. All settings
+    come from pcsrc_regions.SEED.
+    """
+    import sys
+
+    from lo_tools import Lfun, zrfun
+
+    Ldir = Lfun.Lstart(gridname=gridname)
+    sys.path.append(str(Ldir['LOu'] / 'DM_scripts'))
+    import pcsrc_regions as pr
+
+    G = zrfun.get_basic_info(fn00, only_G=True)
+    h = G['h']
+    lon = G['lon_rho']
+    lat = G['lat_rho']
+    wet = G['mask_rho'] == 1
+    R = pr.regions(Ldir, lon, lat, wet)
+
+    plon00 = np.array([]); plat00 = np.array([]); pcs00 = np.array([])
+    for rn in rn_list:
+        if rn == 'cove':
+            x_s, y_s, p_s = ic_from_tef2_segs(
+                fn00, gridname, ctag='pc1', riv='trapsN00',
+                seg_list=pr.COVE_SEGS, DZ=pr.SEED['cove']['DZ'])
+        else:
+            keep = pr.seed_mask(R, rn)
+            nlev = pr.n_levels(h[keep], rn)
+            svec = np.concatenate([-(np.arange(n) + 0.5) / n for n in nlev])
+            x_s = np.repeat(lon[keep], nlev)
+            y_s = np.repeat(lat[keep], nlev)
+            p_s = svec
+        plon00 = np.append(plon00, x_s)
+        plat00 = np.append(plat00, y_s)
+        pcs00 = np.append(pcs00, p_s)
+        print('  %-6s DZ %d stride %d -> %6d particles'
+              % (rn, pr.SEED[rn]['DZ'], pr.SEED[rn]['stride'], len(x_s)))
+    print('  total %d particles' % len(plon00))
+    sys.stdout.flush()
     return plon00, plat00, pcs00
 
 

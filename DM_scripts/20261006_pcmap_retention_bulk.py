@@ -32,6 +32,11 @@ not enter the mean. -every 0 uses every reduced file found.
 
 Output: LO_output/DM_outs/20261006_pcmap_retention_bulk/<gtx>/
   pcmap_retention_bulk_<group>.png          grey + mean + median
+  pcmap_retention_bulk_<group>_highlight.png
+                                            the same, with the -highlight
+                                            releases (default the spaghetti /
+                                            animation releases) drawn thick in
+                                            colour
   pcmap_retention_bulk_<group>_<seasons>.png
                                             all releases coloured by season,
                                             season means thick
@@ -113,6 +118,16 @@ Every release's curve coloured by the mean DO at release of the particles in
 the group (DO0 from the reduce: oxygen at each particle's starting position,
 from the history file at the release hour). The release is volume-uniform, so
 for -group cove this is the cove volume-mean DO at release.
+  pcmap_retention_bulk_<group>_DObins.png
+The same releases binned by DO: -do_edges (mg/L) if given, otherwise
+-do_nbins quantile bins (default terciles). Thin curves = releases coloured by
+bin, thick = bin mean, dashed = bin median. -do_at 0 (default) bins on the
+particle initial DO above; -do_at N bins on the Penn Cove volume-mean DO N days
+after release, from the daily lowpassed do_vol_mean of 20260806_hypoxia (pc
+polygon) -- the tracker carries no oxygen, so there is no particle DO after the
+start. That series runs ~0.6 mg/L below the particle initial DO (different
+volume and tidal filtering), so compare bins between the two by rank, not value.
+Output name gets _day<N> when -do_at > 0.
   pcmap_retention_bulk_<group>_DO_end.png
 The same curves coloured by Penn Cove volume-mean DO at the END of each
 release's flushing time, t0 + its own still-inside 1/e time, from the daily
@@ -147,6 +162,12 @@ p.add_argument('-year', type=int, default=2025)
 p.add_argument('-seasons', default='tri', choices=['tri', 'djf'])
 p.add_argument('-sn_days', type=float, default=3.0,
                help='days after release over which qprism is averaged for spring/neap')
+p.add_argument('-highlight', default='E_2025.07.10,F_2025.07.10,E_2025.07.17,F_2025.07.17,F_2025.08.21,F_2025.08.28',
+               help="release sub_tags drawn in colour on the main figure ('' = none)")
+p.add_argument('-do_nbins', type=int, default=3, help='quantile bins of initial DO (if no -do_edges)')
+p.add_argument('-do_edges', default='', help='DO bin edges [mg/L], e.g. 7,9')
+p.add_argument('-do_at', type=float, default=0.0,
+               help='days after release at which DO is taken for the DO bins (0 = particle initial DO)')
 p.add_argument('-sn_terc', default='year', choices=['year', 'season'],
                help='spring/neap terciles over the whole year or within each season')
 args = p.parse_args()
@@ -177,7 +198,7 @@ if args.every > 0:
            / ('pcmap_release_times_%d%s.csv' % (args.year, '_every%d' % args.every if args.every > 1 else '')))
     keep_tags = set(pd.read_csv(tbl).sub_tag)
 
-still, never, t0s, sets, do0 = [], [], [], [], []
+still, never, t0s, sets, do0, tags = [], [], [], [], [], []
 nf = None
 for fn in sorted(red_dir.glob(args.glob + '.p')):
     D = pickle.load(open(fn, 'rb'))
@@ -203,6 +224,7 @@ for fn in sorted(red_dir.glob(args.glob + '.p')):
             gm &= ~P_.surf0.values
     do0.append(np.nanmean(P_.DO0.values[gm]) if 'DO0' in P_ else np.nan)
     t0s.append(pd.Timestamp(D['meta']['t0'])); sets.append(s)
+    tags.append('%s_%s' % (s, m.group(2)) if m else D['meta']['dir'])
 if not still:
     raise SystemExit('no releases found (glob %s, group %s, set %s, every %d)'
                      % (args.glob, args.group, args.set, args.every))
@@ -989,3 +1011,105 @@ classify_family('tideF', tser, fser, frel, ('semidiurnal', 'diurnal'),
                 'F (diurnal/semidiurnal)', 'ratio', 'tidal asymmetry at pc_lp: diurnal / semidiurnal amplitude, '
                 'window starting at each time')
 print('  corr(F, qprism) over releases r = %+.2f' % np.corrcoef(frel, qrel)[0, 1])
+
+
+# ------------------------------------------------ binned by initial DO ---
+from matplotlib.colors import LinearSegmentedColormap
+if args.do_at > 0:
+    hyp_b = pd.read_csv(Ldir['LOo'] / 'DM_outs' / '20260806_hypoxia' / ('hypoxia_series_%s_pc.csv' % args.gtx))
+    thb = pd.to_datetime(hyp_b.time_local, utc=True).dt.tz_localize(None).values.astype('int64')
+    okh_b = np.isfinite(hyp_b.do_vol_mean.values)
+    tq_b = np.array([(t + pd.Timedelta(days=args.do_at)).value for t in t0s])
+    dobin = np.interp(tq_b, thb[okh_b], hyp_b.do_vol_mean.values[okh_b])
+    DOLAB = 'Penn Cove volume-mean DO at day %g' % args.do_at
+    dtag = '_day%g' % args.do_at
+else:
+    dobin = do0
+    DOLAB = 'initial DO (%s)' % ('cove volume mean' if args.group == 'cove' else args.group)
+    dtag = ''
+if np.isfinite(dobin).any():
+    do0_ = do0
+    do0 = dobin
+    okd = np.isfinite(do0)
+    if args.do_edges:
+        de = np.array([float(x) for x in args.do_edges.split(',')])
+    else:
+        de = np.nanpercentile(do0[okd], np.linspace(0, 100, args.do_nbins + 1)[1:-1])
+    kb = np.searchsorted(de, do0)                    # 0 = lowest DO
+    nbin = len(de) + 1
+    blo = np.r_[np.nanmin(do0), de]; bhi = np.r_[de, np.nanmax(do0)]
+    BLAB = ['%.1f-%.1f mg/L' % (a, b) for a, b in zip(blo, bhi)]
+    bcm = LinearSegmentedColormap.from_list('do3', ['#c0392b', '#d4a017', '#2c7fb8'])
+    bcol = [bcm(x) for x in np.linspace(0, 1, nbin)]              # red = low DO, gold, blue = high
+    print('\nDO bins on %s (%s): edges %s' % (DOLAB, 'given' if args.do_edges else '%d quantiles' % nbin,
+                                            ', '.join('%.2f' % x for x in de)))
+    rowsD = []
+    for b in range(nbin):
+        m = okd & (kb == b)
+        r = dict(bin=BLAB[b], n=int(m.sum()), DO_mean=do0[m].mean(), DO_median=np.median(do0[m]))
+        for lab, A in [('still', S[m]), ('never', N[m])]:
+            r['%s_efold_of_mean_d' % lab] = efold(A.mean(0))
+            r['%s_efold_of_median_d' % lab] = efold(np.median(A, axis=0))
+        r['seasons'] = ', '.join('%s %d' % (q_, (m & (seas == q_)).sum()) for q_ in SORDER)
+        rowsD.append(r)
+    TD = pd.DataFrame(rowsD)
+    print(TD.to_string(index=False, float_format=lambda v: '%.2f' % v))
+    TD.to_csv(out_dir / ('pcmap_retention_bulk_%s_DObins%s.csv' % (tag, dtag)), index=False)
+    fig, axs = plt.subplots(1, 2, figsize=(13.5, 5), sharey=True)
+    for ax, A, lab in zip(axs, [S, N], ['still inside the cove', 'never left the cove']):
+        for b in range(nbin):
+            for cc in A[okd & (kb == b)]:
+                ax.plot(days, cc, color=bcol[b], lw=0.4, alpha=0.3)
+        txt = []
+        for b in range(nbin):
+            m = okd & (kb == b)
+            ax.plot(days, A[m].mean(0), color=bcol[b], lw=3,
+                    label='%s (DO mean %.2f, median %.2f; n %d): mean curve'
+                          % (BLAB[b], do0[m].mean(), np.median(do0[m]), m.sum()))
+            ax.plot(days, np.median(A[m], axis=0), color=bcol[b], lw=1.6, ls='--',
+                    label='%s: median curve' % BLAB[b])
+            txt.append('%.2f' % efold(A[m].mean(0)))
+        ax.axhline(1 / np.e, color='0.4', lw=0.8, ls=':')
+        ax.set_title('all releases, %s\n1/e of bin means (low to high DO): %s d' % (lab, ' / '.join(txt)),
+                     fontsize=10)
+        ax.set_xlim(0, days[-1]); ax.set_xlabel('days from release')
+        ax.grid(**GRID)
+    axs[0].set_ylim(0, 1.02); axs[0].set_ylabel('fraction of particles')
+    axs[0].legend(fontsize=7.5, loc='upper right')
+    fig.suptitle('%s pcmap retention binned by %s: %s' % (args.gtx, DOLAB, grp), fontsize=12)
+    fig.tight_layout()
+    fn_out = out_dir / ('pcmap_retention_bulk_%s_DObins%s.png' % (tag, dtag))
+    fig.savefig(fn_out, dpi=200, transparent=True)
+    plt.close(fig)
+    print('wrote %s' % fn_out)
+
+
+# ------------------------------------------- highlighted releases figure ---
+HL = [h_ for h_ in args.highlight.split(',') if h_ and h_ in tags]
+if HL:
+    HLCOL = ['#e8455e', '#f0a04b', '#4565e8', '#45b0a8', '#7b3294', '#1b7837', '#d95f02', '#666666']
+    fig, axs = plt.subplots(1, 2, figsize=(13, 5), sharey=True)
+    for ax, A, lab in zip(axs, [S, N], ['still inside the cove', 'never left the cove']):
+        for c in A:
+            ax.plot(days, c, color='0.75', lw=0.5, alpha=0.5)
+        ax.plot(days, A.mean(axis=0), color='k', lw=2.5, label='mean of %d releases' % len(A))
+        ax.plot(days, np.median(A, axis=0), color='k', lw=1.8, ls='--', label='median')
+        for k_, h_ in enumerate(HL):
+            c_ = A[tags.index(h_)]
+            ax.plot(days, c_, color=HLCOL[k_ % len(HLCOL)], lw=2.0, zorder=5,
+                    label='%s (1/e %.2f d)' % (h_, efold(c_)))
+        ax.axhline(1 / np.e, color='0.4', lw=0.8, ls=':')
+        ax.set_title(lab, fontsize=11)
+        ax.set_xlabel('days from release')
+        ax.set_xlim(0, days[-1])
+        ax.grid(**GRID)
+        ax.legend(fontsize=7.5, loc='upper right')
+    axs[0].set_ylim(0, 1.02)
+    axs[0].set_ylabel('fraction of particles')
+    fig.suptitle('%s pcmap retention: %s, spaghetti / animation releases highlighted' % (args.gtx, grp),
+                 fontsize=12)
+    fig.tight_layout()
+    fn_out = out_dir / ('pcmap_retention_bulk_%s_highlight.png' % tag)
+    fig.savefig(fn_out, dpi=200, transparent=True)
+    plt.close(fig)
+    print('wrote %s' % fn_out)
