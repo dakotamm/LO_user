@@ -276,7 +276,7 @@ def get_ic(TR):
             fn00, gridname, ctag='pc1', riv='trapsN00',
             seg_list=['pc_cp_m', 'pc_cp_p', 'pc_lp_m'], DZ=2)
 
-    elif exp_name in ['pcsrc', 'pcsrc_nc']:
+    elif exp_name in ['pcsrc', 'pcsrc_nc', 'pcsrc_spu']:
         # Penn Cove SOURCE WATER (DM 2026.10.12).
         #
         # Seed all of wb.p (Whidbey Basin north of to_mb), volume-weighted,
@@ -291,7 +291,16 @@ def get_ic(TR):
         # whether pcmap's still-inside curve can be extrapolated past its 14 d.
         # 'pcsrc_nc' leaves the cove out; for those releases the cove cohort
         # comes from the pcmap run at the same release time (pcmap F set).
-        rn_list = ['spu', 'skb', 'south']
+        #
+        # 'pcsrc_spu' seeds upper Saratoga only (= tef2 segment pc_lp_p),
+        # adopted 2026-10-12 after the pcret check
+        # (DM_scripts/20261012_pcsrc_spu_feasibility.py): it labels cove water
+        # out to ~2-4 weeks, which is what ~30 d tracking can use. Run on every
+        # pcmap release time, E and F, with the cove cohort taken from pcmap.
+        if exp_name == 'pcsrc_spu':
+            rn_list = ['spu']
+        else:
+            rn_list = ['spu', 'skb', 'south']
         if exp_name == 'pcsrc':
             rn_list = ['cove'] + rn_list
         plon00, plat00, pcs00 = ic_graded_volume(fn00, gridname, rn_list)
