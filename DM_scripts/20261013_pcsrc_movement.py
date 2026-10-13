@@ -16,6 +16,10 @@ How pcsrc particles move, one release at a time, from its reduced file
           everything below 2 mg/L one crimson so the hypoxic threshold is a hard
           break (needs 20261013_pcsrc_do_path.py output). Prints the start x
           entry depth table, and with DO the entry depth x entry DO table.
+  hypoxic only the upper-Saratoga particles that ENTER the cove with DO below
+          -do_thresh (2 mg/L): their tracks to first entry coloured by DO
+          along the path (x = entry point), start depth vs entry depth per
+          particle, and the start- and entry-depth distributions
   movie   every particle as a dot, hourly: upper Saratoga coloured by starting
           depth, the cove cohort (pcmap twin) grey; below the map the cove-mean
           sea level and the fraction of cove volume that is upper-Saratoga water
@@ -35,6 +39,7 @@ run 20261013_pcsrc_movement.py -rel F_2025.08.15
 run 20261013_pcsrc_movement.py -rel F_2025.08.15 -mode movie -days 7
 run 20261013_pcsrc_movement.py -rel F_2025.08.15 -mode tracks [-full] [-by_band]
 run 20261013_pcsrc_movement.py -rel F_2025.08.15 -mode tracks -color DO -band_on do_entry -by_band
+run 20261013_pcsrc_movement.py -rel F_2025.08.15 -mode hypoxic
 """
 import argparse
 import pickle
@@ -59,7 +64,9 @@ import pcsrc_regions as pr
 p = argparse.ArgumentParser()
 p.add_argument('-gtx', default='wb1_t0_xn11abbur00')
 p.add_argument('-rel', default='F_2025.08.15', help='sub_tag, e.g. F_2025.08.15')
-p.add_argument('-mode', default='static', choices=['static', 'movie', 'both', 'tracks'])
+p.add_argument('-mode', default='static', choices=['static', 'movie', 'both', 'tracks', 'hypoxic'])
+p.add_argument('-do_thresh', type=float, default=2.0,
+               help='hypoxic: keep entrants whose DO at first entry is below this [mg/L]')
 p.add_argument('-full', action='store_true',
                help='tracks: draw the whole -days record, not just up to entry')
 p.add_argument('-by_band', action='store_true',
@@ -213,6 +220,47 @@ if args.mode in ['static', 'both']:
     print('wrote %s' % fn_out)
 
 # ------------------------------------------------------------- tracks ---
+# ------------------------------------------------------------ DO tools ---
+# DO colour scale: everything below 2 mg/L is one crimson, so the hypoxic
+# threshold is a hard break; above it deep_r from dark (2) to light (-do_max)
+CRIMSON = '#e8000d'
+_vv = np.linspace(0, args.do_max, 512)
+DOCMAP = ListedColormap([CRIMSON if v < 2 else
+                         cmocean.cm.deep_r(0.85 * (v - 2) / (args.do_max - 2)) for v in _vv])
+DONORM = Normalize(0, args.do_max)
+
+
+def load_do():
+    """DO [mg/L] along every path, (nf, NP), from 20261013_pcsrc_do_path.py"""
+    do_fn = (Ldir['LOo'] / 'DM_outs' / '20261013_pcsrc_do_path' / args.gtx
+             / ('%s_DO.p' % args.rel))
+    if not do_fn.is_file():
+        raise SystemExit('no DO along the paths for %s: run 20261013_pcsrc_do_path.py on '
+                         'apogee and copy %s back' % (args.rel, do_fn.name))
+    return pickle.load(open(do_fn, 'rb'))['DO'][:nf].astype(float)
+
+
+def do_tracks(ax, kk, stop, lw=0.7, alpha=0.8):
+    """tracks of particles kk up to frame stop[n], coloured by DO along the path"""
+    segs, vals = [], []
+    for n in kk:
+        xy = np.column_stack([X[:stop[n] + 1, n], Y[:stop[n] + 1, n]])
+        segs.extend(np.stack([xy[:-1], xy[1:]], axis=1))
+        vals.extend(DOa[1:stop[n] + 1, n])                  # DO at the end of each hour
+    ax.add_collection(LineCollection(segs, array=np.array(vals), cmap=DOCMAP, norm=DONORM,
+                                     linewidths=lw, alpha=alpha, zorder=8))
+    ax.scatter(X[0, kk], Y[0, kk], s=16, c=DOa[0, kk], cmap=DOCMAP, norm=DONORM,
+               zorder=9, edgecolors='k', linewidths=0.3)
+
+
+def do_colorbar(fig, axes, **kw):
+    sm = plt.cm.ScalarMappable(norm=DONORM, cmap=DOCMAP)
+    cb = fig.colorbar(sm, ax=axes, ticks=[0, 2] + list(range(4, int(args.do_max) + 1, 2)), **kw)
+    cb.set_label('DO along the path [mg/L]')
+    cb.ax.axhline(2, color=CRIMSON, lw=3)                  # the hypoxic threshold
+    return cb
+
+
 if args.mode == 'tracks':
     idx = np.where(entered)[0]
     # route in: start to the first hour inside the cove (inclusive)
@@ -236,12 +284,7 @@ if args.mode == 'tracks':
     eband[idx] = np.digitize(zin[idx], eedges[1:-1])
     need_do = args.color == 'DO' or args.band_on == 'do_entry'
     if need_do:
-        do_fn = (Ldir['LOo'] / 'DM_outs' / '20261013_pcsrc_do_path' / args.gtx
-                 / ('%s_DO.p' % args.rel))
-        if not do_fn.is_file():
-            raise SystemExit('no DO along the paths for %s: run 20261013_pcsrc_do_path.py on '
-                             'apogee and copy %s back' % (args.rel, do_fn.name))
-        DOa = pickle.load(open(do_fn, 'rb'))['DO'][:nf].astype(float)
+        DOa = load_do()
         doin = np.full(len(spu), np.nan)
         doin[idx] = DOa[k_enter[idx], idx]
         dedges = [-np.inf] + [float(e) for e in args.do_bands.split(',')] + [np.inf]
@@ -250,14 +293,6 @@ if args.mode == 'tracks':
                 + ['>=%g mg/L' % dedges[-2]])
         dband = np.full(len(spu), -1)
         dband[idx] = np.digitize(doin[idx], dedges[1:-1])
-
-    # DO colour scale: everything below 2 mg/L is one crimson, so the hypoxic
-    # threshold is a hard break; above it deep_r from dark (2) to light (-do_max)
-    CRIMSON = '#e8000d'
-    vv = np.linspace(0, args.do_max, 512)
-    DOCMAP = ListedColormap([CRIMSON if v < 2 else
-                             cmocean.cm.deep_r(0.85 * (v - 2) / (args.do_max - 2)) for v in vv])
-    DONORM = Normalize(0, args.do_max)
 
     if args.band_on == 'entry':
         gband, GLAB, gword = eband, ELAB, 'enter at'
@@ -290,27 +325,12 @@ if args.mode == 'tracks':
     def draw_band(ax, k):
         kk = idx[gband[idx] == k]
         if args.color == 'DO':
-            segs, vals = [], []
-            for n in kk:
-                xy = np.column_stack([X[:stop[n] + 1, n], Y[:stop[n] + 1, n]])
-                segs.extend(np.stack([xy[:-1], xy[1:]], axis=1))
-                vals.extend(DOa[1:stop[n] + 1, n])            # DO at the end of each hour
-            ax.add_collection(LineCollection(segs, array=np.array(vals), cmap=DOCMAP, norm=DONORM,
-                                             linewidths=0.7, alpha=0.8, zorder=8))
-            ax.scatter(X[0, kk], Y[0, kk], s=14, c=DOa[0, kk], cmap=DOCMAP, norm=DONORM,
-                       zorder=9, edgecolors='k', linewidths=0.3)
+            do_tracks(ax, kk, stop)
         else:
             segs = [np.column_stack([X[:stop[n] + 1, n], Y[:stop[n] + 1, n]]) for n in kk]
             ax.add_collection(LineCollection(segs, colors=[GCOL[k]], linewidths=0.6, alpha=0.6, zorder=8))
             ax.scatter(X[0, kk], Y[0, kk], s=14, color=GCOL[k], zorder=9, edgecolors='w', linewidths=0.5)
         return len(kk)
-
-    def do_colorbar(fig, axes):
-        sm = plt.cm.ScalarMappable(norm=DONORM, cmap=DOCMAP)
-        cb = fig.colorbar(sm, ax=axes, shrink=0.6, pad=0.02,
-                          ticks=[0, 2] + list(range(4, int(args.do_max) + 1, 2)))
-        cb.set_label('DO along the path [mg/L]')
-        cb.ax.axhline(2, color=CRIMSON, lw=3)              # the hypoxic threshold
 
     if args.by_band:
         # one panel per band, same extent so they compare directly
@@ -336,7 +356,7 @@ if args.mode == 'tracks':
                      '%s; dot = start' % (title, args.days, gword.replace('enter', 'entry').replace('entry at', 'depth at entry').replace('entry with DO', 'DO at entry'),
                                          route), fontsize=12, x=0.02, ha='left')
         if args.color == 'DO':
-            do_colorbar(fig, axs.ravel().tolist())
+            do_colorbar(fig, axs.ravel().tolist(), shrink=0.6, pad=0.02)
         fn_out = out_dir / ('%s_tracks%s_by%s_%gd.png' % (args.rel, sfx, args.band_on, args.days))
     else:
         fig, ax = plt.subplots(figsize=(12, 9))
@@ -346,7 +366,7 @@ if args.mode == 'tracks':
             ne = draw_band(ax, k)
             hd.append(Line2D([], [], color=GCOL[k], lw=2, label='%s %s: %d' % (gword, GLAB[k], ne)))
         if args.color == 'DO':
-            do_colorbar(fig, ax)
+            do_colorbar(fig, ax, shrink=0.6, pad=0.02)
         else:
             ax.legend(handles=hd, loc='lower left', fontsize=9, framealpha=0.92)
         ax.set_title('%s\nupper-SP particles that enter Penn Cove within %.0f d (%d of %d); '
@@ -354,6 +374,71 @@ if args.mode == 'tracks':
                      fontsize=10, loc='left')
         fn_out = out_dir / ('%s_tracks%s_%s_%gd.png' % (args.rel, sfx, args.band_on, args.days))
     fig.savefig(fn_out, dpi=200, transparent=True, bbox_inches='tight')
+    plt.close(fig)
+    print('wrote %s' % fn_out)
+
+# ------------------------------------------------------------ hypoxic ---
+if args.mode == 'hypoxic':
+    DOa = load_do()
+    idx = np.where(entered)[0]
+    doin = np.full(len(spu), np.nan)
+    doin[idx] = DOa[k_enter[idx], idx]
+    hyp = idx[doin[idx] < args.do_thresh]                  # enter the cove hypoxic
+    zin = -H['Z'][k_enter[hyp], hyp].astype(float)         # m below surface at entry
+    zst = z0[hyp]                                          # m below surface at release
+    t_in = k_enter[hyp] / 24                               # days to first entry
+    print('\n%d of %d entrants enter with DO < %g mg/L' % (len(hyp), len(idx), args.do_thresh))
+    if len(hyp) == 0:
+        raise SystemExit('nothing to plot')
+    print('  start depth  median %.1f m (10-90%% %.1f-%.1f)' % (np.median(zst), *np.percentile(zst, [10, 90])))
+    print('  entry depth  median %.1f m (10-90%% %.1f-%.1f)' % (np.median(zin), *np.percentile(zin, [10, 90])))
+    print('  DO at start  median %.2f mg/L, %.0f%% already < %g'
+          % (np.nanmedian(DOa[0, hyp]), 100 * np.nanmean(DOa[0, hyp] < args.do_thresh), args.do_thresh))
+    print('  days to entry median %.2f (10-90%% %.2f-%.2f)' % (np.median(t_in), *np.percentile(t_in, [10, 90])))
+
+    stop = {n: (nf - 1 if args.full else k_enter[n]) for n in hyp}
+    allx = np.concatenate([X[:stop[n] + 1, n] for n in hyp])
+    ally = np.concatenate([Y[:stop[n] + 1, n] for n in hyp])
+    pad = 0.01
+    aa = [min(np.nanmin(allx), lon[mc].min()) - pad, np.nanmax(allx) + pad,
+          min(np.nanmin(ally), lat[mc].min()) - pad, max(np.nanmax(ally), lat[mc].max()) + pad]
+
+    fig = plt.figure(figsize=(16, 8), layout='constrained')
+    gs = fig.add_gridspec(2, 2, width_ratios=[1.7, 1])
+    ax = fig.add_subplot(gs[:, 0])
+    base_map(ax)
+    do_tracks(ax, hyp, stop, lw=1.0, alpha=0.9)
+    # where they enter
+    ax.scatter(X[k_enter[hyp], hyp], Y[k_enter[hyp], hyp], s=26, marker='x', color='k',
+               linewidths=0.9, zorder=10)
+    do_colorbar(fig, ax, shrink=0.7, pad=0.01)
+    ax.set_title('%s\n%d of %d entrants enter Penn Cove with DO < %g mg/L within %.0f d; '
+                 'dot = start, x = first entry, %s'
+                 % (title, len(hyp), len(idx), args.do_thresh, args.days,
+                    'whole record' if args.full else 'drawn up to entry'),
+                 fontsize=10, loc='left')
+
+    C_ST, C_IN = '#2a78d6', '#eb6834'
+    axs_ = fig.add_subplot(gs[0, 1])
+    zmax = np.ceil(max(zst.max(), zin.max()) / 5) * 5
+    axs_.plot([0, zmax], [0, zmax], color='#b5b3ad', lw=1, zorder=1)
+    axs_.scatter(zst, zin, s=26, c=DOa[0, hyp], cmap=DOCMAP, norm=DONORM,
+                 edgecolors='k', linewidths=0.3, zorder=2)
+    axs_.set_xlim(0, zmax); axs_.set_ylim(zmax, 0)
+    axs_.set_xlabel('start depth [m]'); axs_.set_ylabel('entry depth [m]')
+    axs_.set_title('each particle (colour = DO at start); grey = 1:1', fontsize=10, loc='left')
+    axs_.grid(lw=0.3, alpha=0.5)
+
+    axh = fig.add_subplot(gs[1, 1])
+    bins = np.arange(0, zmax + 2.5, 2.5)
+    axh.hist(zst, bins=bins, orientation='horizontal', histtype='step', lw=2, color=C_ST,
+             label='start (median %.0f m)' % np.median(zst))
+    axh.hist(zin, bins=bins, orientation='horizontal', histtype='step', lw=2, color=C_IN,
+             label='entry (median %.0f m)' % np.median(zin))
+    axh.set_ylim(zmax, 0); axh.set_ylabel('depth [m]'); axh.set_xlabel('particles')
+    axh.legend(fontsize=9); axh.grid(lw=0.3, alpha=0.5)
+    fn_out = out_dir / ('%s_hypoxic%s_%gd.png' % (args.rel, '_full' if args.full else '', args.days))
+    fig.savefig(fn_out, dpi=200, transparent=True)
     plt.close(fig)
     print('wrote %s' % fn_out)
 

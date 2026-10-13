@@ -109,3 +109,26 @@ def n_levels(h, rn):
 def particle_volume(h, A, rn):
     """Volume (m3) each particle in a seeded cell of region rn stands for."""
     return h * A * SEED[rn]['stride'] ** 2 / n_levels(h, rn)
+
+
+def release_tide_vol(P, t0, Vseg, h, A, R):
+    """Particle volumes at the RELEASE tide (analysis only).
+
+    The reduce stores vol at mean sea level (h * A * stride**2 / n). A release
+    at low water holds less water than that (the E set starts at zeta down to
+    -1.7 m), so labelled volume would exceed the target volume. Rescale by
+    (h + zeta0) / h with zeta0 the segment-mean sea level at t0 from the tef2
+    segment volumes Vseg (hourly DataFrame): the cove segments for the cove
+    cohort, pc_lp_p for upper Saratoga. Same rule as 20261013_pcsrc_source.py.
+    """
+    segs = {'cove': COVE_SEGS, 'spu': ['pc_lp_p']}
+    w = P.vol.values.copy()
+    for rn in ['cove', 'spu']:
+        m = (P.cohort == rn).values
+        if not m.any():
+            continue
+        V0 = Vseg[segs[rn]].sum(axis=1).reindex([t0], method='nearest').values[0]
+        zeta0 = (V0 - (h[R[rn]] * A[R[rn]]).sum()) / A[R[rn]].sum()
+        hh = h[P.j0.values[m], P.i0.values[m]]
+        w[m] *= np.maximum(hh + zeta0, 0) / hh
+    return w
