@@ -14,6 +14,11 @@ TARGET VOLUME (hourly)
   inner_bot   sum over pc_cp_m cells of A * min(5, 0.5 * (h + zeta)), with zeta
               the segment-mean surface from the pc_cp_m volume
 
+PARTICLE VOLUME at the release tide: the reduced vol (mean sea level) times
+(h + zeta0) / h, zeta0 the segment-mean sea level at t0 from the same tef2
+volumes (cove segments for the cove cohort, pc_lp_p for upper Saratoga).
+Without it the E set (released at low water) overstates labelled volume ~9%.
+
 FRACTIONS (labelled volume / target volume, tidal-day 25 h running mean)
   from_cove   was in the cove at t0 (pcmap twin cohort)
   from_spu    was in upper Saratoga at t0 (pcsrc cohort)
@@ -25,6 +30,8 @@ At short lags new is small, so spu_share is noisy there (the ~5% volume noise
 seen in pcret is divided by new).
 
 Figure: per release grey, mean black, median dashed; composition stacked.
+The share is only drawn where new >= NEW_MIN (0.2) of the target; the CSV
+keeps all values.
 
 run 20261013_pcsrc_source.py
 run 20261013_pcsrc_source.py -month 8
@@ -78,15 +85,35 @@ h_in, A_in = h[inner], A[inner]
 zeta_in = (Vseg['pc_cp_m'] - (h_in * A_in).sum()) / A_in.sum()
 V_ibot = pd.Series([(A_in * np.minimum(5, 0.5 * (h_in + zt))).sum() for zt in zeta_in.values],
                    index=Vseg.index)
+# segment-mean sea level, used to put each particle's volume at its release
+# tide: the reduce stores vol at mean sea level (h*A...), but a release at low
+# water (the E set, zeta down to -1.7 m) holds less water than that, and the
+# excess shows up as labelled volume > target volume
+SEGCELLS = {'cove': R['cove'], 'spu': R['spu']}
+SEGVOL = {'cove': V_cove, 'spu': Vseg['pc_lp_p']}
+
+
+def zeta_seg(rn, t0):
+    m = SEGCELLS[rn]
+    V0 = SEGVOL[rn].reindex([t0], method='nearest').values[0]
+    return (V0 - (h[m] * A[m]).sum()) / A[m].sum()
+
+
 TARGETS = ['cove', 'inner_bot']
+NEW_MIN = 0.2
 TLAB = {'cove': 'Penn Cove (landward of pc_lp)',
         'inner_bot': 'inner-cove bottom water'}
 
 fns = sorted(red_dir.glob('*.p'))
 rows = []
 curves = {t: {} for t in TARGETS}
+skipped = []
 for fn in fns:
-    D = pickle.load(open(fn, 'rb'))
+    try:
+        D = pickle.load(open(fn, 'rb'))
+    except (pickle.UnpicklingError, EOFError):
+        skipped.append(fn.name)            # e.g. a copy still in progress
+        continue
     meta, P, H = D['meta'], D['P'], D['H']
     st = meta['sub_tag']
     if args.month and pd.Timestamp(meta['t0']).month != args.month:
@@ -102,7 +129,11 @@ for fn in fns:
     in_t = dict(cove=ok & R['cove'][Jc, Ic],
                 inner_bot=ok & inner[Jc, Ic] & (hab <= 5) & (cs <= -0.5))
     t = pd.DatetimeIndex(meta['ot'][:nf])
-    w = P.vol.values
+    w = P.vol.values.copy()
+    for rn in ['cove', 'spu']:
+        m = (P.cohort == rn).values
+        hh = h[P.j0.values[m], P.i0.values[m]]
+        w[m] *= np.maximum(hh + zeta_seg(rn, t[0]), 0) / hh
     is_cove0 = (P.cohort == 'cove').values
     for tg in TARGETS:
         V = (V_cove if tg == 'cove' else V_ibot).reindex(t, method='nearest').values
@@ -123,6 +154,8 @@ for fn in fns:
                     r['%s_d%d' % (c, d)] = df[c].values[k]
         rows.append(r)
 
+if skipped:
+    print('SKIPPED %d unreadable files (incomplete copy?): %s' % (len(skipped), ', '.join(skipped)))
 res = pd.DataFrame(rows)
 if len(res) == 0:
     raise SystemExit('no reduced releases match in %s' % red_dir)
@@ -163,14 +196,18 @@ for r, tg in enumerate(TARGETS):
     ax.set_ylabel('fraction of volume')
     ax.set_title('%s: mean of %d releases' % (TLAB[tg], len(cv)), loc='left', fontsize=fs_)
     ax = axs[r, 1]
-    M = np.vstack([cv[k]['spu_share'].values for k in cv])
+    # the share is a ratio over 'new', which is tiny in the first day; don't
+    # draw it until new water is at least NEW_MIN of the target
+    M = np.vstack([np.where(cv[k]['new'].values >= NEW_MIN, cv[k]['spu_share'].values, np.nan)
+                   for k in cv])
     for row in M:
         ax.plot(days, row, color='#b5b3ad', lw=0.6)
     ax.plot(days, np.nanmean(M, axis=0), color='#0b0b0b', lw=2)
     ax.plot(days, np.nanmedian(M, axis=0), color='#0b0b0b', lw=1.5, ls='--')
     ax.set_ylim(0, 1.05); ax.set_xlim(0, args.days)
     ax.set_ylabel('upper-Saratoga share of new water')
-    ax.set_title('source of the new water', loc='left', fontsize=fs_)
+    ax.set_title('source of the new water (drawn where new >= %d%%)' % (100 * NEW_MIN),
+                 loc='left', fontsize=fs_)
     for ax in axs[r]:
         ax.grid(lw=0.3, alpha=0.5)
 for ax in axs[1]:

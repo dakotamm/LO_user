@@ -16,8 +16,9 @@ VOLUME EACH PARTICLE STANDS FOR (column vol)
   vol = h * A * stride**2 / n,  n = particles starting in that rho cell in this
   file, stride from pcsrc_regions.SEED (spu 2, cove 1). With the seeding rule
   that is exactly pcsrc_regions.particle_volume(), but counting n from the file
-  keeps it right if the tracker drops particles on land. h at mean sea level
-  (wb1_t0 bathymetry = grid.nc).
+  keeps it right if the tracker drops particles on land. h at MEAN SEA LEVEL
+  (wb1_t0 bathymetry = grid.nc): 20261013_pcsrc_source.py rescales it to the
+  release tide with the segment-mean zeta, which matters for the E set.
 
 PER PARTICLE (DataFrame P)
   cohort, j0, i0, cs0, h0, z0, hab0, salt0, temp0, DO0, vol
