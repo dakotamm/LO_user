@@ -64,6 +64,12 @@ def get_sntup_list(gctag, vol_name):
         sntup_list = [('dp00',1), ('pb00',-1), ('ps00',1)] # the sign is for inflow direction
         sect_base_list = ['dp', 'pb', 'ps']
         outer_sns_list = ['dp00_m', 'dp00_p', 'dp0_m', 'pb00_m', 'pb00_p', 'pb0_p', 'ps00_m', 'ps00_p', 'ps0_m'] # exclude segments that have these
+    elif gctag == 'wb1_pc1':
+        if vol_name == 'Penn Cove':
+            # cove landward of the mouth: pc_lp_m + pc_cp_p + pc_cp_m
+            sntup_list = [('pc_lp',-1)] # pc_lp positive is east = out of the cove
+            sect_base_list = ['pc']
+            outer_sns_list = ['pc_lp_p'] # exclude upper Saratoga Passage
 
             
     return sntup_list, sect_base_list, outer_sns_list
