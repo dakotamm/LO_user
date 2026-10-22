@@ -24,6 +24,10 @@ Both are peak-flood (F) releases, so the tidal phase at release matches.
   static  2 x 2: rows = releases, columns = loopers / non-loopers; -n of each,
           paths from release to first exit (or -hours), coloured by hours since
           release; + = fixed centre, dashed rings = rmin / rmax
+  loopers the two releases side by side, LOOPERS ONLY (-n of each), paths
+          coloured by hours since release; with -until_loop each path stops at
+          the hour its winding about + first reaches 1 (the first full loop),
+          otherwise at first exit (or -hours)
   movie   the two releases side by side, -hours of hourly frames; loopers blue,
           non-loopers grey, fading -tail h tails; the moving centre (and r_eq
           ring) is drawn only in hours the eddy is present; counter of loops
@@ -33,6 +37,7 @@ Output: LO_output/DM_outs/20261022_pc_eddy_loop_spaghetti/
 
   python 20261022_pc_eddy_loop_spaghetti.py
   python 20261022_pc_eddy_loop_spaghetti.py -mode movie -hours 120
+  python 20261022_pc_eddy_loop_spaghetti.py -mode loopers -until_loop -n 10
   python 20261022_pc_eddy_loop_spaghetti.py -rels pcmap_3d_sh4_E_2025.01.01,pcmap_3d_sh21_E_2025.01.20
 """
 import argparse
@@ -57,7 +62,8 @@ p.add_argument('-rels', default='pcmap_3d_sh15_F_2025.12.12,pcmap_3d_sh18_F_2025
                help='track dirs: eddy-present release first, eddy-absent second')
 p.add_argument('-band', default='lower')
 p.add_argument('-region', default='pc_cp')
-p.add_argument('-mode', default='both', choices=['static', 'movie', 'both'])
+p.add_argument('-mode', default='both', choices=['static', 'movie', 'both', 'loopers'])
+p.add_argument('-until_loop', action='store_true', help='loopers mode: stop each path at its first full loop')
 p.add_argument('-n', type=int, default=25, help='particles per group per release')
 p.add_argument('-hmin', type=float, default=24, help='min counted hours (eligible), as in the winding run')
 p.add_argument('-hours', type=int, default=96, help='movie length, and static cap [h]')
@@ -206,6 +212,36 @@ if args.mode in ['static', 'both']:
     fig.suptitle('Particles that do and do not loop the inner-cove eddy (%s band centre +, dashed = %g / %g m)'
                  % (args.band, REL[0]['rmin'], REL[0]['rmax']))
     fn = out_dir / 'pc_eddy_loop_spaghetti.png'
+    fig.savefig(fn, dpi=200, transparent=True, bbox_inches='tight')
+    plt.close(fig)
+    print('saved ' + str(fn))
+
+# ----------------------------------------------------------- loopers ---
+if args.mode == 'loopers':
+    fig, axs = plt.subplots(1, len(REL), figsize=(7.5 * len(REL), 5.4), layout='constrained', squeeze=False)
+    axs = axs[0]
+    k1 = {D['name']: np.array([np.argmax(D['W'][:, k] >= 1) for k in D['loop']]) for D in REL}   # first-loop hour
+    hmax = max(k1[D['name']].max() for D in REL) if args.until_loop else 14 * 24
+    norm = plt.Normalize(0, hmax)
+    for ax, D in zip(axs, REL):
+        base(ax, D)
+        segs, arr = [], []
+        for k, kk in zip(D['loop'], k1[D['name']]):
+            n_end = kk + 1 if args.until_loop else D['lon'].shape[0]
+            xy = np.column_stack([D['lon'][:n_end, k], D['lat'][:n_end, k]])
+            s2 = np.stack([xy[:-1], xy[1:]], axis=1)
+            good = np.isfinite(s2).all(axis=(1, 2))
+            segs.extend(s2[good]); arr.extend(np.arange(len(s2))[good])
+        lc = LineCollection(segs, array=np.array(arr), cmap='viridis', norm=norm, linewidths=0.9, zorder=8)
+        ax.add_collection(lc)
+        ax.scatter(D['lon'][0, D['loop']], D['lat'][0, D['loop']], s=12, c='k', zorder=9, ec='none')
+        ax.set_title('%s: %d loopers, %s\n%s\nfirst full loop after median %.0f h (range %d-%d h)'
+                     % (D['name'].split('_', 3)[-1], len(D['loop']),
+                        'path to the first full loop' if args.until_loop else 'path to first exit',
+                        lab(D), np.median(k1[D['name']]), k1[D['name']].min(), k1[D['name']].max()), fontsize=9)
+    fig.colorbar(lc, ax=axs, label='hours since release', shrink=0.8)
+    fig.suptitle('Loopers only (winding >= 1 CCW about +; dashed = %g / %g m)' % (REL[0]['rmin'], REL[0]['rmax']))
+    fn = out_dir / ('pc_eddy_loopers_only%s_n%d.png' % ('_untilloop' if args.until_loop else '', args.n))
     fig.savefig(fn, dpi=200, transparent=True, bbox_inches='tight')
     plt.close(fig)
     print('saved ' + str(fn))
