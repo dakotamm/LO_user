@@ -1,12 +1,13 @@
 """
-Dissolved oxygen through the Penn Cove mouth (pc_lp) in the TEF and Eulerian
+Dissolved oxygen through a Penn Cove section (pc_lp mouth, pc_lj, pc_cp; -sn) in
+the TEF and Eulerian
 frameworks of MacCready (2011), wb1_t0_xn11abbur00: which salinity classes carry
 oxygen in and out, the oxygen of the inflow and outflow, and the steady vs tidal
 split of the oxygen flux. Record means (2024-2025) and monthly means for 2025.
 
 SOURCE (-src)
     avg   hourly-AVERAGE output (ocean_avg Huon, salt, oxygen at the faces, hh:30),
-          extractions_avg/pc_lp.nc. Closes the cove volume and salt budgets, so the
+          extractions_avg/[sn].nc. Closes the cove volume and salt budgets, so the
           oxygen budget is closed here too and its residual is reported. (default)
     snap  hourly SNAPSHOT output (ocean_his, on the hour): u, z_w, salt from the
           pc_cove box and oxygen from the pc_cove_o2 box. Sub-hourly motion aliases
@@ -15,7 +16,7 @@ SOURCE (-src)
           O_in / O_out are fine.
 
 Positive = into Penn Cove. <> is the Godin filter, kept hourly. Elements c are
-the 30 s-levels x 12 faces of pc_lp; q_c = u_c dA_c, O_c is oxygen at the face.
+the 30 s-levels x faces of the section; q_c = u_c dA_c, O_c is oxygen at the face.
 
 TEF (salinity coordinates), every hour: bin q and q*O by the HOURLY salinity
 (1000 bins, 0-36 g/kg), filter each bin, and count a bin as "in" when its
@@ -36,8 +37,14 @@ TIDAL oxygen flux, computed DIRECTLY as in Section 2 (2.5-2.6):
 (second filter pass: valid 70 h in from each end). G - G_steady - G_T is the
 cross-term residual the decomposition drops.
 
-OXYGEN BUDGET (avg only), cove landward of pc_lp (segments pc_lp_m, pc_cp_p,
-pc_cp_m; ocean_his snapshots, forward difference onto the hh:30 flux clock):
+SECTIONS (-sn), u-faces with positive = east = out of the cove, flipped:
+    pc_lp  mouth, 12 faces    volume landward: pc_lp_m + pc_cp_p + pc_cp_m
+    pc_lj  middle, 8 faces    volume landward: pc_cp_p + pc_cp_m
+    pc_cp  inner, 8 faces     volume landward: pc_cp_m
+Segment-by-segment budgets from the three nested volumes: 20261021_pc_do_sections.py.
+
+OXYGEN BUDGET (avg only), the volume landward of the section (tef2 segments;
+ocean_his snapshots, forward difference onto the hh:30 flux clock):
     dO/dt = G + R
     R = net interior source: photosynthesis - respiration - sediment demand,
         plus air-sea exchange (not separated here)
@@ -50,10 +57,11 @@ OUTPUT LO_output/DM_outs/20261020_pc_do_tef_avg/  or  _snap/
     pc_lp_do_tef.nc                    hourly series
     pc_lp_do_monthly_2025.csv          monthly table
     pc_lp_do_monthly_2025.png          monthly Q_in, O_in/O_out, oxygen fluxes
-    by_month/pc_lp_do_2025-MM.png      -dQ/ds, -dG/ds, and DO of each salinity class
+    by_month/[sn]/[sn]_do_2025-MM.png  -dQ/ds, -dG/ds, and DO of each salinity class
+(files are prefixed by the section name, so all sections share the folder)
 
-run 20261020_pc_do_tef.py -src avg
-run 20261020_pc_do_tef.py -src snap
+run 20261020_pc_do_tef.py -src avg -sn pc_lp
+run 20261020_pc_do_tef.py -src snap -sn pc_cp
 """
 import argparse
 
@@ -68,24 +76,27 @@ from lo_tools import Lfun, zfun
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-src', choices=['avg', 'snap'], default='avg')
+parser.add_argument('-sn', choices=['pc_lp', 'pc_lj', 'pc_cp'], default='pc_lp')
 args = parser.parse_args()
 
 GTAGEX = 'wb1_t0_xn11abbur00'
 DS0, DS1 = '2024.01.01', '2025.12.31'
-SN = 'pc_lp'
+SN = args.sn
 YEAR = 2025
 SIGN = -1                 # section-positive (east) is out of the cove
 PAD = 36
 NS, S_LO, S_HI = 1000, 0.0, 36.0
 K = 0.032                 # mmol O2 -> g, and mmol m-3 -> mg/L
 DT = 3600.0
-SEGS = ['pc_lp_m', 'pc_cp_p', 'pc_cp_m']
+SEGS = {'pc_lp': ['pc_lp_m', 'pc_cp_p', 'pc_cp_m'],     # volume landward of SN
+        'pc_lj': ['pc_cp_p', 'pc_cp_m'],
+        'pc_cp': ['pc_cp_m']}[SN]
 SRC_LAB = {'avg': 'hourly-average output', 'snap': 'hourly snapshots'}[args.src]
 
 Ldir = Lfun.Lstart(gridname='wb1')
 ext = Ldir['LOo'] / 'extract' / GTAGEX
 out_dir = Ldir['LOo'] / 'DM_outs' / ('20261020_pc_do_tef_' + args.src)
-month_dir = out_dir / 'by_month'
+month_dir = out_dir / 'by_month' / SN
 month_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -109,8 +120,14 @@ if args.src == 'avg':
     dA = ds.DZ.to_numpy() * ds.dd.to_numpy()[None, None, :]
     ds.close()
 else:
-    XI_U, IRM, IRP = 30, 30, 31                           # pc_lp in the pc_cove box
-    ETA = np.arange(19, 7, -1)                            # north (p=0) to south
+    # section faces in pc_cove box indices; the box starts at global (i, j) = (37, 209)
+    I0, J0 = 37, 209
+    sd = pd.read_pickle(Ldir['LOo'] / 'extract' / 'tef2' / 'sect_df_wb1_pc1.p')
+    sd = sd[sd.sn == SN]
+    assert (sd.uv == 'u').all() and (sd.pm == 1).all() and sd.i.nunique() == 1
+    XI_U = int(sd.i.iloc[0]) - I0
+    IRM, IRP = int(sd.irm.iloc[0]) - I0, int(sd.irp.iloc[0]) - I0
+    ETA = sd.j.to_numpy() - J0                            # sect_df order: north (p=0) first
     bx = xr.open_dataset(ext / 'box' / ('pc_cove_' + DS0 + '_' + DS1 + '.nc'))
     bo = xr.open_dataset(ext / 'box' / ('pc_cove_o2_' + DS0 + '_' + DS1 + '.nc'))
     assert (bx.ocean_time.values == bo.ocean_time.values).all(), 'box time axes differ'
