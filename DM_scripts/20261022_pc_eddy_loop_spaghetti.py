@@ -93,8 +93,10 @@ sec = {k: pd.read_pickle(Ldir['LOo'] / 'section_lines' / (k + '.p')) for k in ['
 
 CEN = pd.read_csv(cen_fn, parse_dates=['time']).set_index('time')
 CEN['present'] = CEN.present.astype(bool)
-LONF, LATF = CEN.lon_c[CEN.present].mean(), CEN.lat_c[CEN.present].mean()
-XF, YF = to_xy(LONF, LATF)
+# centre from the metre columns, exactly as the winding run (lon_c/lat_c in older csvs keep only 3 decimals)
+XF, YF = CEN.x_c[CEN.present].mean(), CEN.y_c[CEN.present].mean()
+to_ll = lambda x, y: (LON_MOUTH + x / (M_PER_DEG * COS0), LAT0 + y / M_PER_DEG)
+LONF, LATF = to_ll(XF, YF)
 
 
 def ji_of(plon, plat):
@@ -132,7 +134,9 @@ def load(rdir):
     use = okr[1:] & okr[:-1]
     W = np.vstack([np.zeros((1, X.shape[1])),
                    np.cumsum(np.where(use, wrap(np.diff(np.arctan2(dy, dx), axis=0)), 0.0), axis=0) / TWO_PI])
-    assert np.allclose(W[-1], P.W_fix.values, atol=1e-4), 'recomputed W_fix differs from the winding pickle'
+    bad = ~np.isclose(W[-1], P.W_fix.values, atol=1e-4)
+    assert not bad.any(), ('recomputed W_fix differs from the winding pickle for %d particles (max %.3g)'
+                           % (bad.sum(), np.abs(W[-1] - P.W_fix.values).max()))
     elig = P.h_fix.values >= args.hmin
     loop = elig & (P.W_fix.values >= 1)
     nonl = elig & (P.W_fix.values < 1)
@@ -146,8 +150,9 @@ def load(rdir):
     return dict(name=rdir, t0=t0, ot=ot, lon=lon_s, lat=lat_s, W=W, loop=pick(loop), nonl=pick(nonl),
                 share=loop.sum() / max(elig.sum(), 1), n_elig=int(elig.sum()), rmin=rmin, rmax=rmax,
                 pres3d=CEN.present[w3].mean(), pres14=R['meta']['pres14'],
-                c_lon=np.where(c.present.fillna(False), c.lon_c, np.nan),
-                c_lat=np.where(c.present.fillna(False), c.lat_c, np.nan), c_req=c.r_eq.values)
+                c_lon=np.where(c.present.fillna(False), to_ll(c.x_c.values, c.y_c.values)[0], np.nan),
+                c_lat=np.where(c.present.fillna(False), to_ll(c.x_c.values, c.y_c.values)[1], np.nan),
+                c_req=c.r_eq.values)
 
 
 REL = [load(r) for r in args.rels.split(',')]

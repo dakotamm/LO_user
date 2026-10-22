@@ -340,7 +340,7 @@ for b in BANDS:
         if kk == args.ow_k:
             raw, pr, eid, E = events(C, args.ring_thr, args.n_turn)
             C['present_raw'], C['present'], C['event'] = raw, pr, eid
-            C.to_csv(out_dir / ('pc_eddy_center_%s.csv' % b), index=False, float_format='%.6g')
+            C.to_csv(out_dir / ('pc_eddy_center_%s.csv' % b), index=False, float_format='%.10g')
             E.to_csv(out_dir / ('pc_eddy_events_%s.csv' % b), index=False, float_format='%.5g')
             CEN[b] = C
             S = summ(C, pr, E)
