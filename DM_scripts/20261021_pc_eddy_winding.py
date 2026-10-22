@@ -76,6 +76,8 @@ p.add_argument('-hmin', type=float, default=24, help='min counted hours for the 
 p.add_argument('-no_cand', action='store_true', help='skip the candidate-centre map')
 p.add_argument('-clobber', action='store_true')
 p.add_argument('-agg', action='store_true', help='only combine the per-release pickles')
+p.add_argument('-all_rel', action='store_true',
+               help='agg: keep every release found, not only the every-3rd-lunar-day pcmap set')
 args = p.parse_args()
 
 Ldir = Lfun.Lstart(gridname='wb1')
@@ -103,6 +105,12 @@ if args.agg:
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     fns = sorted(out_dir.glob('*.p'))
+    lfn = Ldir['LOo'] / 'DM_outs' / '20261005_pcmap_release_times' / 'pcmap_release_times_2025_every3.csv'
+    if not args.all_rel and lfn.is_file():           # drop the early daily January runs made before thinning
+        keep = set(pd.read_csv(lfn).out_name)
+        n0 = len(fns)
+        fns = [f for f in fns if f.stem.split('__')[0] in keep]
+        print('kept %d of %d releases (every-3rd-lunar-day set)' % (len(fns), n0))
     rows, rel, CAND = [], [], {}
     seas = lambda m: 'Nov-Dec' if m in (11, 12) else 'Aug-Oct' if m in (8, 9, 10) else 'other'
     for fn in fns:
