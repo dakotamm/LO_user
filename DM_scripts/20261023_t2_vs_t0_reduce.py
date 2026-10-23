@@ -5,7 +5,9 @@ days BOTH have output, for the t2-vs-t0 comparison plots
 
 wb1 ocean_avg files are HOURLY averages (NAVG = NHIS, 24 per day folder), so a
 daily mean here is the mean of all ocean_avg_*.nc in the day folder. Each file is
-opened exactly once. A day is used only if both runs have >= -navg avg files
+opened exactly once. WET_DRY is on, and ROMS writes a dry cell-hour as 0 for
+every variable, so means are taken over wet hours only (surface temp != 0);
+including the zeros scaled every variable on the mudflats by the wet fraction. A day is used only if both runs have >= -navg avg files
 in it (so a day still being copied to apogee is skipped).
 
 Saved per run (same day axis for both):
@@ -90,46 +92,61 @@ def avg_files(day_dir):
 
 
 def reduce_day(task):
-    """Daily means for one (run, day). Returns a dict ({"error": msg} if a file fails)."""
+    """Daily means for one (run, day). Returns a dict ({"error": msg} if a file fails).
+
+    With WET_DRY, ROMS writes a dry cell-hour into ocean_avg as 0 for every
+    variable in the column (zeta too). Those hours are left out: a cell-hour
+    counts as wet when its surface temp != 0. Cells dry all day come out NaN.
+    """
     fn_list, eta_idx, xi_idx, stn_vars, layer_vars = task
-    nf = len(fn_list)
     try:
         stn = None
-        lay = None
-        oxy3 = None
-        zeta = None
         for fn in fn_list:
             d = nc.Dataset(fn)
             if stn is None:
                 N = d.dimensions['s_rho'].size
                 stn = {v: np.zeros((len(eta_idx), N)) for v in stn_vars}
-                lay = {v: None for v in layer_vars}
                 zeta = np.zeros(len(eta_idx))
+                nwet_stn = np.zeros(len(eta_idx))
+                lay = {v: 0.0 for v in layer_vars}
+                oxy3 = 0.0
+                nwet = 0
+            tsf = d['temp'][0, -1, :, :].filled(np.nan)
+            wet = tsf != 0                       # NaN (land) also passes; masked later
             ox = d['oxygen'][0, :, :, :].filled(np.nan)
-            oxy3 = ox.astype(np.float64) if oxy3 is None else oxy3 + ox
+            oxy3 = oxy3 + np.where(wet, ox, 0.0)
             for v in layer_vars:
                 if v == 'oxygen':
                     a = np.stack([ox[0], ox[-1]])
+                elif v == 'temp':
+                    a = np.stack([d[v][0, 0, :, :].filled(np.nan), tsf])
                 else:
                     a = np.stack([d[v][0, 0, :, :].filled(np.nan),
                                   d[v][0, -1, :, :].filled(np.nan)])
-                lay[v] = a.astype(np.float64) if lay[v] is None else lay[v] + a
+                lay[v] = lay[v] + np.where(wet, a, 0.0)
+            nwet = nwet + wet
             for si, (j, i) in enumerate(zip(eta_idx, xi_idx)):
+                if not wet[j, i]:
+                    continue
                 for v in stn_vars:
                     stn[v][si] += d[v][0, :, j, i].filled(np.nan)
                 zeta[si] += float(d['zeta'][0, j, i])
+                nwet_stn[si] += 1
             d.close()
     except Exception as e:
         return {'error': '%s: %s' % (fn, e)}
-    oxy3 /= nf
-    out = {
-        'stn': {v: stn[v] / nf for v in stn_vars},
-        'zeta': zeta / nf,
-        'lay': {v: (lay[v] / nf).astype(np.float32) for v in layer_vars},
-    }
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore', RuntimeWarning)   # all-NaN land columns
-        out['hyp'] = np.nanmin(oxy3, axis=0) < HYP_UM
+        warnings.simplefilter('ignore', RuntimeWarning)   # all-NaN / all-dry cells
+        nw = np.where(nwet > 0, nwet, np.nan)
+        ns = np.where(nwet_stn > 0, nwet_stn, np.nan)
+        oxy3 = oxy3 / nw
+        out = {
+            'stn': {v: stn[v] / ns[:, None] for v in stn_vars},
+            'zeta': zeta / ns,
+            'lay': {v: (lay[v] / nw).astype(np.float32) for v in layer_vars},
+            'hyp': np.nanmin(oxy3, axis=0) < HYP_UM,
+            'wetfrac': (nwet / len(fn_list)).astype(np.float32),
+        }
     return out
 
 
@@ -218,6 +235,8 @@ def main():
         zeta = np.full((nd, ns), np.nan)
         oxy_bot = np.full((nd, ny, nx), np.nan, dtype=np.float32)
         lay_sum = {v: np.zeros((nmo, 2, ny, nx)) for v in layer_vars}
+        lay_cnt = np.zeros((nmo, ny, nx))          # days with any wet hour, per cell
+        wet_sum = np.zeros((nmo, ny, nx))          # sum of daily wet fractions
         hyp = np.zeros((nmo, ny, nx), dtype=np.int16)
         ndays = np.zeros(nmo, dtype=int)
         good = np.zeros(nd, dtype=bool)
@@ -240,7 +259,9 @@ def main():
             zeta[k] = r['zeta']
             oxy_bot[k] = r['lay']['oxygen'][0]
             for v in layer_vars:
-                lay_sum[v][m] += r['lay'][v]
+                lay_sum[v][m] += np.nan_to_num(r['lay'][v])
+            lay_cnt[m] += np.isfinite(r['lay']['temp'][1])
+            wet_sum[m] += r['wetfrac']
             hyp[m] += r['hyp'].astype(np.int16)
             if k % 30 == 0:
                 print('  %s done (%d/%d)' % (common[k].strftime(Ldir['ds_fmt']), k+1, nd))
@@ -265,12 +286,14 @@ def main():
         dv['stn_eta'] = (('station',), eta_idx)
         dv['stn_xi'] = (('station',), xi_idx)
         dv['oxygen_bot_daily'] = (('time', 'eta_rho', 'xi_rho'), oxy_bot)
-        nd_safe = np.where(ndays > 0, ndays, np.nan)[:, None, None]
+        cnt_safe = np.where(lay_cnt > 0, lay_cnt, np.nan)
         for v in layer_vars:
             dv[v + '_bot'] = (('month', 'eta_rho', 'xi_rho'),
-                              (lay_sum[v][:, 0] / nd_safe).astype(np.float32))
+                              (lay_sum[v][:, 0] / cnt_safe).astype(np.float32))
             dv[v + '_sfc'] = (('month', 'eta_rho', 'xi_rho'),
-                              (lay_sum[v][:, 1] / nd_safe).astype(np.float32))
+                              (lay_sum[v][:, 1] / cnt_safe).astype(np.float32))
+        dv['wet_frac'] = (('month', 'eta_rho', 'xi_rho'),
+                          (wet_sum / np.where(ndays > 0, ndays, np.nan)[:, None, None]).astype(np.float32))
         dv['hyp_days'] = (('month', 'eta_rho', 'xi_rho'), hyp)
         dv['ndays'] = (('month',), ndays)
         dv['day_ok'] = (('time',), good.astype(np.int8))
@@ -281,8 +304,10 @@ def main():
         ds = xr.Dataset(dv, coords={'time': pd.to_datetime(common) + pd.Timedelta(hours=12),
                                     'station': names, 'month': months})
         ds.attrs['gtagex'] = gtx
-        ds.attrs['note'] = ('daily means of all hourly ocean_avg files per day; '
-                            'hyp_days = days with daily-mean DO < 2 mg/L anywhere in column')
+        ds.attrs['note'] = ('daily means over the WET hours of the hourly ocean_avg files '
+                            '(dry cell-hours are written as 0 and are excluded); '
+                            'hyp_days = days with daily-mean DO < 2 mg/L anywhere in column; '
+                            'wet_frac = fraction of hours each cell was wet')
         enc = {k: {'zlib': True, 'complevel': 1} for k in ds.data_vars
                if ds[k].dtype.kind == 'f'}
         out_fn = out_dir / ('reduce_%s_%s_%s.nc' % (gtx, common[0].strftime(Ldir['ds_fmt']),

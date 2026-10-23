@@ -503,9 +503,11 @@ def sym(fld, win):
 
 
 def period_mean(ds, vname):
-    nd = ds['ndays'].values.astype(float)
+    # day-weighted over the months a cell has data (mudflat cells can be dry all month)
+    nd = ds['ndays'].values.astype(float)[:, None, None]
     a = ds[vname].values
-    return np.nansum(a * nd[:, None, None], axis=0) / nd.sum()
+    w = np.where(np.isfinite(a), nd, 0.0)
+    return np.nansum(a * w, axis=0) / np.where(w.sum(axis=0) > 0, w.sum(axis=0), np.nan)
 
 
 MAPV = [('oxygen', 'DO (mg/L)', DO_UM_TO_MGL), ('NO3', 'NO3 (uM)', 1),
