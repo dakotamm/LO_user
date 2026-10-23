@@ -96,5 +96,18 @@ if info_fn.is_file():
         else:
             pass
 
+    # DM 2026.10.23: flush any workers still pending. The in-loop flush only
+    # fires at ii == N-1, which is never reached when the last casts fall after
+    # the end of the run (e.g. a run still in progress), so the final batch
+    # was left unwaited.
+    for proc in proc_list:
+        stdout, stderr = proc.communicate()
+        if len(stdout) > 0:
+            print('\n' + ' sdtout '.center(60,'-'))
+            print(stdout.decode())
+        if len(stderr) > 0:
+            print('\n' + ' stderr '.center(60,'-'))
+            print(stderr.decode())
+
 
 
