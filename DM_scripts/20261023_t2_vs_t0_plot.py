@@ -339,7 +339,8 @@ if all_stats:
 # 2. Reduce-based: daily station series and t2 - t0 maps
 # =============================================================================
 def newest(g):
-    fl = sorted((out_dir).glob('reduce_%s_*.nc' % g), key=lambda p: p.stat().st_mtime)
+    # latest end date wins (names end _<day0>_<day1>.nc); mtime is unreliable after copying
+    fl = sorted((out_dir).glob('reduce_%s_*.nc' % g), key=lambda p: p.stem.split('_')[-1])
     return fl[-1] if fl else None
 
 
