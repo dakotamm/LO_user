@@ -212,6 +212,33 @@ def get_box(job, Lon, Lat):
         aa = [-122.735882, -122.652000, 48.213109, 48.249196]
         vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,temp,oxygen'
 
+    elif job == 'pc_cove_mix': #DM added 2026/11/03 -- vertical mixing on the Penn Cove sections
+        # SAME FOOTPRINT as pc_cove (read its comment for the bounds; rho column
+        # 68 at the east edge is deliberate), so every cell and every time lines
+        # up with the velocity box and the shear in 20261103_pc_section_shear.py.
+        #
+        # AKv (vertical viscosity) and AKs (salt diffusivity) from the GLS
+        # closure, on s_w at rho points, instantaneous (Hout(idVvis), Hout(idSdif)
+        # = T in BLANK.in; NOT in the ocean_avg files, so this must read his).
+        # AKt is not written (Hout(idTdif) = F).
+        #
+        # salt is in the list because extract_box sizes its z_rho / z_w arrays
+        # from ds.salt.shape; without it the "add z variables" step crashes.
+        #
+        # Use -lt hourly0, as for pc_cove_o2 (plain hourly starts at
+        # f2023.12.31, which does not exist for this run). Same 17545 instants
+        # as pc_cove. Roughly 1.5 GB per s_w variable over 2024-2025.
+        #
+        # Also the 2D boundary fluxes ROMS actually applied (~50 MB each):
+        # bustr, bvstr (bottom stress, u/v points: u* at the bed, to check the
+        # log layer below the bottom cell against the model), sustr, svstr
+        # (surface stress, u/v points: the wind stress the model used, cell by
+        # cell), shflux, ssflux (surface heat / salt flux: convective forcing).
+        # No momentum diagnostics exist (no DIAGNOSTICS_UV), and tke, gls, AKt
+        # are not written.
+        aa = [-122.735882, -122.652000, 48.213109, 48.249196]
+        vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,AKv,AKs,bustr,bvstr,sustr,svstr,shflux,ssflux'
+
     elif job == 'sp_head_tide': #DM added 2026/10/08 -- tidal ellipses, head of Saratoga Passage
         # Input to DM_scripts/20261008_tidal_ellipses.py (harmonic analysis of
         # zeta + depth-averaged, surface and bottom velocity). Footprint = the
