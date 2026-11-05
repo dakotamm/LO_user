@@ -239,6 +239,17 @@ def get_box(job, Lon, Lat):
         aa = [-122.735882, -122.652000, 48.213109, 48.249196]
         vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,AKv,AKs,bustr,bvstr,sustr,svstr,shflux,ssflux'
 
+    elif job == 'pc_sp_cycle': #DM added 2026/11/05 -- standard tidal cycle schematic, cove + upper Saratoga
+        # Penn Cove plus upper Saratoga Passage (Camano Head north to Crescent
+        # Harbor / the Skagit Bay entrance), for a SHORT window only: the
+        # standard-cycle schematic (20261105_pc_standard_cycle.py: the lunar day
+        # 2024-08-31 05:00 -> 09-01 06:00 UTC, calm, median in every class). West edge reaches the cove head; the SW corner
+        # also catches some Admiralty Inlet water, which is a different basin --
+        # mask it out in plotting. 107 x 111 rho cells, ~6100 wet.
+        # Run with -lt hourly0 -0 2024.08.30 -1 2024.09.02 -ro 2, no -uv_to_rho.
+        aa = [-122.74, -122.45, 48.12, 48.32]
+        vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,temp,oxygen,u,v,w,ubar,vbar,sustr,svstr'
+
     elif job == 'sp_head_tide': #DM added 2026/10/08 -- tidal ellipses, head of Saratoga Passage
         # Input to DM_scripts/20261008_tidal_ellipses.py (harmonic analysis of
         # zeta + depth-averaged, surface and bottom velocity). Footprint = the

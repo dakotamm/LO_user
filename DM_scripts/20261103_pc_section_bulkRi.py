@@ -44,6 +44,12 @@ the section really is; x = distance from the north shore with north at the right
 OUTPUT LO_output/DM_outs/20261103_pc_section_bulkRi/
     bulkRi.png    rows: Ri_B_bar and Ri_D_bar | their 1st percentiles | Ri_T, one column per section
 
+CYCLE (-cycle springneap | tropeq | strat | wind | windhs | windls | cross | stratcalm; see pc_tidal_cycles.py): every phase is split into its high and low
+third of the cycle (pc_tidal_cycles.py: terciles of the semidiurnal / diurnal
+envelope of the mouth transport), e.g. 'flood, spring' and 'flood, neap'; high
+half solid, low half dashed; figures get _springneap / _tropeq in their names
+and go in the same folder. Default (none): the figures above, unchanged.
+
 run 20261103_pc_section_bulkRi.py
 """
 import os
@@ -58,6 +64,8 @@ import gsw
 import utide
 
 from lo_tools import Lfun
+import argparse
+from pc_tidal_cycles import cycle_masks, expand_phases
 
 GTAGEX = 'wb1_t0_xn11abbur00'
 DS0, DS1 = '2024.01.01', '2025.12.31'
@@ -76,6 +84,13 @@ CONS = ['M2', 'S2', 'N2', 'K2', 'K1', 'O1', 'P1', 'Q1', 'M4', 'MS4', 'M6', 'S1']
 KW = dict(method='ols', conf_int='linear', constit=CONS, nodal=True, trend=False, verbose=False)
 PHASES = ['flood', 'ebb', 'all']
 COLOR = {'flood': '#D55E00', 'ebb': '#0072B2', 'all': 'k'}
+parser = argparse.ArgumentParser()
+parser.add_argument('-cycle', default='none', choices=['none', 'springneap', 'tropeq', 'strat', 'wind', 'windhs', 'windls', 'cross', 'stratcalm'])   # split each phase by the spring/neap or tropic/equatorial cycle
+CYCLE = parser.parse_args().cycle
+TAG = '' if CYCLE == 'none' else '_' + CYCLE  # added to every figure name
+BASE_PHASES, BASE_COLOR = PHASES, COLOR
+LS = {ph: '-' for ph in PHASES}           # line style per phase: spring / tropic solid, neap / equatorial dashed
+
 
 Ldir = Lfun.Lstart(gridname='wb1')
 in_fn = (Ldir['LOo'] / 'extract' / GTAGEX / 'box'
@@ -85,6 +100,7 @@ out_dir.mkdir(parents=True, exist_ok=True)
 
 
 ds = xr.open_dataset(in_fn)
+CM = cycle_masks(ds.ocean_time.values) if CYCLE != 'none' else None
 T = ds.ocean_time.values
 R = {}
 for SN in FACES:
@@ -103,6 +119,8 @@ for SN in FACES:
     dz = np.diff(zw, axis=1)                  # (t, k, p)
     Q = (u * dz * dy[None, None, :]).sum(axis=(1, 2))                               # (t,) section transport: sets flood / ebb
     MASK = {'flood': Q > 0, 'ebb': Q < 0, 'all': np.ones(len(Q), bool)}
+    if CYCLE != 'none':
+        PHASES, MASK, COLOR, LS = expand_phases(BASE_PHASES, MASK, BASE_COLOR, CYCLE, CM)
 
     # ------------------------------------------------------------------ the column: density difference, depth, depth-mean velocity
     SA = gsw.SA_from_SP(salt, -zr, LON, LAT)
@@ -151,10 +169,10 @@ for j, SN in enumerate(FACES):
     x = (np.cumsum(dy) - dy / 2) / 1000   # face centres, km from the north shore
     xe = np.concatenate([[0], np.cumsum(dy)]) / 1000
     for ph in PHASES:
-        axs[0, j].plot(x, st[ph]['Ribar'], color=COLOR[ph], lw=2, marker='o', ms=4, label='%s (%.0f%% of hours)' % (ph, 100 * st[ph]['frac']))
-        axs[0, j].plot(x, st[ph]['RiDbar'], color=COLOR[ph], lw=1.5, ls='-.', marker='s', ms=3)
-        axs[1, j].plot(x, st[ph]['p01'], color=COLOR[ph], lw=2, marker='o', ms=4)
-        axs[1, j].plot(x, st[ph]['pD01'], color=COLOR[ph], lw=1.5, ls='-.', marker='s', ms=3)
+        axs[0, j].plot(x, st[ph]['Ribar'], color=COLOR[ph], ls=LS[ph], lw=2, marker='o', ms=4, label='%s (%.0f%% of hours)' % (ph, 100 * st[ph]['frac']))
+        axs[0, j].plot(x, st[ph]['RiDbar'], color=COLOR[ph], lw=1 if CYCLE != 'none' else 1.5, ls='-.' if CYCLE == 'none' else LS[ph], marker='s', ms=3)
+        axs[1, j].plot(x, st[ph]['p01'], color=COLOR[ph], ls=LS[ph], lw=2, marker='o', ms=4)
+        axs[1, j].plot(x, st[ph]['pD01'], color=COLOR[ph], lw=1 if CYCLE != 'none' else 1.5, ls='-.' if CYCLE == 'none' else LS[ph], marker='s', ms=3)
     axs[2, j].plot(x, R[SN]['RiT'], color='k', lw=2, marker='o', ms=4)
     for i in [0, 1, 2]:
         axs[i, j].set_yscale('log')
@@ -170,11 +188,11 @@ for j, SN in enumerate(FACES):
 axs[0, 0].set_ylabel(r'<g$\Delta\rho$H/$\rho_0$> / <U$^2$> or <$\Delta$U$^2$>')
 axs[1, 0].set_ylabel('1st percentile of hourly Ri')
 axs[2, 0].set_ylabel(r'Ri$_T$ (M2)')
-axs[0, 0].plot([], [], color='0.4', lw=2, label='with depth-mean U')
-axs[0, 0].plot([], [], color='0.4', lw=1.5, ls='-.', label=r'with top-bottom $\Delta$U')
+axs[0, 0].plot([], [], color='0.4', lw=2, marker='o', ms=4, label='with depth-mean U')
+axs[0, 0].plot([], [], color='0.4', lw=1.5 if CYCLE == 'none' else 1, ls='-.' if CYCLE == 'none' else '-', marker='s', ms=3, label=r'with top-bottom $\Delta$U')
 axs[0, 0].legend(fontsize=7, loc='lower left')
 fig.suptitle('Bulk Richardson number g($\\Delta\\rho/\\rho_0$)H/U$^2$ at each face ($\\Delta\\rho$ bottom minus top cell; U depth-mean, or $\\Delta$U top minus bottom, u and v); dotted: 1 and 1/4;\n'
              'sections west to east, north at right; hourly snapshots, %s, %s to %s' % (GTAGEX, DS0, DS1), fontsize=10)
-fig.savefig(out_dir / 'bulkRi.png', dpi=200, transparent=True)
+fig.savefig(out_dir / ('bulkRi%s.png' % TAG), dpi=200, transparent=True)
 plt.close(fig)
 print('\nsaved to ' + str(out_dir))

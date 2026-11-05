@@ -42,6 +42,12 @@ OUTPUT LO_output/DM_outs/20261103_pc_section_Ri/
     [col]_Ri.png         two-face column, depth below the surface; col = north, center, south
     [col]_Ri_bed.png     the same column, height above the bed
 
+CYCLE (-cycle springneap | tropeq | strat | wind | windhs | windls | cross | stratcalm; see pc_tidal_cycles.py): every phase is split into its high and low
+third of the cycle (pc_tidal_cycles.py: terciles of the semidiurnal / diurnal
+envelope of the mouth transport), e.g. 'flood, spring' and 'flood, neap'; high
+half solid, low half dashed; figures get _springneap / _tropeq in their names
+and go in the same folder. Default (none): the figures above, unchanged.
+
 run 20261103_pc_section_Ri.py
 """
 import matplotlib
@@ -54,6 +60,8 @@ import cmocean
 import gsw
 
 from lo_tools import Lfun
+import argparse
+from pc_tidal_cycles import cycle_masks, expand_phases
 
 GTAGEX = 'wb1_t0_xn11abbur00'
 DS0, DS1 = '2024.01.01', '2025.12.31'
@@ -76,6 +84,13 @@ COLS = {'north': 1 / 3, 'center': 1 / 2, 'south': 2 / 3}   # point on the sectio
 COLNAME = {'north': 'north 1/3 point', 'center': 'centre', 'south': 'south 1/3 point'}
 PHASES = ['flood', 'ebb', 'all']
 COLOR = {'flood': '#D55E00', 'ebb': '#0072B2', 'all': 'k'}
+parser = argparse.ArgumentParser()
+parser.add_argument('-cycle', default='none', choices=['none', 'springneap', 'tropeq', 'strat', 'wind', 'windhs', 'windls', 'cross', 'stratcalm'])   # split each phase by the spring/neap or tropic/equatorial cycle
+CYCLE = parser.parse_args().cycle
+TAG = '' if CYCLE == 'none' else '_' + CYCLE  # added to every figure name
+BASE_PHASES, BASE_COLOR = PHASES, COLOR
+LS = {ph: '-' for ph in PHASES}           # line style per phase: spring / tropic solid, neap / equatorial dashed
+
 
 Ldir = Lfun.Lstart(gridname='wb1')
 in_fn = (Ldir['LOo'] / 'extract' / GTAGEX / 'box'
@@ -121,6 +136,7 @@ def phase_stats(A, XA, MASK, amin):
 
 
 ds = xr.open_dataset(in_fn)
+CM = cycle_masks(ds.ocean_time.values) if CYCLE != 'none' else None
 R = {}
 for SN in FACES:
     XI_U, ETA = FACES[SN]['XI_U'], FACES[SN]['ETA']
@@ -138,6 +154,8 @@ for SN in FACES:
     dz = np.diff(zw, axis=1)
     Q = isum(u * dz * dy[None, None, :])      # (t,) section-total transport: sets flood / ebb
     MASK = {'flood': Q > 0, 'ebb': Q < 0, 'all': np.ones(len(Q), bool)}
+    if CYCLE != 'none':
+        PHASES, MASK, COLOR, LS = expand_phases(BASE_PHASES, MASK, BASE_COLOR, CYCLE, CM)
 
     # ------------------------------------------------------------------ N^2, S^2, Ri on the layers between cell centres
     SA = gsw.SA_from_SP(salt, -zr, LON, LAT)
@@ -180,6 +198,7 @@ for SN in FACES:
 ds.close()
 
 
+ALLK = [ph for ph in PHASES if ph.split(',')[0] in ('all', 'residual')][0]   # the all-hours phase (its first half when split)
 # ------------------------------------------------------------------ plot: cross-sections
 WR = [R[SN]['dy'].sum() for SN in FACES]  # column widths = real section widths, west to east
 LRC = np.log10(RI_CRIT)
@@ -204,12 +223,12 @@ def draw_xsec(ax, d, dy, fld, cmap, vmin, vmax, line):
 for fld, cmap, vmin, vmax, line, lab, fname in [
         ('fcrit', cmocean.cm.amp, 0, 1, 0.5, 'share of hours with Ri < 1/4 (black: 0.5)', 'section_fcrit.png'),
         ('Ribar', cmocean.cm.balance, LRC - 1.5, LRC + 1.5, LRC, r'log$_{10}$ <N$^2$>/<S$^2$> (black: Ri = 1/4; red = more stable)', 'section_Ribar.png')]:
-    fig, axs = plt.subplots(3, 3, figsize=(14, 9), sharey=True, layout='constrained', gridspec_kw={'width_ratios': WR})
+    fig, axs = plt.subplots(len(PHASES), 3, figsize=(14, 3 * len(PHASES)), sharey=True, layout='constrained', gridspec_kw={'width_ratios': WR})
     for i, ph in enumerate(PHASES):
         for j, SN in enumerate(FACES):
             cs = draw_xsec(axs[i, j], R[SN]['xs'][ph], R[SN]['dy'], fld, cmap, vmin, vmax, line)
             axs[i, j].set_title('%s: %s (%.0f%% of hours)' % (NAME[SN], ph, 100 * R[SN]['prof']['width']['st'][ph]['frac']), fontsize=9)
-            if i == 2:
+            if i == len(PHASES) - 1:
                 axs[i, j].set_xlabel('distance from north shore [km]')
         axs[i, 0].set_ylabel('z [m]')
     cb = fig.colorbar(cs, ax=axs, location='bottom', shrink=0.5, aspect=40, label=lab + '; grey = no resolved Ri')
@@ -219,7 +238,7 @@ for fld, cmap, vmin, vmax, line, lab, fname in [
         cb.set_ticklabels(['0.025', '0.1', '0.25', '1', '2.5'])
     fig.suptitle('Richardson number Ri = N$^2$/S$^2$ (full shear, u and v) on the sections, west to east, each looking into the cove (west; north at right); hourly snapshots, %s, %s to %s'
                  % (GTAGEX, DS0, DS1), fontsize=10)
-    fig.savefig(out_dir / fname, dpi=200, transparent=True)
+    fig.savefig(out_dir / fname.replace('.png', TAG + '.png'), dpi=200, transparent=True)
     plt.close(fig)
 
 
@@ -238,13 +257,13 @@ def plot_prof(key, fname, where, bed=False):
         sub = '' if key == 'width' else ', faces p = %d-%d' % tuple(pr['P'])
         for i, (fld, lab) in enumerate([('fcrit', 'share of hours with Ri < 1/4'), ('Ribar', r'<N$^2$>/<S$^2$>')]):
             ax = axs[i, j]
-            hatch_partial(ax, st['all']['full'])
+            hatch_partial(ax, st[ALLK]['full'])
             if bed:
                 ax.axhspan(0, pr['zb'], color='0.88', zorder=0)
                 ax.text(0.02, pr['zb'] / 2, 'no resolved Ri below the bottom cell centre', transform=ax.get_yaxis_transform(),
                         fontsize=6, va='center', color='0.3')
             for ph in PHASES:
-                ax.plot(st[ph][fld], DMID, color=COLOR[ph], lw=2, label='%s (%.0f%% of hours)' % (ph, 100 * st[ph]['frac']))
+                ax.plot(st[ph][fld], DMID, color=COLOR[ph], ls=LS[ph], lw=2, label='%s (%.0f%% of hours)' % (ph, 100 * st[ph]['frac']))
             ax.grid(True, alpha=0.3)
             ax.set_xlabel(lab, fontsize=8)
             ax.set_title(NAME[SN] + sub + ': ' + lab, fontsize=9)
@@ -262,7 +281,7 @@ def plot_prof(key, fname, where, bed=False):
         ax.set_ylabel('height above the bed [m]' if bed else 'depth below the surface [m]')
     fig.suptitle('Ri = N$^2$/S$^2$ (full shear), %s, 1 m bins (%s); dashed: Ri = 1/4; %s, %s to %s'
                  % (where, 'height above the bed' if bed else 'depth below the moving surface', GTAGEX, DS0, DS1), fontsize=10)
-    fig.savefig(out_dir / fname, dpi=200, transparent=True)
+    fig.savefig(out_dir / fname.replace('.png', TAG + '.png'), dpi=200, transparent=True)
     plt.close(fig)
 
 

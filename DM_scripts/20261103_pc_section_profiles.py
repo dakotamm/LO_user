@@ -70,6 +70,12 @@ OUTPUT LO_output/DM_outs/20261103_pc_section_profiles/
     [col]_profiles_bed.png  the column's two faces vs height above the bed, with the
                             inferred log layer below the lowest bin; bottom row = lowest 3 m
 
+CYCLE (-cycle springneap | tropeq | strat | wind | windhs | windls | cross | stratcalm; see pc_tidal_cycles.py): every phase is split into its high and low
+third of the cycle (pc_tidal_cycles.py: terciles of the semidiurnal / diurnal
+envelope of the mouth transport), e.g. 'flood, spring' and 'flood, neap'; high
+half solid, low half dashed; figures get _springneap / _tropeq in their names
+and go in the same folder. Default (none): the figures above, unchanged.
+
 run 20261103_pc_section_profiles.py
 """
 import matplotlib
@@ -79,6 +85,8 @@ import numpy as np
 import xarray as xr
 
 from lo_tools import Lfun
+import argparse
+from pc_tidal_cycles import cycle_masks, expand_phases
 
 GTAGEX = 'wb1_t0_xn11abbur00'
 DS0, DS1 = '2024.01.01', '2025.12.31'
@@ -100,6 +108,13 @@ COLS = {'north': 1 / 3, 'center': 1 / 2, 'south': 2 / 3}   # point on the sectio
 COLNAME = {'north': 'north 1/3 point', 'center': 'centre', 'south': 'south 1/3 point'}
 PHASES = ['flood', 'ebb', 'residual']
 COLOR = {'flood': '#D55E00', 'ebb': '#0072B2', 'residual': 'k'}
+parser = argparse.ArgumentParser()
+parser.add_argument('-cycle', default='none', choices=['none', 'springneap', 'tropeq', 'strat', 'wind', 'windhs', 'windls', 'cross', 'stratcalm'])   # split each phase by the spring/neap or tropic/equatorial cycle
+CYCLE = parser.parse_args().cycle
+TAG = '' if CYCLE == 'none' else '_' + CYCLE  # added to every figure name
+BASE_PHASES, BASE_COLOR = PHASES, COLOR
+LS = {ph: '-' for ph in PHASES}           # line style per phase: spring / tropic solid, neap / equatorial dashed
+
 
 Ldir = Lfun.Lstart(gridname='wb1')
 in_fn = (Ldir['LOo'] / 'extract' / GTAGEX / 'box'
@@ -130,7 +145,6 @@ def bin_transport(q, dz, dy, lo, hi, P):
 def profiles(Qb, Ab, Q, amin):
     """flood / ebb / residual profiles U_b = sum_t Q_b / sum_t A_b; bins with mean
     wetted area < amin are dropped."""
-    MASK = {'flood': Q > 0, 'ebb': Q < 0, 'residual': np.ones(len(Q), bool)}
     prof = {}
     for ph in PHASES:
         m = MASK[ph]
@@ -145,6 +159,7 @@ def profiles(Qb, Ab, Q, amin):
 
 
 ds = xr.open_dataset(in_fn)
+CM = cycle_masks(ds.ocean_time.values) if CYCLE != 'none' else None
 R = {}
 for SN in FACES:
     XI_U, ETA = FACES[SN]['XI_U'], FACES[SN]['ETA']
@@ -171,6 +186,9 @@ for SN in FACES:
     ALL = np.arange(u.shape[2])
     Qb, Ab = bin_transport(q, dz, dy, d_top, d_bot, ALL)
     Q = isum(q)                               # (t,) section-total transport: sets flood / ebb
+    MASK = {'flood': Q > 0, 'ebb': Q < 0, 'residual': np.ones(len(Q), bool)}
+    if CYCLE != 'none':
+        PHASES, MASK, COLOR, LS = expand_phases(BASE_PHASES, MASK, BASE_COLOR, CYCLE, CM)
     print('\n' + SN)
     print('  max |sum_b Q_b - int u dA| = %.1e m3/s, max |sum_b A_b - int dA| = %.1e m2'
           % (np.abs(Qb.sum(axis=1) - Q).max(), np.abs(Ab.sum(axis=1) - isum(dA)).max()))
@@ -192,6 +210,7 @@ for SN in FACES:
         R[SN][col + '_bed'] = profiles(Qb, Ab, Q, dy.mean() * 1.0)
 ds.close()
 
+ALLK = [ph for ph in PHASES if ph.split(',')[0] in ('all', 'residual')][0]   # the all-hours phase (its first half when split)
 # ------------------------------------------------------------------ plot
 def hatch_partial(ax, full, label=True):
     """Hatch the bins that are not full every hour (full_b < 0.99), with full_b written in."""
@@ -210,15 +229,18 @@ def plot(key, fname, what):
         ax = axs[0, j]
         for ph in PHASES:
             p = R[SN][key][ph]
-            ax.plot(100 * p['U'], DMID, color=COLOR[ph], lw=2,
+            ax.plot(100 * p['U'], DMID, color=COLOR[ph], ls=LS[ph], lw=2,
                     label='%s (%.0f%% of hours, mean Q %+.0f m$^3$ s$^{-1}$)' % (ph, 100 * p['frac'], p['Qcol']))
-        hatch_partial(ax, R[SN][key]['residual']['full'])
+        hatch_partial(ax, R[SN][key][ALLK]['full'])
         ax.set_title(NAME[SN] + sub, fontsize=10)
         ax.fill_between([], [], facecolor='none', edgecolor='0.6', hatch='///', label='bin not full every hour:\naverages only higher-water hours')
         ax.legend(fontsize=7, loc='lower left')
         ax = axs[1, j]
-        hatch_partial(ax, R[SN][key]['residual']['full'])
-        ax.plot(100 * R[SN][key]['residual']['U'], DMID, color=COLOR['residual'], lw=2)
+        hatch_partial(ax, R[SN][key][ALLK]['full'])
+        for ph in [p for p in PHASES if p.startswith('residual')]:
+            ax.plot(100 * R[SN][key][ph]['U'], DMID, color=COLOR[ph], ls=LS[ph], lw=2, label=ph)
+        if CYCLE != 'none':
+            ax.legend(fontsize=7, loc='lower left')
         ax.set_title(NAME[SN] + sub + ': residual', fontsize=10)
         ax.set_xlabel(r'$\leftarrow$ west, into the cove (+)    velocity [cm s$^{-1}$]    out (-), east $\rightarrow$', fontsize=8)
     for ax in axs.flat:
@@ -230,7 +252,7 @@ def plot(key, fname, what):
     axs[1, 0].set_ylabel('depth below the surface [m]')
     fig.suptitle('%s velocity, U = sum Q_b / sum A_b in 1 m depth bins below the moving surface, hourly snapshots, %s, %s to %s'
                  % (what.capitalize(), GTAGEX, DS0, DS1), fontsize=10)
-    fig.savefig(out_dir / fname, dpi=200, transparent=True)
+    fig.savefig(out_dir / fname.replace('.png', TAG + '.png'), dpi=200, transparent=True)
     plt.close(fig)
 
 
@@ -249,13 +271,13 @@ def plot_bed(col, fname):
         for i, ztop in enumerate([None, 3.0]):
             ax = axs[i, j]
             ax.axhspan(0, ZB, color='0.88', zorder=0)
-            hatch_partial(ax, R[SN][col + '_bed']['residual']['full'], label=(i == 0))
+            hatch_partial(ax, R[SN][col + '_bed'][ALLK]['full'], label=(i == 0))
             for ph in PHASES:
                 p = R[SN][col + '_bed'][ph]
-                ax.plot(100 * p['U'], DMID, color=COLOR[ph], lw=2, marker='o' if ztop else None, ms=4,
+                ax.plot(100 * p['U'], DMID, color=COLOR[ph], ls=LS[ph], lw=2, marker='o' if ztop else None, ms=4,
                         label='%s (mean Q %+.0f m$^3$ s$^{-1}$)' % (ph, p['Qcol']))
                 ax.plot(100 * p['U'][0] * np.concatenate([[0], FL]), np.concatenate([[0], ZL]),
-                        color=COLOR[ph], lw=2, ls='--')
+                        color=COLOR[ph], lw=2, ls='--' if CYCLE == 'none' else LS[ph])
             ax.invert_xaxis()                 # west (+, into the cove) at left, east at right
             ax.axvline(0, color='k', lw=0.6)
             ax.grid(True, alpha=0.3)
@@ -270,14 +292,14 @@ def plot_bed(col, fname):
                 ax.set_title(NAME[SN] + ', faces p = %d-%d' % tuple(R[SN][col + '_P']), fontsize=10)
         if j == 0:
             axs[0, 0].plot([], [], color='0.4', lw=2, label='resolved (1 m bins)')
-            axs[0, 0].plot([], [], color='0.4', lw=2, ls='--', label='inferred log layer, grey band')
+            axs[0, 0].plot([], [], color='0.4', lw=2, ls='--', label='inferred log layer, grey band') if CYCLE == 'none' else axs[0, 0].plot([], [], color='none', label='grey band: inferred log layer')
             axs[0, 0].fill_between([], [], facecolor='none', edgecolor='0.6', hatch='///', label='bin not full every hour:\naverages only higher-water hours')
         axs[0, j].legend(fontsize=7, loc='upper left')
     axs[0, 0].set_ylabel('height above the bed [m]')
     axs[1, 0].set_ylabel('height above the bed [m]')
     fig.suptitle('Velocity at the %s (two faces) vs height above the bed, U = sum Q_b / sum A_b in 1 m bins, hourly snapshots, %s, %s to %s'
                  % (COLNAME[col], GTAGEX, DS0, DS1), fontsize=10)
-    fig.savefig(out_dir / fname, dpi=200, transparent=True)
+    fig.savefig(out_dir / fname.replace('.png', TAG + '.png'), dpi=200, transparent=True)
     plt.close(fig)
 
 

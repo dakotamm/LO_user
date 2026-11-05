@@ -30,7 +30,13 @@ Output: LO_output/DM_outs/20261103_pc_flood_ebb_sections/  (each name gets _his 
                                    each flood / ebb, averaged over all of them; not minus residual)
   (the Eulerian u0 / u1 / u2 decomposition is in 20261103_pc_eulerian_u0u1u2.py)
 
-  python 20261103_pc_flood_ebb_sections.py
+CYCLE (-cycle springneap | tropeq | strat | wind | windhs | windls | cross | stratcalm; see pc_tidal_cycles.py): every phase is split into its high and low
+third of the cycle (pc_tidal_cycles.py: terciles of the semidiurnal / diurnal
+envelope of the mouth transport), e.g. 'flood, spring' and 'flood, neap'; the
+tidal panels subtract the residual of the SAME half; figures get _springneap /
+_tropeq before _his / _avg and go in the same folder. Default (none): unchanged.
+
+  python 20261103_pc_flood_ebb_sections.py [-cycle springneap|tropeq|strat|wind|windhs|windls|cross|stratcalm]
 """
 
 import numpy as np
@@ -42,6 +48,8 @@ import matplotlib.pyplot as plt
 import cmocean
 
 from lo_tools import Lfun
+import argparse
+from pc_tidal_cycles import cycle_masks, CYCLES
 
 GTX, DS0, DS1 = 'wb1_t0_xn11abbur00', '2024.01.01', '2025.12.31'
 SRC = 'his'         # 'his': hourly snapshots (pc_cove box) | 'avg': hour-mean Huon (tef2 extractions_avg)
@@ -55,6 +63,15 @@ sect_df = pd.read_pickle(Ldir['LOo'] / 'extract' / 'tef2' / 'sect_df_wb1_pc1.p')
 out_dir = Ldir['LOo'] / 'DM_outs' / '20261103_pc_flood_ebb_sections'
 Lfun.make_dir(out_dir)
 GRID = dict(color='lightgray', linestyle='--', alpha=0.5)
+parser = argparse.ArgumentParser()
+parser.add_argument('-cycle', default='none', choices=['none', 'springneap', 'tropeq', 'strat', 'wind', 'windhs', 'windls', 'cross', 'stratcalm'])   # split each phase by the spring/neap or tropic/equatorial cycle
+CYCLE = parser.parse_args().cycle
+TAG = '' if CYCLE == 'none' else '_' + CYCLE  # added to every figure name
+if CYCLE != 'none':
+    _t = xr.open_dataset(box_fn if SRC == 'his' else in_dir / 'pc_lp.nc')
+    CM = cycle_masks(_t['ocean_time' if SRC == 'his' else 'time'].values)
+    _t.close()
+    HALVES = CYCLES[CYCLE]
 
 def peak_hours(mask, Q, nmin=3):
     # one hour per contiguous run of mask (one flood or one ebb): the hour of largest |Q|; runs shorter than nmin h are slack flicker, skipped
@@ -116,7 +133,10 @@ for sect in SECTS:
     print('   peaks: %d floods (%d runs < 3 h skipped), %d ebbs (%d skipped)' % (PF.sum(), nrun(F) - PF.sum(), PE.sum(), nrun(E) - PE.sum()))
 
     out = {}
-    for ph, m in [('flood', F), ('ebb', E), ('max flood', PF), ('max ebb', PE), ('residual', np.ones_like(F))]:
+    PHM = [('flood', F), ('ebb', E), ('max flood', PF), ('max ebb', PE), ('residual', np.ones_like(F))]
+    if CYCLE != 'none':                      # each phase also split by the cycle, e.g. 'flood, spring'
+        PHM += [('%s, %s' % (ph, half), m & CM[half]) for ph, m in PHM for half in HALVES]
+    for ph, m in PHM:
         if AVG == 'transport':
             U = q_in[m].sum(axis=0) / A[m].sum(axis=0)       # (z, p) m/s
         else:
@@ -153,38 +173,46 @@ def draw(ax, d, dd, vmax, dlev, cmap=cmocean.cm.balance, vmin=None):
 
 # tidal part = composite minus the residual (exact for either AVG, since U_res is fixed per cell)
 for s in SECTS:
-    for ph in ['flood', 'ebb']:
-        d, r = R[s][ph], R[s]['residual']
+    for ph in ['flood', 'ebb'] + (['%s, %s' % (p, half) for p in ['flood', 'ebb'] for half in HALVES] if CYCLE != 'none' else []):
+        d, r = R[s][ph], R[s][ph.replace('flood', 'residual').replace('ebb', 'residual')]   # the residual of the same half
         R[s]['tidal ' + ph] = dict(U=d['U'] - r['U'], zw=d['zw'], zr=d['zr'], A=d['A'], Q=d['Q'] - r['Q'], frac=d['frac'])
 
 def make_fig(PH, dlev, cblab, fname):
-    vt = np.ceil(np.nanmax([np.nanpercentile(np.abs(100 * R[s][ph]['U']), 99) for s in SECTS for ph in PH[:2]]))
-    vr = np.ceil(np.nanmax([np.nanpercentile(np.abs(100 * R[s]['residual']['U']), 99) for s in SECTS]))
+    isres = lambda ph: ph.startswith('residual')
+    vt = np.ceil(np.nanmax([np.nanpercentile(np.abs(100 * R[s][ph]['U']), 99) for s in SECTS for ph in PH if not isres(ph)]))
+    vr = np.ceil(np.nanmax([np.nanpercentile(np.abs(100 * R[s][ph]['U']), 99) for s in SECTS for ph in PH if isres(ph)]))
+    NR = len(PH)
     # columns = sections west to east, each as wide as the section really is; rows = phases
-    fig, axs = plt.subplots(3, 3, figsize=(14, 9), sharey=True, layout='constrained',
+    fig, axs = plt.subplots(NR, 3, figsize=(14, 3 * NR), sharey=True, layout='constrained',
                             gridspec_kw={'width_ratios': [R[s]['dd'].sum() for s in SECTS]})
     for j, s in enumerate(SECTS):
         for i, ph in enumerate(PH):
             ax = axs[i, j]
             d = R[s][ph]
-            cs = draw(ax, d, R[s]['dd'], vr if ph == 'residual' else vt, 1 if ph == 'residual' else dlev)
-            if ph == 'residual':
+            cs = draw(ax, d, R[s]['dd'], vr if isres(ph) else vt, 1 if isres(ph) else dlev)
+            if isres(ph):
                 cr = cs
             else:
                 ct = cs
-            ax.set_title('%s, %s\n%.0f%% of hours, mean Q_in %+.*f m3/s' % (NAME[s], ph, 100 * d['frac'], 2 if ph == 'residual' else 0, d['Q']), fontsize=8)
+            ax.set_title('%s, %s\n%.0f%% of hours, mean Q_in %+.*f m3/s' % (NAME[s], ph, 100 * d['frac'], 2 if isres(ph) else 0, d['Q']), fontsize=8)
             if j == 0:
                 ax.set_ylabel('z [m]')
-            if i == 2:
+            if i == NR - 1:
                 ax.set_xlabel('distance from north shore [km]')
-    fig.colorbar(ct, ax=axs[:2, :], location='right', shrink=0.8, label=cblab + ' [cm/s], + into the cove (contours every %g)' % dlev)
-    fig.colorbar(cr, ax=axs[2, :], location='right', shrink=0.9, label='residual [cm/s], + into\nthe cove (contours every 1)')
+    rt = [i for i, ph in enumerate(PH) if not isres(ph)]
+    rr = [i for i, ph in enumerate(PH) if isres(ph)]
+    fig.colorbar(ct, ax=axs[rt, :].ravel().tolist(), location='right', shrink=0.8, label=cblab + ' [cm/s], + into the cove (contours every %g)' % dlev)
+    fig.colorbar(cr, ax=axs[rr, :].ravel().tolist(), location='right', shrink=0.9, label='residual [cm/s], + into\nthe cove (contours every 1)')
     fig.suptitle('Penn Cove sections west to east, each looking into the cove (west; north at right), %s average, %s, %s, %s to %s' % (AVG, 'hourly snapshots' if SRC == 'his' else 'hour-mean Huon', GTX, DS0, DS1), fontsize=11)
-    fn = out_dir / fname.replace('.png', '_%s.png' % SRC)
+    fn = out_dir / fname.replace('.png', '%s_%s.png' % (TAG, SRC))
     fig.savefig(fn, dpi=200, bbox_inches='tight', transparent=True)
     plt.close(fig)
     print('Saved ' + str(fn))
 
-make_fig(['flood', 'ebb', 'residual'], 5, 'section-normal velocity', 'pc_flood_ebb_sections.png')
-make_fig(['tidal flood', 'tidal ebb', 'residual'], 2, 'tidal velocity (composite minus residual)', 'pc_tidal_flood_ebb_sections.png')
-make_fig(['max flood', 'max ebb', 'residual'], 5, 'velocity at the peak hour of each flood / ebb, averaged', 'pc_max_flood_ebb_sections.png')
+def split(PH):
+    """['flood', 'ebb', 'residual'] -> each phase's high and low half of the cycle, in that order."""
+    return PH if CYCLE == 'none' else ['%s, %s' % (ph, half) for ph in PH for half in HALVES]
+
+make_fig(split(['flood', 'ebb', 'residual']), 5, 'section-normal velocity', 'pc_flood_ebb_sections.png')
+make_fig(split(['tidal flood', 'tidal ebb', 'residual']), 2, 'tidal velocity (composite minus residual)', 'pc_tidal_flood_ebb_sections.png')
+make_fig(split(['max flood', 'max ebb', 'residual']), 5, 'velocity at the peak hour of each flood / ebb, averaged', 'pc_max_flood_ebb_sections.png')

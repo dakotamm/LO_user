@@ -38,7 +38,12 @@ OUTPUT LO_output/DM_outs/20261103_pc_eulerian_u0u1u2/
                     u, u0, u1, u2 on each section, averaged over the peak-|Q| hour
                     of each flood (each ebb); Q = int u dA, unfiltered, hourly
 
-run 20261103_pc_eulerian_u0u1u2.py
+CYCLE (-cycle springneap | tropeq | strat | wind | windhs | windls | cross | stratcalm; see pc_tidal_cycles.py): only the u_terms figures, with each of max
+flood / max ebb split into the high and low third of the cycle (pc_tidal_cycles.py),
+e.g. u_terms_max_flood_spring.png and u_terms_max_flood_neap.png; each pair shares
+one color scale. u0 / u1_mean / u2_example are not redrawn. Default (none): unchanged.
+
+run 20261103_pc_eulerian_u0u1u2.py [-cycle springneap|tropeq|strat|wind|windhs|windls|cross|stratcalm]
 """
 import matplotlib
 matplotlib.use('Agg')
@@ -47,6 +52,11 @@ import numpy as np
 import xarray as xr
 
 from lo_tools import Lfun, zfun
+import argparse
+from pc_tidal_cycles import cycle_masks, CYCLES
+parser = argparse.ArgumentParser()
+parser.add_argument('-cycle', default='none', choices=['none', 'springneap', 'tropeq', 'strat', 'wind', 'windhs', 'windls', 'cross', 'stratcalm'])   # split max flood / ebb by the cycle
+CYCLE = parser.parse_args().cycle
 
 GTAGEX = 'wb1_t0_xn11abbur00'
 DS0, DS1 = '2024.01.01', '2025.12.31'
@@ -91,6 +101,7 @@ def peak_hours(mask, Q, nmin=3):
 
 ds = xr.open_dataset(in_fn)
 time = ds.ocean_time.to_numpy()
+CM = cycle_masks(time) if CYCLE != 'none' else None
 R = {}
 for SN in FACES:
     XI_U, ETA = FACES[SN]['XI_U'], FACES[SN]['ETA']
@@ -133,7 +144,10 @@ for SN in FACES:
 
     # composite (plain mean over those hours) of each term; u = u0 + u1 + u2 holds in the mean too
     comp = {}
-    for ph, m in [('max flood', PF), ('max ebb', PE)]:
+    PHM = [('max flood', PF), ('max ebb', PE)]
+    if CYCLE != 'none':                      # each also split by the cycle, e.g. 'max flood, spring'
+        PHM += [('%s, %s' % (ph, half), m & CM[half]) for ph, m in PHM for half in CYCLES[CYCLE]]
+    for ph, m in PHM:
         comp[ph] = {'u': u[m].mean(axis=0),
                     'u0': np.broadcast_to(u0h[m].mean(), u.shape[1:]),
                     'u1': u1h[m].mean(axis=0),
@@ -153,71 +167,74 @@ for SN in FACES:
     R[SN] = dict(u=u, u0h=u0h, u1h=u1h, u2=u2, ok=ok, dy=dy, h=h, z0=z0, comp=comp)
 ds.close()
 
-# ------------------------------------------------------------------ plot u0 (hourly)
-fig, axs = plt.subplots(3, 1, figsize=(11, 8), sharex=True, sharey=True)
-for ax, SN in zip(axs, FACES):
-    u0h, ok = R[SN]['u0h'], R[SN]['ok']
-    ax.plot(time, u0h * 1000, color='tab:blue', lw=0.6,
-            label=r'$u_0$ (mean %+.3f, std %.3f mm s$^{-1}$)' % (u0h[ok].mean() * 1000, u0h[ok].std() * 1000))
-    ax.axhline(0, color='k', lw=0.6)
-    ax.set_ylabel(NAME[SN] + '\n' + r'$u_0$ [mm s$^{-1}$]')
-    ax.legend(loc='upper left', fontsize=8)
-    ax.grid(True, alpha=0.3)
-axs[0].set_title(r'$u_0=\langle\int u\,dA\rangle/A_0$ (Eq. 2.3), hourly low-passed, + into the cove')
-fig.tight_layout()
-fig.savefig(out_dir / 'u0.png', dpi=200, transparent=True)
-plt.close(fig)
-
-# ------------------------------------------------------------------ plot time-mean u1 on each section
-# looking up-estuary (west, into the cove), so north is at the RIGHT; one color scale for all three
-vm = max(np.abs(R[SN]['u1h'][R[SN]['ok']].mean(axis=0)).max() for SN in FACES) * 100
 WR = [R[SN]['dy'].sum() for SN in FACES]  # column widths = real section widths, west to east
-fig, axs = plt.subplots(1, 3, figsize=(15, 4.5), sharey=True, layout='constrained', gridspec_kw={'width_ratios': WR})
-for ax, SN in zip(axs, FACES):
-    u1h, ok, dy, h, z0 = R[SN]['u1h'], R[SN]['ok'], R[SN]['dy'], R[SN]['h'], R[SN]['z0']
-    x = np.cumsum(dy) / 1000 - dy[0] / 2000            # face centres, km from north end
-    X = np.broadcast_to(x[None, :], z0.shape)
-    xe = np.concatenate(([0], np.cumsum(dy) / 1000))   # face edges
-    fld = u1h[ok].mean(axis=0) * 100
-    cs = ax.pcolormesh(X, z0, fld, cmap='RdBu_r', vmin=-vm, vmax=vm, shading='nearest')
-    ax.contour(X, z0, fld, levels=[0], colors='k', linewidths=1)
-    ax.fill_between(np.repeat(xe, 2)[1:-1], np.repeat(-h, 2), -30, color='0.6')
-    ax.set_xlim(xe[-1], xe[0])           # reversed: north at right = looking west, into the cove
-    ax.set_ylim(-28, 0)
-    ax.set_xlabel('distance from north end [km]')
-    ax.grid(True, alpha=0.3)
-    ax.set_title(NAME[SN], fontsize=10)
-axs[0].set_ylabel('z [m]')
-fig.colorbar(cs, ax=axs, label=r'[cm s$^{-1}$], + up-estuary (into cove)')
-fig.suptitle(r'time-mean $u_1=\langle u\,dA\rangle/dA_0-u_0$ (Eq. 2.4), ' + DS0 + ' to ' + DS1 + ', sections west to east, each looking into the cove (west), north at right', fontsize=11)
-fig.savefig(out_dir / 'u1_mean.png', dpi=200, transparent=True)
-plt.close(fig)
+if CYCLE == 'none':                       # these three do not depend on the tidal phase
+    # ------------------------------------------------------------------ plot u0 (hourly)
+    fig, axs = plt.subplots(3, 1, figsize=(11, 8), sharex=True, sharey=True)
+    for ax, SN in zip(axs, FACES):
+        u0h, ok = R[SN]['u0h'], R[SN]['ok']
+        ax.plot(time, u0h * 1000, color='tab:blue', lw=0.6,
+                label=r'$u_0$ (mean %+.3f, std %.3f mm s$^{-1}$)' % (u0h[ok].mean() * 1000, u0h[ok].std() * 1000))
+        ax.axhline(0, color='k', lw=0.6)
+        ax.set_ylabel(NAME[SN] + '\n' + r'$u_0$ [mm s$^{-1}$]')
+        ax.legend(loc='upper left', fontsize=8)
+        ax.grid(True, alpha=0.3)
+    axs[0].set_title(r'$u_0=\langle\int u\,dA\rangle/A_0$ (Eq. 2.3), hourly low-passed, + into the cove')
+    fig.tight_layout()
+    fig.savefig(out_dir / 'u0.png', dpi=200, transparent=True)
+    plt.close(fig)
 
-# ------------------------------------------------------------------ plot u = u0 + u1 + u2 at one element, over 15 days
-w = (time >= np.datetime64('2024-08-01')) & (time < np.datetime64('2024-08-16'))
-fig, axs = plt.subplots(3, 1, figsize=(11, 8), sharex=True, sharey=True)
-for ax, SN in zip(axs, FACES):
-    u, u0h, u1h, u2 = R[SN]['u'], R[SN]['u0h'], R[SN]['u1h'], R[SN]['u2']
-    ax.plot(time[w], u[w, KK, PP], color='k', lw=1, label=r'$u$')
-    ax.plot(time[w], (u0h[:, None, None] + u1h)[w, KK, PP], color='tab:blue', lw=1.8, label=r'$u_0+u_1$')
-    ax.plot(time[w], u2[w, KK, PP], color='tab:orange', lw=1, label=r'$u_2$')
-    ax.axhline(0, color='k', lw=0.6)
-    ax.set_ylabel(NAME[SN] + '\n' + r'[m s$^{-1}$]')
-    ax.legend(loc='upper left', fontsize=8, ncol=3)
-    ax.grid(True, alpha=0.3)
-axs[0].set_title('Eq. 2.5 at element k=%d (surface), p=%d (north side), hourly, + into the cove'
-                 % (R['pc_lp']['u'].shape[1] + KK, PP))
-fig.tight_layout()
-fig.savefig(out_dir / 'u2_example.png', dpi=200, transparent=True)
-plt.close(fig)
+    # ------------------------------------------------------------------ plot time-mean u1 on each section
+    # looking up-estuary (west, into the cove), so north is at the RIGHT; one color scale for all three
+    vm = max(np.abs(R[SN]['u1h'][R[SN]['ok']].mean(axis=0)).max() for SN in FACES) * 100
+    fig, axs = plt.subplots(1, 3, figsize=(15, 4.5), sharey=True, layout='constrained', gridspec_kw={'width_ratios': WR})
+    for ax, SN in zip(axs, FACES):
+        u1h, ok, dy, h, z0 = R[SN]['u1h'], R[SN]['ok'], R[SN]['dy'], R[SN]['h'], R[SN]['z0']
+        x = np.cumsum(dy) / 1000 - dy[0] / 2000            # face centres, km from north end
+        X = np.broadcast_to(x[None, :], z0.shape)
+        xe = np.concatenate(([0], np.cumsum(dy) / 1000))   # face edges
+        fld = u1h[ok].mean(axis=0) * 100
+        cs = ax.pcolormesh(X, z0, fld, cmap='RdBu_r', vmin=-vm, vmax=vm, shading='nearest')
+        ax.contour(X, z0, fld, levels=[0], colors='k', linewidths=1)
+        ax.fill_between(np.repeat(xe, 2)[1:-1], np.repeat(-h, 2), -30, color='0.6')
+        ax.set_xlim(xe[-1], xe[0])           # reversed: north at right = looking west, into the cove
+        ax.set_ylim(-28, 0)
+        ax.set_xlabel('distance from north end [km]')
+        ax.grid(True, alpha=0.3)
+        ax.set_title(NAME[SN], fontsize=10)
+    axs[0].set_ylabel('z [m]')
+    fig.colorbar(cs, ax=axs, label=r'[cm s$^{-1}$], + up-estuary (into cove)')
+    fig.suptitle(r'time-mean $u_1=\langle u\,dA\rangle/dA_0-u_0$ (Eq. 2.4), ' + DS0 + ' to ' + DS1 + ', sections west to east, each looking into the cove (west), north at right', fontsize=11)
+    fig.savefig(out_dir / 'u1_mean.png', dpi=200, transparent=True)
+    plt.close(fig)
+
+    # ------------------------------------------------------------------ plot u = u0 + u1 + u2 at one element, over 15 days
+    w = (time >= np.datetime64('2024-08-01')) & (time < np.datetime64('2024-08-16'))
+    fig, axs = plt.subplots(3, 1, figsize=(11, 8), sharex=True, sharey=True)
+    for ax, SN in zip(axs, FACES):
+        u, u0h, u1h, u2 = R[SN]['u'], R[SN]['u0h'], R[SN]['u1h'], R[SN]['u2']
+        ax.plot(time[w], u[w, KK, PP], color='k', lw=1, label=r'$u$')
+        ax.plot(time[w], (u0h[:, None, None] + u1h)[w, KK, PP], color='tab:blue', lw=1.8, label=r'$u_0+u_1$')
+        ax.plot(time[w], u2[w, KK, PP], color='tab:orange', lw=1, label=r'$u_2$')
+        ax.axhline(0, color='k', lw=0.6)
+        ax.set_ylabel(NAME[SN] + '\n' + r'[m s$^{-1}$]')
+        ax.legend(loc='upper left', fontsize=8, ncol=3)
+        ax.grid(True, alpha=0.3)
+    axs[0].set_title('Eq. 2.5 at element k=%d (surface), p=%d (north side), hourly, + into the cove'
+                     % (R['pc_lp']['u'].shape[1] + KK, PP))
+    fig.tight_layout()
+    fig.savefig(out_dir / 'u2_example.png', dpi=200, transparent=True)
+    plt.close(fig)
 
 # ------------------------------------------------------------------ plot u, u0, u1, u2 on each section at max flood / max ebb
 # looking up-estuary (west, into the cove), so north is at the RIGHT. u and u2 share one color
 # scale (tidal); u0 and u1 share a second, smaller one (subtidal).
 TERMS = [('u', r'$u$'), ('u0', r'$u_0$'), ('u1', r'$u_1$'), ('u2', r'$u_2$')]
-for ph in ['max flood', 'max ebb']:
-    vt = max(np.abs(R[SN]['comp'][ph][k]).max() for SN in FACES for k in ['u', 'u2']) * 100
-    vr = max(np.abs(R[SN]['comp'][ph][k]).max() for SN in FACES for k in ['u0', 'u1']) * 100
+PAIRS = [[ph] for ph in ['max flood', 'max ebb']] if CYCLE == 'none' else [['%s, %s' % (ph, half) for half in CYCLES[CYCLE]] for ph in ['max flood', 'max ebb']]
+for ph in [p for pair in PAIRS for p in pair]:
+    pair = [p for p in PAIRS if ph in p][0]   # one color scale for both halves of a cycle
+    vt = max(np.abs(R[SN]['comp'][p][k]).max() for p in pair for SN in FACES for k in ['u', 'u2']) * 100
+    vr = max(np.abs(R[SN]['comp'][p][k]).max() for p in pair for SN in FACES for k in ['u0', 'u1']) * 100
     # columns = sections west to east, rows = the terms u, u0, u1, u2
     fig, axs = plt.subplots(4, 3, figsize=(14, 13), sharey=True, layout='constrained', gridspec_kw={'width_ratios': WR})
     for j, SN in enumerate(FACES):
@@ -245,7 +262,7 @@ for ph in ['max flood', 'max ebb']:
             if j == 0:
                 ax.set_ylabel('z [m]')
     fig.suptitle((r'$u=u_0+u_1+u_2$ (Eq. 2.5) at %s: the peak-$|Q|$ hour of each %s, averaged over %s to %s' + '\n' + 'sections west to east, each looking into the cove (west), north at right')
-                 % (ph, ph.split()[1], DS0, DS1), fontsize=11)
-    fig.savefig(out_dir / ('u_terms_%s.png' % ph.replace(' ', '_')), dpi=200, transparent=True)
+                 % (ph, ph.split(',')[0].split()[1], DS0, DS1), fontsize=11)
+    fig.savefig(out_dir / ('u_terms_%s.png' % ph.replace(', ', '_').replace(' ', '_')), dpi=200, transparent=True)
     plt.close(fig)
 print('\nsaved to ' + str(out_dir))

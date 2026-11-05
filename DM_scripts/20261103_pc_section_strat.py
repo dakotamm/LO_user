@@ -40,6 +40,12 @@ OUTPUT LO_output/DM_outs/20261103_pc_section_strat/
     [col]_strat.png       two-face column, depth below the surface; col = north, center, south
     [col]_strat_bed.png   the same column, height above the bed
 
+CYCLE (-cycle springneap | tropeq | strat | wind | windhs | windls | cross | stratcalm; see pc_tidal_cycles.py): every phase is split into its high and low
+third of the cycle (pc_tidal_cycles.py: terciles of the semidiurnal / diurnal
+envelope of the mouth transport), e.g. 'flood, spring' and 'flood, neap'; high
+half solid, low half dashed; figures get _springneap / _tropeq in their names
+and go in the same folder. Default (none): the figures above, unchanged.
+
 run 20261103_pc_section_strat.py
 """
 import matplotlib
@@ -51,6 +57,8 @@ import cmocean
 import gsw
 
 from lo_tools import Lfun
+import argparse
+from pc_tidal_cycles import cycle_masks, expand_phases
 
 GTAGEX = 'wb1_t0_xn11abbur00'
 DS0, DS1 = '2024.01.01', '2025.12.31'
@@ -72,6 +80,13 @@ COLS = {'north': 1 / 3, 'center': 1 / 2, 'south': 2 / 3}   # point on the sectio
 COLNAME = {'north': 'north 1/3 point', 'center': 'centre', 'south': 'south 1/3 point'}
 PHASES = ['flood', 'ebb', 'all']
 COLOR = {'flood': '#D55E00', 'ebb': '#0072B2', 'all': 'k'}
+parser = argparse.ArgumentParser()
+parser.add_argument('-cycle', default='none', choices=['none', 'springneap', 'tropeq', 'strat', 'wind', 'windhs', 'windls', 'cross', 'stratcalm'])   # split each phase by the spring/neap or tropic/equatorial cycle
+CYCLE = parser.parse_args().cycle
+TAG = '' if CYCLE == 'none' else '_' + CYCLE  # added to every figure name
+BASE_PHASES, BASE_COLOR = PHASES, COLOR
+LS = {ph: '-' for ph in PHASES}           # line style per phase: spring / tropic solid, neap / equatorial dashed
+
 
 Ldir = Lfun.Lstart(gridname='wb1')
 in_fn = (Ldir['LOo'] / 'extract' / GTAGEX / 'box'
@@ -113,6 +128,7 @@ def phase_mean(A, XA, MASK, amin):
 
 
 ds = xr.open_dataset(in_fn)
+CM = cycle_masks(ds.ocean_time.values) if CYCLE != 'none' else None
 R = {}
 for SN in FACES:
     XI_U, ETA = FACES[SN]['XI_U'], FACES[SN]['ETA']
@@ -128,6 +144,8 @@ for SN in FACES:
     dz = np.diff(zw, axis=1)                  # (t, k, p) cell thickness
     Q = isum(u * dz * dy[None, None, :])      # (t,) section-total transport: sets flood / ebb
     MASK = {'flood': Q > 0, 'ebb': Q < 0, 'all': np.ones(len(Q), bool)}
+    if CYCLE != 'none':
+        PHASES, MASK, COLOR, LS = expand_phases(BASE_PHASES, MASK, BASE_COLOR, CYCLE, CM)
 
     # ------------------------------------------------------------------ potential density (TEOS-10)
     SA = gsw.SA_from_SP(salt, -zr, LON, LAT)
@@ -170,6 +188,7 @@ for SN in FACES:
 ds.close()
 
 
+ALLK = [ph for ph in PHASES if ph.split(',')[0] in ('all', 'residual')][0]   # the all-hours phase (its first half when split)
 # ------------------------------------------------------------------ plot: cross-sections of N^2 with sigma0 contours
 WR = [R[SN]['dy'].sum() for SN in FACES]  # column widths = real section widths, west to east
 N2U = 1e-3                                # plotting unit of N^2 [1/s2]
@@ -193,19 +212,19 @@ def draw_xsec(ax, d, dy, vmax):
 
 
 vmax = np.nanpercentile(np.concatenate([R[SN]['xs'][ph]['N2'].ravel() for SN in FACES for ph in PHASES]), 99) / N2U
-fig, axs = plt.subplots(3, 3, figsize=(14, 9), sharey=True, layout='constrained', gridspec_kw={'width_ratios': WR})
+fig, axs = plt.subplots(len(PHASES), 3, figsize=(14, 3 * len(PHASES)), sharey=True, layout='constrained', gridspec_kw={'width_ratios': WR})
 for i, ph in enumerate(PHASES):
     for j, SN in enumerate(FACES):
         cs = draw_xsec(axs[i, j], R[SN]['xs'][ph], R[SN]['dy'], vmax)
         axs[i, j].set_title('%s: %s (%.0f%% of hours)' % (NAME[SN], ph, 100 * R[SN]['prof']['width']['N2'][ph]['frac']), fontsize=9)
-        if i == 2:
+        if i == len(PHASES) - 1:
             axs[i, j].set_xlabel('distance from north shore [km]')
     axs[i, 0].set_ylabel('z [m]')
 fig.colorbar(cs, ax=axs, location='bottom', shrink=0.5, aspect=40,
              label=r'mean N$^2$ [10$^{-3}$ s$^{-2}$]; white contours: mean $\sigma_0$ [kg m$^{-3}$], every 0.25; grey = no resolved N$^2$')
 fig.suptitle('Stratification on the sections, west to east, each looking into the cove (west; north at right); hourly snapshots, %s, %s to %s'
              % (GTAGEX, DS0, DS1), fontsize=10)
-fig.savefig(out_dir / 'section_N2.png', dpi=200, transparent=True)
+fig.savefig(out_dir / ('section_N2%s.png' % TAG), dpi=200, transparent=True)
 plt.close(fig)
 
 
@@ -223,13 +242,13 @@ def plot_prof(key, fname, where, bed=False):
         sub = '' if key == 'width' else ', faces p = %d-%d' % tuple(pr['P'])
         for i, (fld, scale, lab) in enumerate([('N2', 1 / N2U, r'mean N$^2$ [10$^{-3}$ s$^{-2}$]'), ('sig', 1, r'mean $\sigma_0$ [kg m$^{-3}$]')]):
             ax = axs[i, j]
-            hatch_partial(ax, pr[fld]['all']['full'])
+            hatch_partial(ax, pr[fld][ALLK]['full'])
             if bed and fld == 'N2':
                 ax.axhspan(0, pr['zb'], color='0.88', zorder=0)
                 ax.text(0.02, pr['zb'] / 2, 'no resolved N$^2$ below the bottom cell centre', transform=ax.get_yaxis_transform(),
                         fontsize=6, va='center', color='0.3')
             for ph in PHASES:
-                ax.plot(scale * pr[fld][ph]['X'], DMID, color=COLOR[ph], lw=2, label='%s (%.0f%% of hours)' % (ph, 100 * pr[fld][ph]['frac']))
+                ax.plot(scale * pr[fld][ph]['X'], DMID, color=COLOR[ph], ls=LS[ph], lw=2, label='%s (%.0f%% of hours)' % (ph, 100 * pr[fld][ph]['frac']))
             ax.grid(True, alpha=0.3)
             ax.set_xlabel(lab, fontsize=8)
             ax.set_title(NAME[SN] + sub + (': N$^2$' if fld == 'N2' else r': $\sigma_0$'), fontsize=9)
@@ -241,7 +260,7 @@ def plot_prof(key, fname, where, bed=False):
         ax.set_ylabel('height above the bed [m]' if bed else 'depth below the surface [m]')
     fig.suptitle('Stratification, %s, area-weighted in 1 m bins (%s), hourly snapshots, %s, %s to %s'
                  % (where, 'height above the bed' if bed else 'depth below the moving surface', GTAGEX, DS0, DS1), fontsize=10)
-    fig.savefig(out_dir / fname, dpi=200, transparent=True)
+    fig.savefig(out_dir / fname.replace('.png', TAG + '.png'), dpi=200, transparent=True)
     plt.close(fig)
 
 
