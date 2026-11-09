@@ -247,6 +247,11 @@ def get_box(job, Lon, Lat):
         # also catches some Admiralty Inlet water, which is a different basin --
         # mask it out in plotting. 107 x 111 rho cells, ~6100 wet.
         # Run with -lt hourly0 -0 2024.08.30 -1 2024.09.02 -ro 2, no -uv_to_rho.
+        # Also run (same job, one window each, output named by dates) for the
+        # one-axis-at-a-time variants in variants.csv: spring 2025.06.21-06.24,
+        # neap 2024.09.08-09.11, tropic 2024.07.30-08.02, equatorial
+        # 2024.05.02-05.05, high strat 2024.11.27-11.30, low strat
+        # 2024.10.04-10.07, up-cove 2024.03.27-03.30, down-cove 2025.06.14-06.17.
         aa = [-122.74, -122.45, 48.12, 48.32]
         vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,temp,oxygen,u,v,w,ubar,vbar,sustr,svstr'
 

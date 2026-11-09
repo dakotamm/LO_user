@@ -20,13 +20,28 @@ RANK of the cycles that pass: distance of the three ranks from 0.5, plus the dis
     diurnal inequality).
 
 LUNAR DAYS (2026-11-05)  two consecutive cycles (flood, ebb, flood, ebb; ~25 h), so the
-    diurnal inequality is in the picture. Same calm / strat / D2 criteria, but D1 is not
-    restricted: sorted by the D1 rank, most EQUATORIAL first (smallest inequality). Also
-    listed: drho range over the day +-24 h (steadiness), calm share over the same +-24 h,
-    and the two floods' and two ebbs' peaks with their min/max ratios.
+    diurnal inequality is in the picture. BASELINE = every hour calm, and the D2, D1 and
+    strat ranks all in the middle third, sorted by their summed distance from 0.5
+    (the chosen baseline: 2024-08-31 05:00 -> 09-01 06:00 UTC). Also listed: drho range
+    over the day +-24 h (steadiness), calm share over the same +-24 h, and the two
+    floods' and two ebbs' peaks with their min/max ratios.
+
+VARIANTS (2026-11-05)  one axis moved at a time, the rest held at baseline:
+    spring / neap          D2 rank > 2/3 / <= 1/3        (D1, strat middle third; calm)
+    tropic / equatorial    D1 rank > 2/3 / <= 1/3        (D2, strat middle third; calm)
+    high / low strat       strat rank > 2/3 / <= 1/3     (D2, D1 middle third; calm)
+    up- / down-cove wind   >= 75% of hours Godin along-cove stress > +0.01 / < -0.01 Pa
+                           (D2, D1, strat middle third). Cross-cove stress NOT restricted:
+                           only 3 of 97 all-day up-cove lunar days have weak cross stress
+                           and none of them has the other axes at median; tau_cr is listed.
+    ranked by the distance of the held axes from 0.5 plus the distance of the moved axis
+    from the MIDDLE of its extreme third (rank 5/6 or 1/6): a typical spring, not the
+    most extreme one (the far end of 'high strat' is the Dec 2025 freshet, drho 11);
+    for wind, plus (1 - share of hours in the wind class).
 
 OUTPUT LO_output/DM_outs/20261105_pc_standard_cycle/
-    lunar_days.csv              every lunar day passing, most equatorial first
+    lunar_days.csv              every baseline lunar day, most median first
+    variants.csv                every lunar day passing each variant, best first
     candidates.csv              every cycle passing the criteria, best first
     candidates.png              the top candidates in context (+-2 d): mouth Q, ranks, drho, stress
 
@@ -93,14 +108,45 @@ for a, m, b in zip(up[:-2], up[1:-1], up[2:]):
     q1, q2 = Qt[a:m], Qt[m:b]
     rows.append(dict(t0=T[a], t1=T[b], hours=b - a, r_D2=r2[s].mean(), r_D1=r1[s].mean(), r_strat=rs[s].mean(),
                      drho=dr[s].mean(), drho_range_pm1d=np.ptp(dr[w]), calm=calm[s].mean(), calm_pm1d=calm[w].mean(),
+                     tau_al=ta[s].mean(), up=np.mean(ta[s] > TTH), down=np.mean(ta[s] < -TTH),
+                     cross_weak=np.mean(np.abs(tc[s]) <= TTH), tau_cr=tc[s].mean(),
                      Qflood1=q1.max(), Qebb1=-q1.min(), Qflood2=q2.max(), Qebb2=-q2.min()))
-L = pd.DataFrame(rows)
+LA = L = pd.DataFrame(rows)
 L['flood_ratio'] = L[['Qflood1', 'Qflood2']].min(axis=1) / L[['Qflood1', 'Qflood2']].max(axis=1)
 L['ebb_ratio'] = L[['Qebb1', 'Qebb2']].min(axis=1) / L[['Qebb1', 'Qebb2']].max(axis=1)
-L = L[(L.calm == 1) & mid(L.r_D2) & mid(L.r_strat)].sort_values('r_D1')
+LA = L.copy()
+dist = lambda df, keys: sum(np.abs(df[k] - .5) for k in keys)
+L = L[(L.calm == 1) & mid(L.r_D2) & mid(L.r_D1) & mid(L.r_strat)].copy()
+L['score'] = dist(L, ['r_D2', 'r_D1', 'r_strat'])
+L = L.sort_values('score')
 L.to_csv(out_dir / 'lunar_days.csv', index=False, float_format='%.3f')
-print('%d lunar days pass (D1 unrestricted), most equatorial first:' % len(L))
-print(L.head(10).round(2).to_string(index=False))
+print('%d baseline lunar days, most median first:' % len(L))
+print(L.head(5).round(2).to_string(index=False))
+
+# ------------------------------------------------------------------ variants: one axis moved, the rest at baseline
+AX = {'r_D2': 'D2', 'r_D1': 'D1', 'r_strat': 'strat'}
+VAR = {'spring': ('r_D2', 1), 'neap': ('r_D2', 0), 'tropic': ('r_D1', 1), 'equatorial': ('r_D1', 0),
+       'high strat': ('r_strat', 1), 'low strat': ('r_strat', 0), 'up-cove wind': ('wind', 1), 'down-cove wind': ('wind', 0)}
+V = []
+for name, (k, end) in VAR.items():
+    held = [a for a in AX if a != k]
+    m = np.all([mid(LA[a]) for a in held], axis=0)
+    if k == 'wind':
+        share = LA.up if end else LA.down
+        m &= share >= 0.75
+        far = 1 - share
+    else:
+        m &= (LA.calm == 1) & ((LA[k] > 2 / 3) if end else (LA[k] <= 1 / 3))
+        far = np.abs(LA[k] - (5 / 6 if end else 1 / 6))
+    c = LA[m].assign(variant=name, score=dist(LA[m], held) + far[m]).sort_values('score')
+    V.append(c)
+    print('%-15s %3d pass' % (name, len(c)))
+V = pd.concat(V)
+cols = ['variant', 't0', 't1', 'r_D2', 'r_D1', 'r_strat', 'drho', 'drho_range_pm1d', 'tau_al', 'tau_cr', 'calm_pm1d',
+        'Qflood1', 'Qebb1', 'Qflood2', 'Qebb2', 'score']
+V[cols].to_csv(out_dir / 'variants.csv', index=False, float_format='%.3f')
+pd.set_option('display.width', 250)
+print(V.groupby('variant', sort=False).head(3)[cols].round(2).to_string(index=False))
 
 # ------------------------------------------------------------------ check figure: top candidates in context
 XI_U, ETA = 30, np.arange(19, 7, -1)     # pc_lp u faces (pc_tidal_cycles.mouth_fit)
