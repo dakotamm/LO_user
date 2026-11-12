@@ -8,7 +8,7 @@ ROWS (conditions; masks from pc_tidal_cycles.cycle_masks)
     semidiurnal / diurnal envelope of the mouth transport) | high, low strat (record-wide
     thirds of drho) | up-cove, down-cove (along-cove wind stress beyond +-0.01 Pa) |
     northward, southward (cross-cove wind stress beyond +-0.01 Pa, + toward the north shore) |
-    high / low strat within calm hours (both stress components within +-0.01 Pa) |
+    calm (both stress components within +-0.01 Pa) | high / low strat within calm hours |
     up / down-cove within high strat, up / down-cove within low strat
 COLUMNS  flood | ebb | residual, each with the three sections west to east, each as wide
     as the section really is, looking into the cove (west) so north is at the RIGHT
@@ -21,11 +21,16 @@ COLOR    ONE scale for every panel (flood, ebb and residual, every row), so a co
     the same speed anywhere on the page. + (red) = into the cove.
 
 INPUT  LO_output/extract/[gtagex]/box/pc_cove_[ds0]_[ds1].nc (hourly ocean_his snapshots)
-OUTPUT LO_output/DM_outs/20261104_pc_condition_sections/condition_sections.png
-       and condition_sections.p (the composites, for replotting)
+MONTH (-month YYYY-MM): every condition restricted to the hours of that month, with the classes
+unchanged (record-wide definitions, so the months compare directly with the whole record); a class
+with no hours that month is stored as None. Saved as condition_sections_YYYY-MM.(p|png).
 
-run 20261104_pc_condition_sections.py
+OUTPUT LO_output/DM_outs/20261104_pc_condition_sections/condition_sections[_YYYY-MM].png
+       and condition_sections[_YYYY-MM].p (the composites, for replotting)
+
+run 20261104_pc_condition_sections.py [-month YYYY-MM]
 """
+import argparse
 import pickle
 from time import time as clock
 
@@ -49,7 +54,7 @@ FACES = {
 }
 SECTS = list(FACES)                       # west to east
 CONDS = ['all', 'spring', 'neap', 'tropic', 'equatorial', 'high strat', 'low strat', 'up-cove', 'down-cove',
-         'northward', 'southward', 'high strat, calm', 'low strat, calm',
+         'northward', 'southward', 'calm', 'high strat, calm', 'low strat, calm',
          'up-cove, high strat', 'down-cove, high strat', 'up-cove, low strat', 'down-cove, low strat']
 PHASES = ['flood', 'ebb', 'residual']
 BLK = 744
@@ -58,7 +63,11 @@ Ldir = Lfun.Lstart(gridname='wb1')
 in_fn = Ldir['LOo'] / 'extract' / GTAGEX / 'box' / ('pc_cove_%s_%s.nc' % (DS0, DS1))
 out_dir = Ldir['LOo'] / 'DM_outs' / '20261104_pc_condition_sections'
 out_dir.mkdir(parents=True, exist_ok=True)
-cache_fn = out_dir / 'condition_sections.p'
+parser = argparse.ArgumentParser()
+parser.add_argument('-month', default='', type=str)   # YYYY-MM: only the hours of that month
+MONTH = parser.parse_args().month
+TAG = '_' + MONTH if MONTH else ''
+cache_fn = out_dir / ('condition_sections%s.p' % TAG)
 
 # ------------------------------------------------------------------ composites (cached)
 if cache_fn.exists():
@@ -69,6 +78,11 @@ else:
     T = ds.ocean_time.values
     CM = cycle_masks(T)
     CM['all'] = np.ones(len(T), bool)
+    if MONTH:                                 # same classes, restricted to the month
+        import pandas as pd
+        mm = pd.DatetimeIndex(T).strftime('%Y-%m') == MONTH
+        assert mm.any(), 'no hours in ' + MONTH
+        CM = {k: v & mm for k, v in CM.items() if k != 'env'}
     pn = ds.pn.values
     DY = {SN: (1 / pn[F['ETA']][:, [F['XI_U'], F['XI_U'] + 1]]).mean(axis=-1) for SN, F in FACES.items()}
     # running sums per section, condition and phase: sum q, sum A, sum dz, hours, sum Q
@@ -103,8 +117,11 @@ else:
         print('  hours %d-%d of %d, %.0f s' % (tt.start, tt.stop, len(T), clock() - tt0))
     h = {SN: ds.h.values[F['ETA']][:, [F['XI_U'], F['XI_U'] + 1]].mean(axis=-1) for SN, F in FACES.items()}   # bed depth at each face
     ds.close()
-    R = {'dy': DY, 'n_all': len(T)}
+    R = {'dy': DY, 'n_all': len(T), 'frac_month': CM['all'].mean()}   # frac_month: share of the record in the month
     for (SN, c, ph), a in acc.items():
+        if a['n'] == 0:                       # no hours of this class (possible within one month)
+            R[(SN, c, ph)] = None
+            continue
         zw = np.concatenate([-h[SN][None, :], -h[SN][None, :] + np.cumsum(a['dz'] / a['n'], axis=0)], axis=0)
         R[(SN, c, ph)] = dict(U=a['qA'] / a['A'], zw=zw, frac=a['n'] / len(T), Q=a['Q'] / a['n'], S=a['sA'] / a['A'])
     pickle.dump(R, open(cache_fn, 'wb'))
@@ -116,7 +133,7 @@ GAP = 0.35
 wr = W + [GAP] + W + [GAP] + W
 COLS = [(ph, SN) for ph in PHASES for SN in SECTS]
 ci = [0, 1, 2, 4, 5, 6, 8, 9, 10]                                 # gridspec columns (gaps at 3, 7)
-vm = np.nanpercentile(np.concatenate([np.abs(R[(SN, c, ph)]['U']).ravel() for SN in SECTS for c in CONDS for ph in PHASES]), 99) * 100   # one scale for all
+vm = np.nanpercentile(np.concatenate([np.abs(R[(SN, c, ph)]['U']).ravel() for SN in SECTS for c in CONDS for ph in PHASES if R[(SN, c, ph)] is not None]), 99) * 100   # one scale for all
 
 fig = plt.figure(figsize=(26, 1.75 * len(CONDS) + 2.5), layout='constrained')
 gs = fig.add_gridspec(len(CONDS), len(wr), width_ratios=wr)
@@ -124,6 +141,12 @@ for i, c in enumerate(CONDS):
     for (ph, SN), j in zip(COLS, ci):
         ax = fig.add_subplot(gs[i, j])
         d = R[(SN, c, ph)]
+        if d is None:                         # no hours of this class
+            ax.text(0.5, 0.5, 'no hours', transform=ax.transAxes, ha='center', va='center', fontsize=8, color='0.4')
+            ax.set_xticks([]), ax.set_yticks([])
+            if j == 0:
+                ax.set_ylabel('%s\n(0 h)' % c, fontsize=8)
+            continue
         U, zw, dy = 100 * d['U'], d['zw'], R['dy'][SN]
         xe = np.concatenate([[0], np.cumsum(dy)]) / 1000
         for p in range(len(dy)):
@@ -141,15 +164,15 @@ for i, c in enumerate(CONDS):
         if i == 0:
             ax.set_title('%s\n%s' % (ph.upper(), SN) if SN == 'pc_lj' else SN, fontsize=9)
         if j == 0:
-            ax.set_ylabel('%s\n(%.0f%% of hours)\nz [m]' % (c, 100 * R[(SN, c, 'residual')]['frac']), fontsize=8)
+            ax.set_ylabel('%s\n(%.0f%% of hours)\nz [m]' % (c, 100 * R[(SN, c, 'residual')]['frac'] / (R['frac_month'] if MONTH else 1)), fontsize=8)
         if i == len(CONDS) - 1 and SN == 'pc_lj':
             ax.set_xlabel('km from north shore (north at right)', fontsize=7)
 fig.colorbar(cs, ax=fig.axes, location='bottom', shrink=0.4, aspect=50, pad=0.01,
              label='section-normal velocity [cm s$^{-1}$], + into the cove (black: 0); one scale for every panel')
 fig.suptitle('Penn Cove section-normal velocity under each condition: average flood | average ebb | residual, sections west to east '
              '(each looking into the cove, north at right); Q = mean section transport [m$^3$ s$^{-1}$]; hourly snapshots, transport-weighted, %s, %s to %s'
-             % (GTAGEX, DS0, DS1), fontsize=11)
-fn = out_dir / 'condition_sections.png'
+             % (GTAGEX, DS0, DS1) + (';  %s ONLY' % MONTH if MONTH else ''), fontsize=11)
+fn = out_dir / ('condition_sections%s.png' % TAG)
 fig.savefig(fn, dpi=150, transparent=True)
 plt.close(fig)
 print('saved ' + str(fn))
