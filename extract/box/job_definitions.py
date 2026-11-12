@@ -239,6 +239,21 @@ def get_box(job, Lon, Lat):
         aa = [-122.735882, -122.652000, 48.213109, 48.249196]
         vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,AKv,AKs,bustr,bvstr,sustr,svstr,shflux,ssflux'
 
+    elif job == 'sp_stress': #DM added 2026/11/12 -- wind stress over upper Saratoga Passage
+        # Surface stress ROMS applied (sustr, svstr on u / v faces) over the
+        # tef2 segment pc_lp_p (upper Saratoga Passage: between pc_lp, sp_mid
+        # and skagit_sp, 2602 cells, seg_info_dict_wb1_pc1_trapsN00.p). Bounds
+        # are that segment's rho extent (i 64-135, j 193-257) plus 2 cells,
+        # snapped to grid rho centres: i 62-137, j 191-259, 76 x 69.
+        #
+        # 2D only: run with -surf True, which skips the z_rho / z_w step, so no
+        # salt is needed. ~50 MB. Output is sp_stress_surf_<ds0>_<ds1>.nc.
+        # -lt hourly0, as for pc_cove_mix: same 17545 instants.
+        #
+        # python extract_box.py -gtx wb1_t0_xn11abbur00 -ro 2 -0 2024.01.01 -1 2025.12.31 -lt hourly0 -job sp_stress -surf True
+        aa = [-122.668235, -122.465294, 48.180630, 48.303326]
+        vn_list = 'h,pm,pn,mask_rho,sustr,svstr'
+
     elif job == 'pc_sp_cycle': #DM added 2026/11/05 -- standard tidal cycle schematic, cove + upper Saratoga
         # Penn Cove plus upper Saratoga Passage (Camano Head north to Crescent
         # Harbor / the Skagit Bay entrance), for a SHORT window only: the
