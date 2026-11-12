@@ -13,7 +13,8 @@ with salt == 0 gets zero area here (its q is 0 already).
 INPUT  LO_output/extract/[gtagex]/tef2/extractions_avg_[ds0]_[ds1]/[sect].nc   (on apogee: skagit_sp,
        sp_mid are not mirrored to the Mac)
 OUTPUT LO_output/DM_outs/20261111_sp_section_binned/binned_[sect].nc with
-       Q (time), Qb, Ab, SAb (time, bin) [float32], zeta (time, width-mean), edges (bin + 1), h, dd (p)
+       Q (time), Qb, Ab, SAb (time, bin) [float32], zeta (time, width-mean), edges (bin + 1), h, dd (p),
+       and per face, depth-integrated: Qp, Ap, SAp (time, p) [float32] (for the lateral map; added 2026-11-11)
        Signs are tef2's (+ from the section's minus side to its plus side); the plot script orients them.
 
 run 20261111_sp_section_binned.py [-sects skagit_sp,sp_mid] [-gtx wb1_t0_xn11abbur00]
@@ -46,6 +47,7 @@ for sect in args.sects.split(','):
     nb = len(E) - 1
     Q = np.zeros(nt); Z = np.zeros(nt)
     Qb, Ab, SAb = (np.zeros((nt, nb), dtype=np.float32) for _ in range(3))
+    Qp, Ap, SAp = (np.zeros((nt, len(h)), dtype=np.float32) for _ in range(3))   # per face, depth-integrated (lateral map)
     n_dry = 0
     for t0 in range(0, nt, args.chunk):
         sl = slice(t0, min(t0 + args.chunk, nt))
@@ -67,11 +69,13 @@ for sect in args.sects.split(','):
                 Ab[sl, b] = (a * f).sum(axis=(1, 2))
                 SAb[sl, b] = (s * a * f).sum(axis=(1, 2))
         Q[sl] = q.sum(axis=(1, 2))
+        Qp[sl], Ap[sl], SAp[sl] = q.sum(axis=1), a.sum(axis=1), (s * a).sum(axis=1)
         Z[sl] = (zeta * dd[None]).sum(axis=1) / dd.sum()
         assert np.allclose(Qb[sl].sum(axis=1), Q[sl], rtol=1e-4, atol=1e-2), 'bins do not sum to Q'
         print('  %s: %d / %d h' % (sect, sl.stop, nt), flush=True)
     out = xr.Dataset(dict(Q=('time', Q), zeta=('time', Z), Qb=(('time', 'bin'), Qb), Ab=(('time', 'bin'), Ab),
-                          SAb=(('time', 'bin'), SAb), edges=('edge', E), h=('p', h), dd=('p', dd)),
+                          SAb=(('time', 'bin'), SAb), Qp=(('time', 'p'), Qp), Ap=(('time', 'p'), Ap),
+                          SAp=(('time', 'p'), SAp), edges=('edge', E), h=('p', h), dd=('p', dd)),
                      coords=dict(time=ds.time.values))
     out.attrs.update(sect=sect, gtagex=args.gtx, note='1 m bins of depth below the moving surface; tef2 signs; '
                      'dry cell-hours (salt == 0) given zero area: %d of %d' % (n_dry, ds.salt.size))
