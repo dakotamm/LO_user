@@ -239,6 +239,19 @@ def get_box(job, Lon, Lat):
         aa = [-122.735882, -122.652000, 48.213109, 48.249196]
         vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,AKv,AKs,bustr,bvstr,sustr,svstr,shflux,ssflux'
 
+    elif job == 'pc_cove_air': #DM added 2026/11/12 -- air temperature over Penn Cove
+        # SAME FOOTPRINT as pc_cove / pc_cove_mix, so cells and times line up.
+        # Tair: surface air temperature ROMS read (atm00, rho points, degC), as
+        # written to ocean_his (Hout(idTair) = T in BLANK.in).
+        #
+        # 2D only: run with -surf True, which skips the z_rho / z_w step, so no
+        # salt is needed. Small. Output is pc_cove_air_surf_<ds0>_<ds1>.nc.
+        # -lt hourly0, as for pc_cove_mix: same 17545 instants.
+        #
+        # python extract_box.py -gtx wb1_t0_xn11abbur00 -ro 2 -0 2024.01.01 -1 2025.12.31 -lt hourly0 -job pc_cove_air -surf True
+        aa = [-122.735882, -122.652000, 48.213109, 48.249196]
+        vn_list = 'h,mask_rho,Tair'
+
     elif job == 'sp_stress': #DM added 2026/11/12 -- wind stress over upper Saratoga Passage
         # Surface stress ROMS applied (sustr, svstr on u / v faces) over the
         # tef2 segment pc_lp_p (upper Saratoga Passage: between pc_lp, sp_mid
