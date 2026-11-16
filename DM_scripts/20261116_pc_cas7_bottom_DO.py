@@ -3,7 +3,10 @@ Bottom DO time series at one Penn Cove point in cas7_t1_x11ab (Parker's run on a
 averages f<YYYY.MM.DD>/ocean_avg_0001.nc. Lightweight: one value per file, oxygen[0, 0, j, i] (bottom layer).
 
 Run on apogee (-ro 1 = Ldir['roms_out1'] = /dat1/parker/LO_roms on dm_apogee):
-    python 20261116_pc_cas7_bottom_DO.py -gtx cas7_t1_x11ab -ro 1 -0 2012.10.07 -1 2025.06.12 > pc_cas7_bottom_DO.log &
+    nohup python 20261116_pc_cas7_bottom_DO.py -gtx cas7_t1_x11ab -ro 1 -0 2012.10.07 -1 2025.06.12 > pc_cas7_bottom_DO.log 2>&1 &
+  nohup keeps it running after you log out / the ssh drops. Check on it with: tail pc_cas7_bottom_DO.log
+RESUME  each day is appended to <out_name>_partial.csv (flushed every 100 files). If the run dies, rerun the same
+  command: days already in the partial file are skipped. The final csv is written, and the partial removed, at the end.
 Re-plot from the saved csv (e.g. on the Mac after copying it over):
     python 20261116_pc_cas7_bottom_DO.py -gtx cas7_t1_x11ab -0 2012.10.07 -1 2025.06.12 -plot_only True
 
@@ -73,21 +76,46 @@ if not args.plot_only:
     print(f'cell   : j={j} i={i}  lon {lon:.5f}  lat {lat:.5f}  h {h:.1f} m  '
           f'({np.sqrt(dist2[j, i]) * 111:.2f} km from the requested point)')
 
-    # ---- one value per file ----
-    tt, oo = [], []
-    for nn, fn in enumerate(fn_have):
-        with nc.Dataset(fn) as ds:
-            tt.append(nc.num2date(ds['ocean_time'][0], ds['ocean_time'].units,
-                                  only_use_cftime_datetimes=False, only_use_python_datetimes=True))
-            oo.append(float(ds['oxygen'][0, 0, j, i]))
-        if nn % 500 == 0:
-            print(f'  {nn} / {len(fn_have)}  {fn.parent.name}', flush=True)
+    # ---- one value per file, appended to a partial csv so a killed run can resume ----
+    part_fn = out_dir / (out_name + '_partial.csv')
+    cell_line = f'# {args.gtagex} ocean_avg_0001 bottom DO, cell j={j} i={i} lon={lon:.5f} lat={lat:.5f} h={h:.1f}\n'
+    done = set()
+    if part_fn.exists():
+        with open(part_fn) as f:
+            if f.readline() != cell_line:
+                print(f'*** {part_fn.name} is for a different cell: delete it or change -sn')
+                sys.exit()
+        # keep only complete rows (a kill mid-write can leave a truncated last line), rewrite, then append
+        dfp = pd.read_csv(part_fn, comment='#', on_bad_lines='skip')
+        dfp = dfp[dfp['fdir'].astype(str).str.match(r'^f\d{4}\.\d{2}\.\d{2}$')]
+        dfp = dfp[pd.to_numeric(dfp['DO_bot_mgL'], errors='coerce').notna()
+                  & pd.to_datetime(dfp['time_utc'], errors='coerce').notna()]
+        with open(part_fn, 'w') as f:
+            f.write(cell_line)
+            dfp.to_csv(f, index=False)
+        done = set(dfp['fdir'])
+        print(f'resume : {len(done)} days already in {part_fn.name}')
+    else:
+        with open(part_fn, 'w') as f:
+            f.write(cell_line + 'fdir,time_utc,DO_bot_mgL\n')
+    fn_todo = [fn for fn in fn_have if fn.parent.name not in done]
 
-    df = pd.DataFrame({'time_utc': pd.to_datetime(tt), 'DO_bot_mgL': np.array(oo) * DO_MMOL_TO_MGL})
-    df.attrs = {}
+    with open(part_fn, 'a') as f:
+        for nn, fn in enumerate(fn_todo):
+            with nc.Dataset(fn) as ds:
+                t0 = nc.num2date(ds['ocean_time'][0], ds['ocean_time'].units,
+                                 only_use_cftime_datetimes=False, only_use_python_datetimes=True)
+                o0 = float(ds['oxygen'][0, 0, j, i]) * DO_MMOL_TO_MGL
+            f.write(f'{fn.parent.name},{t0:%Y-%m-%d %H:%M:%S},{o0:.4f}\n')
+            if nn % 100 == 0:
+                f.flush()
+                print(f'  {nn} / {len(fn_todo)}  {fn.parent.name}', flush=True)
+
+    df = pd.read_csv(part_fn, comment='#').drop_duplicates('fdir').sort_values('time_utc')
     with open(csv_fn, 'w') as f:
-        f.write(f'# {args.gtagex} ocean_avg_0001 bottom DO, cell j={j} i={i} lon={lon:.5f} lat={lat:.5f} h={h:.1f}\n')
-        df.to_csv(f, index=False)
+        f.write(cell_line)
+        df[['time_utc', 'DO_bot_mgL']].to_csv(f, index=False)
+    part_fn.unlink()
     print(f'saved  : {csv_fn}')
 
 # ---- plot ----
