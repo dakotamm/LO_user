@@ -2,12 +2,15 @@
 Bottom DO and bottom temperature in every Penn Cove cell of cas7_t1_x11ab (Parker's run on apogee /dat1), plus
 cove air temperature and wind stress, daily, 2012.10.07-2025.06.12: is there any hypoxia, and what goes with it?
 Companion to 20261116_pc_cas7_bottom_DO.py (one point; that cell, j=882 i=557, is one of the cove cells here).
+Also run on cas7_t0_x4b (0% burial; x11ab buries 50%), which has hourly his + lowpassed.nc but no ocean_avg: -lt lowpass.
 
 Check the forcing path first (Parker's atm forcing for cas7; the run's forcing_list.csv says atm02):
     ls /dat1/parker/LO_output/forcing/cas7/f2012.10.07 /dat1/parker/LO_output/forcing/cas7/f2025.06.12
 Run on apogee (-ro 1 = Ldir['roms_out1'] = /dat1/parker/LO_roms on dm_apogee):
     nohup python 20261116_pc_cas7_bottom_DO_cove.py -gtx cas7_t1_x11ab -ro 1 -0 2012.10.07 -1 2025.06.12 -frc_root /dat1/parker/LO_output/forcing/cas7 > pc_cas7_bottom_DO_cove.log 2>&1 &
   Check on it with: tail pc_cas7_bottom_DO_cove.log
+cas7_t0_x4b (output through 2019.12.31; its forcing_list.csv says atm00):
+    nohup python 20261116_pc_cas7_bottom_DO_cove.py -gtx cas7_t0_x4b -ro 1 -0 2012.10.07 -1 2019.12.31 -lt lowpass -atm atm00 -frc_root /dat1/parker/LO_output/forcing/cas7 > pc_cas7_x4b_bottom_DO_cove.log 2>&1 &
 RESUME  each day is appended to <out_name>_partial.csv (flushed every 100 files). If the run dies, rerun the same
   command: days already in the partial file are skipped (a truncated last line is dropped). The final pickle is
   written, and the partial removed, at the end.
@@ -16,18 +19,20 @@ Re-plot from the saved pickle (e.g. on the Mac after copying it over):
 
 COVE    wet cas7 rho cells west of LON_MOUTH = -122.652 (the wb1 pc_lp mouth line, u-face i=67/68), connected to the
         seed (-122.70878, 48.22710) = the single-point cell j=882, i=557. 38 cells, h 12.6-26.6 m.
-        Grid (lon, lat, mask, h, pm, pn) from the first avg file, or grid.nc if the avg file has no grid variables.
-OCEAN   from f<date>/ocean_avg_0001.nc (daily average), one hyperslab per variable over the cove box:
+        Grid (lon, lat, mask, h, pm, pn) from the first ocean file, else that day's ocean_his_0002.nc, else grid.nc.
+OCEAN   -lt average: f<date>/ocean_avg_0001.nc (UTC-day average); -lt lowpass: f<date>/lowpassed.nc (one Godin-
+        filtered record per day; stamp taken from the file). One hyperslab per variable over the cove box:
         oxygen, temp at s_rho index 0 (bottom) -> per cell; Uwind, Vwind -> cove mean (daily-mean wind, kept as a
         fallback: the stress of a daily-mean wind is not the daily-mean stress). oxygen mmol m-3 * 32/1000 = mg/L.
 AIR     the avg file has no Tair or surface stress (Aout F in BLANK.in), so they come from the hourly atm forcing
-        <frc_root>/f<date>/<atm>/Tair.nc, Uwind.nc, Vwind.nc (first of atm02, atm01, atm00 that exists; recorded).
+        <frc_root>/f<date>/<atm>/Tair.nc, Uwind.nc, Vwind.nc (first of atm02, atm01, atm00 that exists, or only
+        -atm if given; recorded).
         Each file's own 24 hours are kept (record 24 = hour 0 of the next day). Cove mean over the 38 cells.
         Stress per cell and hour with Large & Pond (1981) Cd, rho_air 1.22 (as 20260806_wind_reduce.py), then
         averaged: taux, tauy, |tau|. ROMS computes its own stress with COARE from the same winds, so this is a proxy
         with the right form and magnitude. Uwind/Vwind are already true east/north. Missing forcing -> NaN.
 RIVER   Skagit from 20261116_skagit_flow.py (Mac; read here if its csv exists, for the stack plot only).
-MISSING days with no ocean_avg_0001.nc are skipped and counted.
+MISSING days with no ocean file are skipped and counted. Uwind/Vwind are NaN if the ocean file lacks them.
 OUT     LO_output/DM_outs/20261116_pc_cas7_bottom_DO_cove/
         <out_name>.p    dict: time, do and tb (Nt x Ncell), daily air/wind DataFrame, cells, box
         <out_name>.csv  daily cove DO min/mean, hypoxic area %, bottom T mean, point-cell DO/T, air and wind
@@ -53,6 +58,8 @@ parser.add_argument('-gtx', '--gtagex', type=str, default='cas7_t1_x11ab')
 parser.add_argument('-ro', '--roms_out_num', type=int, default=1)  # 1 = Ldir['roms_out1']
 parser.add_argument('-0', '--ds0', type=str, default='2012.10.07')
 parser.add_argument('-1', '--ds1', type=str, default='2025.06.12')
+parser.add_argument('-lt', type=str, default='average')   # average (ocean_avg_0001) or lowpass (lowpassed.nc)
+parser.add_argument('-atm', type=str, default=None)       # force one atm forcing version, e.g. atm00
 parser.add_argument('-frc_root', type=str, default='/dat1/parker/LO_output/forcing/cas7')
 parser.add_argument('-plot_only', type=zfun.boolean_string, default=False)
 args = parser.parse_args()
@@ -68,7 +75,7 @@ LON_MOUTH = -122.652                       # wb1 pc_lp line
 SEED = (-122.70878, 48.22710)              # single-point cell
 BOX_LAT = (48.20, 48.26)
 AX = [-122.73, -122.64, 48.215, 48.245]
-ATM_LIST = ['atm02', 'atm01', 'atm00']
+ATM_LIST = [args.atm] if args.atm else ['atm02', 'atm01', 'atm00']
 RHO_A = 1.22
 AIR_COLS = ['uw_avg', 'vw_avg', 'atm_n', 'Tair', 'u10', 'v10', 'spd', 'taux', 'tauy', 'tau']
 
@@ -115,9 +122,9 @@ def read_atm(day_dir, bj, bi, cj, ci):
 
 
 if not args.plot_only:
-    fn_list = Lfun.get_fn_list('average', Ldir, args.ds0, args.ds1)
+    fn_list = Lfun.get_fn_list(args.lt, Ldir, args.ds0, args.ds1)
     fn_have = [fn for fn in fn_list if fn.exists()]
-    print(f'files  : {len(fn_have)} of {len(fn_list)} days have ocean_avg_0001.nc')
+    print(f'files  : {len(fn_have)} of {len(fn_list)} days have {fn_list[0].name}')
     if len(fn_have) == 0:
         print(f'*** no files under {Ldir["roms_out"] / args.gtagex}')
         sys.exit()
@@ -126,12 +133,16 @@ if not args.plot_only:
 
     # ---- cove mask ----
     vns = ['lon_rho', 'lat_rho', 'mask_rho', 'h', 'pm', 'pn']
-    with nc.Dataset(fn_have[0]) as ds:
-        if 'mask_rho' in ds.variables:
-            G = {vn: ds[vn][:].data for vn in vns}
-        else:
-            with nc.Dataset(Ldir['grid'] / 'grid.nc') as dg:
-                G = {vn: dg[vn][:].data for vn in vns}
+    for gfn in [fn_have[0], fn_have[0].parent / 'ocean_his_0002.nc', Ldir['grid'] / 'grid.nc']:
+        if gfn.exists():
+            with nc.Dataset(gfn) as ds:
+                if all(vn in ds.variables for vn in vns):
+                    G = {vn: ds[vn][:].data for vn in vns}
+                    break
+    else:
+        print('*** no grid variables in the ocean file, ocean_his_0002.nc or grid.nc')
+        sys.exit()
+    print(f'grid   : {gfn}')
     lon, lat = G['lon_rho'], G['lat_rho']
     wet = (G['mask_rho'] == 1) & (lon < LON_MOUTH) & (lat > BOX_LAT[0]) & (lat < BOX_LAT[1])
     lab, _ = label(wet)
