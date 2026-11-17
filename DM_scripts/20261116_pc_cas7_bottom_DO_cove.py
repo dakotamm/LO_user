@@ -9,8 +9,8 @@ Check the forcing path first (Parker's atm forcing for cas7; the run's forcing_l
 Run on apogee (-ro 1 = Ldir['roms_out1'] = /dat1/parker/LO_roms on dm_apogee):
     nohup python 20261116_pc_cas7_bottom_DO_cove.py -gtx cas7_t1_x11ab -ro 1 -0 2012.10.07 -1 2025.06.12 -frc_root /dat1/parker/LO_output/forcing/cas7 > pc_cas7_bottom_DO_cove.log 2>&1 &
   Check on it with: tail pc_cas7_bottom_DO_cove.log
-cas7_t0_x4b (output through 2019.12.31; its forcing_list.csv says atm00):
-    nohup python 20261116_pc_cas7_bottom_DO_cove.py -gtx cas7_t0_x4b -ro 1 -0 2012.10.07 -1 2019.12.31 -lt lowpass -atm atm00 -frc_root /dat1/parker/LO_output/forcing/cas7 > pc_cas7_x4b_bottom_DO_cove.log 2>&1 &
+cas7_t0_x4b (output in Parker's /dat2 = Ldir['roms_out3'] on dm_apogee, through 2019.12.31; forcing_list.csv says atm00):
+    nohup python 20261116_pc_cas7_bottom_DO_cove.py -gtx cas7_t0_x4b -ro 3 -0 2012.10.07 -1 2019.12.31 -lt lowpass -atm atm00 -frc_root /dat1/parker/LO_output/forcing/cas7 > pc_cas7_x4b_bottom_DO_cove.log 2>&1 &
 RESUME  each day is appended to <out_name>_partial.csv (flushed every 100 files). If the run dies, rerun the same
   command: days already in the partial file are skipped (a truncated last line is dropped). The final pickle is
   written, and the partial removed, at the end.
