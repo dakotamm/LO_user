@@ -1,12 +1,15 @@
 """
-Map of the 20261116_pc_cas7_bottom_DO extraction point in Penn Cove.
+Map of a cas7 extraction point: the 20261116_pc_cas7_bottom_DO Penn Cove point (default), or any -lon/-lat, e.g.
+the 20261117_sp_point_strat_DO Saratoga Passage station:
+    python 20261116_pc_cas7_point_map.py -lon ' -122.582462' -lat 48.245981 -sn M5
 LEFT   wb1_t0_xn11abbur00 fraction of 2024-25 days with bottom DO < 2 mg/L (20260806_hypoxia RUN['fhyp_bot_2']).
 RIGHT  cas7 grid: h on wet rho cells, cell edges drawn; the cell the point snaps to (nearest wet rho, same rule as
        the extraction script) outlined in red.
 Star = requested point.
-OUT    LO_output/DM_outs/20261116_pc_cas7_point_map/
+OUT    LO_output/DM_outs/20261116_pc_cas7_point_map/<sn>_cas7_point_map.png
 """
 
+import argparse
 import pickle
 import numpy as np
 import xarray as xr
@@ -16,7 +19,12 @@ import matplotlib.pyplot as plt
 
 from lo_tools import Lfun
 
-LON0, LAT0 = -122.70878, 48.22710
+parser = argparse.ArgumentParser()
+parser.add_argument('-lon', type=float, default=-122.70878)
+parser.add_argument('-lat', type=float, default=48.22710)
+parser.add_argument('-sn', type=str, default='pc_west')
+args = parser.parse_args()
+LON0, LAT0 = args.lon, args.lat
 AX = [-122.76, -122.56, 48.19, 48.27]
 
 Ldir = Lfun.Lstart(gridname='cas7', tag='t1', ex_name='x11ab')
@@ -54,7 +62,7 @@ cs = ax.pcolormesh(lonp, latp, hw[1:-1, 1:-1], cmap='Blues', vmin=0, vmax=60, ed
 fig.colorbar(cs, ax=ax, label='h [m]')
 ax.plot([lonp[j-1, i-1], lonp[j-1, i], lonp[j, i], lonp[j, i-1], lonp[j-1, i-1]],
         [latp[j-1, i-1], latp[j-1, i], latp[j, i], latp[j, i-1], latp[j-1, i-1]], '-', color='tab:red', lw=2)
-ax.set_title(f'cas7: snapped cell j={j} i={i}, h = {h[j, i]:.1f} m')
+ax.set_title(f'cas7 {args.sn}: snapped cell j={j} i={i}, h = {h[j, i]:.1f} m')
 
 for ax in axs:
     ax.plot(LON0, LAT0, '*', color='gold', mec='k', ms=14, zorder=5)
@@ -64,7 +72,7 @@ for ax in axs:
     ax.set_xlabel('Longitude')
 axs[0].set_ylabel('Latitude')
 fig.tight_layout()
-fig_fn = out_dir / 'pc_cas7_point_map.png'
+fig_fn = out_dir / (args.sn + '_cas7_point_map.png')
 fig.savefig(fig_fn, dpi=200, transparent=True)
 plt.close(fig)
 print(f'saved: {fig_fn}')
