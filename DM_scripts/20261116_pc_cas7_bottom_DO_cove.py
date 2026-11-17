@@ -36,7 +36,7 @@ MISSING days with no ocean file are skipped and counted. Uwind/Vwind are NaN if 
 OUT     LO_output/DM_outs/20261116_pc_cas7_bottom_DO_cove/
         <out_name>.p    dict: time, do and tb (Nt x Ncell), daily air/wind DataFrame, cells, box
         <out_name>.csv  daily cove DO min/mean, hypoxic area %, bottom T mean, point-cell DO/T, air and wind
-        <out_name>_ts.png, <out_name>_map.png, <out_name>_stack.png
+        <out_name>_ts.png, <out_name>_map.png, <out_name>_stack.png;  pc_cove_compare.png  every run found, overlaid
 """
 
 import argparse
@@ -71,6 +71,7 @@ if args.roms_out_num > 0:
 
 DO_MMOL_TO_MGL = 32.0 / 1000.0
 HYP = 2.0                                  # mg/L
+RUN_COLORS = {'cas7_t1_x11ab': 'tab:blue', 'cas7_t0_x4b': 'tab:red'}   # same in both compare plots
 LON_MOUTH = -122.652                       # wb1 pc_lp line
 SEED = (-122.70878, 48.22710)              # single-point cell
 BOX_LAT = (48.20, 48.26)
@@ -326,4 +327,35 @@ for ax in axs:
 fig.tight_layout()
 fig.savefig(out_dir / (out_name + '_stack.png'), dpi=200, transparent=True)
 plt.close(fig)
+
+# ---- every run in out_dir, overlaid: cove min bottom DO, % cove area < 2 mg/L, cove-mean bottom T ----
+runs = sorted(out_dir.glob('*_pc_cove_*.p'))
+if len(runs) > 1:
+    fig, axs = plt.subplots(3, 1, figsize=(14, 8), sharex=True)
+    for fn, c in zip(runs, ['tab:green', 'tab:purple', 'tab:orange', 'tab:brown']):
+        Pr = pickle.load(open(fn, 'rb'))
+        c = RUN_COLORS.get(Pr['gtagex'], c)
+        tr, dor, ar = pd.to_datetime(Pr['time']), Pr['do'], Pr['area']
+        okr = np.isfinite(dor)
+        lab = Pr['gtagex']
+        axs[0].plot(tr, np.nanmin(dor, axis=1), '-', color=c, lw=0.7, label=lab)
+        axs[1].plot(tr, 100 * np.sum((dor < HYP) * ar, axis=1) / np.sum(okr * ar, axis=1), '-', color=c, lw=0.7,
+                    label=lab)
+        if 'tb' in Pr:
+            okt_r = np.isfinite(Pr['tb'])
+            axs[2].plot(tr, np.nansum(np.where(okt_r, Pr['tb'], 0) * ar, axis=1) / np.sum(okt_r * ar, axis=1), '-',
+                        color=c, lw=0.7, label=lab)
+    axs[0].axhline(HYP, color='gray', ls=':', lw=1)
+    axs[0].set_ylabel('Cove min bottom DO [mg/L]')
+    axs[0].set_ylim(bottom=0)
+    axs[0].legend(loc='upper right', fontsize=8)
+    axs[0].set_title(f'Penn Cove ({len(P["j"])} cas7 cells), daily', fontsize=10)
+    axs[1].set_ylabel(f'cove area < {HYP:g} mg/L [%]')
+    axs[1].set_ylim(0, 100)
+    axs[2].set_ylabel('Bottom T, cove mean [°C]')
+    for ax in axs:
+        ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(out_dir / 'pc_cove_compare.png', dpi=200, transparent=True)
+    plt.close(fig)
 print(f'saved  : {out_dir}')

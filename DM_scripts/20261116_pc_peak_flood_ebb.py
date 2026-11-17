@@ -80,7 +80,13 @@ STEP 9  stratification class of every peak hour, at pc_lj itself: per face sigma
 STEP 10 figure: the sections in 2 rows, high strat | low strat, as STEP 6.
 STEP 11 alternate STEP 10 with calm wind only: peak hours that are high (low) strat (STEP 9) AND
         calm (STEP 7: |tau_al| and |tau_cr| <= TTH), so the strat contrast is not wind.
-STEP 12 profile figures, one per set (all, springneap, tropeq, wind, strat, strat_calm), columns
+STEP 11b surface temperature and salinity classes, at pc_lj itself: the top s-level temp and
+        salt of each face (STEP 1), width-weighted across the faces (dy), hourly, Godin-filtered.
+        warm / cold surface = top / bottom third of the 2024 hours of temp; salty / fresh surface
+        = top / bottom third of salt. YEAR-WIDE terciles, as strat (the user's choice): warm /
+        cold is close to summer / winter, so the split carries the season. Section figures as
+        STEP 6 (pc_lj_peak_sections_temp.png, _salt.png), and both sets go into STEPS 12, 13, 15.
+STEP 12 profile figures, one per set (all, springneap, tropeq, wind, strat, strat_calm, temp, salt), columns
         flood | ebb | residual, one line per class of the set:
         ROW 1  cross-channel averaged profile, U_b = sum_t Q_b / sum_t A_b in EDGES (1 m) bins of
                depth below the moving surface (as 20261113_pc_baseline_profiles.py: each cell's
@@ -122,7 +128,9 @@ OUTPUT LO_output/DM_outs/20261116_pc_peak_flood_ebb/
        pc_lj_peak_sections_wind.png        STEP 8, up-cove | down-cove | calm rows
        pc_lj_peak_sections_strat.png       STEP 10, high | low strat rows
        pc_lj_peak_sections_strat_calm.png  STEP 11, high | low strat rows, calm wind only
-       pc_lj_peak_profiles_[set].png       STEP 12, profile | depth-average rows, one line per class
+       pc_lj_peak_sections_temp.png        STEP 11b, warm | cold surface rows
+       pc_lj_peak_sections_salt.png        STEP 11b, salty | fresh surface rows
+       pc_lj_peak_profiles_[set].png       STEP 12 (8 sets), profile | depth-average rows, one line per class
        pc_lj_peak_layers_[set].png         STEP 13, surface 1/3 | bottom 1/3 | depth-average rows
        cove_layers_hourly.npz              STEP 14 cache
        cove_peak_maps_[set]_[class].png    STEP 15, cove maps
@@ -161,7 +169,8 @@ TTH = 0.01                                # wind stress threshold [Pa]
 EDGES = np.arange(0, 31, 1.0)             # profile bins, depth below the surface [m]
 COL = {'all': 'k', 'spring': '#CC3311', 'neap': '#33BBEE', 'tropic': '#EE7733', 'equatorial': '#009988',
        'up-cove': '#EE3377', 'down-cove': '#0077BB', 'calm': 'k',
-       'high strat': '#AA3377', 'low strat': '#66CCEE', 'high strat, calm': '#AA3377', 'low strat, calm': '#66CCEE'}
+       'high strat': '#AA3377', 'low strat': '#66CCEE', 'high strat, calm': '#AA3377', 'low strat, calm': '#66CCEE',
+       'warm surface': '#CC3311', 'cold surface': '#0077BB', 'salty surface': '#997700', 'fresh surface': '#33BBEE'}
 BLK = 200                                 # box hours read per block (STEP 14)
 SECT_XI_U = {'pc_cp': 15, 'pc_lj': 23, 'pc_lp': 30}
 DSYM = 40                                 # symbol diameter at the largest region transport [pt]
@@ -491,6 +500,29 @@ class_figure(PSc, PRSc, CROWS,
              'stratification as STEP 10 (high / low: drho > %.2f / < %.2f kg m$^{-3}$), calm wind only '
              '(Godin |along| and |cross| stress <= %.2f Pa)' % (hi, lo, TTH), out_dir / 'pc_lj_peak_sections_strat_calm.png')
 
+# ------------------------------------------------------------------ STEP 11b: warm / cold and salty / fresh surface at pc_lj
+TS = {}
+for vn, (c_hi, c_lo), unit in [('temp', ('warm surface', 'cold surface'), 'degC'), ('salt', ('salty surface', 'fresh surface'), 'g/kg')]:
+    x = zfun.lowpass((ts[vn][:, 1] * dy).sum(axis=1) / dy.sum(), f='godin')    # top s-level, width-weighted
+    q0, q1 = np.nanpercentile(x[yr], [100 / 3, 200 / 3])
+    cl = np.full(len(ot), '', dtype=object)
+    cl[x >= q1] = c_hi
+    cl[x <= q0] = c_lo
+    Pd = {cs: {phase: PK[phase][cl[PK[phase]] == cs] for phase in PK} for cs in [c_hi, c_lo]}
+    Prd = {cs: {phase: k[ok[k]] for phase, k in Pd[cs].items()} for cs in Pd}
+    TS[vn] = (Pd, Prd, [c_hi, c_lo], q0, q1)
+    print('Godin surface %s at pc_lj in %d: %.2f to %.2f %s; terciles %.2f, %.2f' % (vn, YEAR, np.nanmin(x[yr]), np.nanmax(x[yr]), unit, q0, q1))
+    for cs in [c_hi, c_lo]:
+        for phase in PK:
+            k = Pd[cs][phase]
+            sea = pd.Series([SEAS[m] for m in ot[k].month]).value_counts()
+            print('  %-5s %-13s %3d peak hours; %s median %.2f, drho median %.2f;  %s'
+                  % (phase, cs, len(k), vn, np.median(x[k]), np.median(drho[k]),
+                     ' '.join('%s %d' % (z_, sea.get(z_, 0)) for z_ in ['DJF', 'MAM', 'JJA', 'SON'])))
+    class_figure(Pd, Prd, [c_hi, c_lo],
+                 'surface %s: Godin top s-level %s at pc_lj, width-weighted; %s / %s = top / bottom third of %d hours (> %.2f / < %.2f %s)'
+                 % (vn, vn, c_hi, c_lo, YEAR, q1, q0, unit), out_dir / ('pc_lj_peak_sections_%s.png' % vn))
+
 # ------------------------------------------------------------------ STEP 12: profile figures, one per set
 def binned_QA(u, zw, dy):
     """Q_b and A_b (t, b) in the EDGES bins of depth below the moving surface, top bin first: each cell's
@@ -536,7 +568,11 @@ SETS = {'all': ({'all': PK}, {'all': PR}, ['all'], 'all daily peak hours'),
         'wind': (PW, PRW, WROWS, 'Godin cove-mean applied stress: up-cove / down-cove = along > +%.2f / < -%.2f Pa, calm = |along| and |cross| <= %.2f Pa'
                  % (TTH, TTH, TTH)),
         'strat': (PSt, PRSt, SROWS, 'Godin drho at pc_lj: high / low = top / bottom third of %d hours (> %.2f / < %.2f kg m$^{-3}$)' % (YEAR, hi, lo)),
-        'strat_calm': (PSc, PRSc, CROWS, 'high / low strat (drho at pc_lj > %.2f / < %.2f kg m$^{-3}$), calm wind only (|along| and |cross| stress <= %.2f Pa)' % (hi, lo, TTH))}
+        'strat_calm': (PSc, PRSc, CROWS, 'high / low strat (drho at pc_lj > %.2f / < %.2f kg m$^{-3}$), calm wind only (|along| and |cross| stress <= %.2f Pa)' % (hi, lo, TTH)),
+        'temp': (TS['temp'][0], TS['temp'][1], TS['temp'][2], 'Godin top s-level temp at pc_lj: warm / cold = top / bottom third of %d hours (> %.2f / < %.2f degC)'
+                 % (YEAR, TS['temp'][4], TS['temp'][3])),
+        'salt': (TS['salt'][0], TS['salt'][1], TS['salt'][2], 'Godin top s-level salt at pc_lj: salty / fresh = top / bottom third of %d hours (> %.2f / < %.2f g/kg)'
+                 % (YEAR, TS['salt'][4], TS['salt'][3]))}
 zcb = 0.5 * (EDGES[1:] + EDGES[:-1])                                 # bin centres, depth below the surface
 xcf = 0.5 * (xe[1:] + xe[:-1])                                       # face centres [km] from the north end
 for sn, (PSd, PRSd, rows, subtitle) in SETS.items():

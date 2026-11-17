@@ -1,6 +1,6 @@
 """
 Map of a cas7 extraction point: the 20261116_pc_cas7_bottom_DO Penn Cove point (default), or any -lon/-lat, e.g.
-the 20261117_sp_point_strat_DO Saratoga Passage station:
+the 20261117_pc_saratoga_strat_DO Saratoga Passage station (M5):
     python 20261116_pc_cas7_point_map.py -lon ' -122.582462' -lat 48.245981 -sn M5
 LEFT   wb1_t0_xn11abbur00 fraction of 2024-25 days with bottom DO < 2 mg/L (20260806_hypoxia RUN['fhyp_bot_2']).
 RIGHT  cas7 grid: h on wet rho cells, cell edges drawn; the cell the point snaps to (nearest wet rho, same rule as
