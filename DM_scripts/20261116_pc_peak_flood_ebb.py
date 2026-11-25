@@ -12,11 +12,13 @@ STEP 2  daily peak flood and peak ebb hours, from the pc_lj section-total Q (the
         snapshot transport, + = flood). Lunar days, as in 20261112_pc_peak_scatter.py:
         half-cycles = runs of one sign of Q, runs shorter than MIN_RUN h (slack jitter)
         absorbed into the run before, first and last (partial) runs dropped; each
-        half-cycle's peak = its max |Q| hour. The daily peak = the greater half-cycle of each
-        lunar day: go through the flood (ebb) peaks largest |Q| first, keep one unless it is
-        within +/- WIN h of one already kept (the lesser half-cycle is ~12 h from the greater,
-        the next greater ~25 h). Calendar days are not used: a peak near 00 UTC falls across
-        the boundary and the day gets its lesser half-cycle.
+        half-cycle's peak = its max |Q| hour. Lunar days: a flood start to the second next flood
+        start, i.e. 4 consecutive half-cycles (flood, ebb, flood, ebb; the runs alternate in sign),
+        tiled in steps of 4 from the baseline day's first flood (20261113_pc_candidate_days/picks.csv,
+        2024-08-31 05:00), so every day has 2 floods and 2 ebbs (as 20261117_pc_every_flood_ebb.py).
+        In each day the flood (ebb) with the larger |Q| at its peak is the greater, the other the
+        lesser; this script keeps the greater. Calendar days are not used: a peak near 00 UTC falls across the boundary.
+        (Before 2026-11-17 the greater were picked largest |Q| first with an 18 h exclusion window.)
 STEP 3  averages on the native section (s-level k x face p), dz-weighted because the s-levels
         stretch with the tide: U[k, p] = sum_t u dz / sum_t dz.
             flood     over the daily peak flood hours
@@ -120,6 +122,7 @@ STEP 15 cove maps, one figure per class of every set: rows surface 1/3 | bottom 
 
 INPUT  LO_output/extract/[gtagex]/box/pc_cove_[ds0]_[ds1].nc
        LO_output/DM_outs/20261112_pc_utide/fits.p
+       LO_output/DM_outs/20261113_pc_candidate_days/picks.csv
        LO_output/extract/[gtagex]/box/pc_cove_mix_[ds0]_[ds1].nc
 OUTPUT LO_output/DM_outs/20261116_pc_peak_flood_ebb/
        pc_lj_peak_sections.png             STEP 4, all peak hours
@@ -158,7 +161,6 @@ PAD = pd.Timedelta(days=2)                # past the year end, for the Godin fil
 SIGN = -1                                 # section-positive (east) is out of the cove
 XI_U, ETA = 23, np.arange(14, 6, -1)      # pc_lj u faces in the box, north to south (global i 60, j 223..216)
 MIN_RUN = 3                               # half-cycles shorter than this [h] are slack jitter
-WIN = 18                                  # lunar-day suppression window [h]
 BAND = {'D2': ['M2', 'S2', 'N2', 'K2'],     # semidiurnal band
         'D1': ['K1', 'O1', 'P1', 'Q1']}     # diurnal band, S1 left out (mostly the daily wind)
 CYCLES = {'springneap': ('D2', ('spring', 'neap')),         # band, (top third, bottom third)
@@ -181,6 +183,7 @@ Ldir = Lfun.Lstart(gridname=gridname, tag=tag, ex_name=ex_name)
 box_fn = Ldir['LOo'] / 'extract' / GTAGEX / 'box' / ('pc_cove_%s_%s.nc' % (DS0, DS1))
 mix_fn = Ldir['LOo'] / 'extract' / GTAGEX / 'box' / ('pc_cove_mix_%s_%s.nc' % (DS0, DS1))
 fit_fn = Ldir['LOo'] / 'DM_outs' / '20261112_pc_utide' / 'fits.p'
+pick_fn = Ldir['LOo'] / 'DM_outs' / '20261113_pc_candidate_days' / 'picks.csv'
 out_dir = Ldir['LOo'] / 'DM_outs' / '20261116_pc_peak_flood_ebb'
 Lfun.make_dir(out_dir)
 
@@ -221,19 +224,25 @@ HC = runs(sg)[1:-1]                                      # the first and last ru
 hc_sign = np.array([sg[a] for a, b in HC])
 hc_pk = np.array([a + np.argmax(np.abs(Q[a:b])) for a, b in HC])    # peak hour of each half-cycle
 
+yr1 = pd.Timestamp('%d-01-01' % (YEAR + 1))
+picks = pd.read_csv(pick_fn, parse_dates=['t0', 't1']).set_index('case')
+hc_t0 = ot[[a for a, b in HC]]                           # start hour of each half-cycle
+ia = np.flatnonzero((hc_t0 == picks.loc['baseline', 't0']) & (hc_sign == 1))
+assert len(ia) == 1, 'baseline t0 is not a flood start of this Q'
+hc_day = (np.arange(len(HC)) - ia[0]) // 4               # lunar day of each half-cycle: F E F E from the baseline's first flood
+
 PK = {}
 for phase, sgn in [('flood', 1), ('ebb', -1)]:
-    k = hc_pk[hc_sign == sgn]
-    a = np.abs(Q[k])
-    keep = np.zeros(len(k), dtype=bool)
-    for i in np.argsort(-a):                             # largest first
-        if not keep[np.abs(k - k[i]) <= WIN].any():
-            keep[i] = True
-    k = k[keep]
-    PK[phase] = k[(ot[k] >= t0) & (ot[k] < pd.Timestamp('%d-01-01' % (YEAR + 1)))]   # peaks in YEAR only
+    m = np.flatnonzero(hc_sign == sgn)
+    gr = np.zeros(len(m), dtype=bool)
+    for dd in np.unique(hc_day[m]):                      # the larger |Q| of each lunar day is the greater
+        i = np.flatnonzero(hc_day[m] == dd)
+        gr[i[np.argmax(np.abs(Q[hc_pk[m[i]]]))]] = True
+    k = hc_pk[m[gr]]                                    # the greater half-cycle of each lunar day
+    PK[phase] = k[(ot[k] >= t0) & (ot[k] < yr1)]         # peaks in YEAR only
     dt = np.diff(ot[PK[phase]]) / pd.Timedelta(hours=1)
-    print('%-5s %d half-cycles, %d peaks in %d; spacing median %.1f h, 5-95%% %.1f-%.1f h; Q at peak median %+.0f m3/s'
-          % (phase, len(a), len(PK[phase]), YEAR, np.median(dt), *np.percentile(dt, [5, 95]), np.median(Q[PK[phase]])))
+    print('%-5s %d half-cycles, %d greater peaks in %d; spacing median %.1f h, 5-95%% %.1f-%.1f h; Q at peak median %+.0f m3/s'
+          % (phase, len(m), len(PK[phase]), YEAR, np.median(dt), *np.percentile(dt, [5, 95]), np.median(Q[PK[phase]])))
 
 # ------------------------------------------------------------------ STEP 3: flood / ebb / residual averages
 udz_res = zfun.lowpass(u * dz, f='godin')                # (t, k, p), NaN in the first and last 35 h

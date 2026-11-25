@@ -11,7 +11,9 @@ only Penn Cove needs running. Run on apogee (both lines can run at the same time
     nohup python 20261117_pc_saratoga_strat_DO.py -gtx cas7_t1_x11ab -ro 1 -0 2012.10.07 -1 2025.06.12 -lt average -st pc_west > pc_west_x11ab.log 2>&1 &
   cas7_t0_x4b (0% burial; lowpassed.nc in Parker's /dat2 = roms_out3):
     nohup python 20261117_pc_saratoga_strat_DO.py -gtx cas7_t0_x4b -ro 3 -0 2012.10.07 -1 2019.12.31 -lt lowpass -st pc_west > pc_west_x4b.log 2>&1 &
-  Check on them with: tail pc_west_x11ab.log pc_west_x4b.log
+  wb1_t0_xn11abbur00 (0% burial nest; lowpassed.nc in our /dat2 = roms_out2; both stations, M5 not done before):
+    nohup python 20261117_pc_saratoga_strat_DO.py -gtx wb1_t0_xn11abbur00 -ro 2 -0 2024.01.01 -1 2025.12.31 -lt lowpass -st pc_west,M5 > pc_saratoga_wb1.log 2>&1 &
+  Check on them with: tail pc_west_x11ab.log pc_west_x4b.log pc_saratoga_wb1.log
 RESUME  each day is appended to <out_name>_partial.csv (flushed every 100 files). If a run dies, rerun the same
   command: days already in the partial file are skipped (a truncated last line is dropped). The final pickle is
   written, and the partial removed, at the end.
@@ -21,8 +23,9 @@ Re-plot (e.g. on the Mac after copying the pickles over); also redraws the run c
 POINTS  each snapped to the nearest wet rho cell (printed). Grid from the first ocean file, else that day's
         ocean_his_0002.nc, else grid.nc.
         pc_west  (-122.70878, 48.22710) = the 20261116_pc_cas7_bottom_DO point and the cove script's seed:
-                 cas7 j=882, i=557, h 17.0 m (map: 20261116_pc_cas7_point_map.py).
-        M5       (-122.582462, 48.245981), the pc0/pc4 Saratoga Passage station: cas7 j=886, i=576, h 39.2 m.
+                 cas7 j=882, i=557, h 17.0 m (map: 20261116_pc_cas7_point_map.py); wb1 j=217, i=47, h 17.2 m.
+        M5       (-122.582462, 48.245981), the pc0/pc4 Saratoga Passage station: cas7 j=886, i=576, h 39.2 m;
+                 wb1 j=227, i=94, h 37.4 m.
 READ    -lt average: f<date>/ocean_avg_0001.nc (UTC-day average); -lt lowpass: f<date>/lowpassed.nc (one Godin-
         filtered record per day). zeta, and salt, temp, oxygen at every s_rho level, at each cell.
 STRAT   drho = sigma0(bottom) - sigma0(top) [kg/m3], TEOS-10 as pc_forcing_states.py / 20261110_pc_column_metrics.py:
@@ -70,7 +73,7 @@ STATIONS_ALL = {'pc_west': (-122.70878, 48.22710), 'M5': (-122.582462, 48.245981
 STATIONS = {sn: STATIONS_ALL[sn] for sn in args.st.split(',')}
 DO_MMOL_TO_MGL = 32.0 / 1000.0
 HYP = 2.0                                  # mg/L
-RUN_COLORS = {'cas7_t1_x11ab': 'tab:blue', 'cas7_t0_x4b': 'tab:red'}     # as 20261116_pc_cas7_bottom_DO_cove
+RUN_COLORS = {'cas7_t1_x11ab': 'tab:blue', 'cas7_t0_x4b': 'tab:red', 'wb1_t0_xn11abbur00': 'tab:green'}   # as cove script
 ST_COLORS = {'pc_west': 'tab:orange', 'M5': 'k'}
 
 out_dir = Ldir['LOo'] / 'DM_outs' / '20261117_pc_saratoga_strat_DO'
@@ -220,7 +223,8 @@ def load_run(fn):
 
 
 old_dir = Ldir['LOo'] / 'DM_outs' / '20261117_sp_point_strat_DO'
-runs = [load_run(fn) for fn in sorted(out_dir.glob('*.p')) + sorted(old_dir.glob('*.p'))]
+runs = sorted([load_run(fn) for fn in sorted(out_dir.glob('*.p')) + sorted(old_dir.glob('*.p'))],
+              key=lambda Pr: list(RUN_COLORS).index(Pr['gtagex']) if Pr['gtagex'] in RUN_COLORS else len(RUN_COLORS))   # drawing order: long x11ab first, shorter runs on top
 sns = [sn for sn in STATIONS_ALL if any(sn in Pr['st'] for Pr in runs)]
 if len(runs) > 1:
     fig, axs = plt.subplots(2, len(sns), figsize=(16, 6), sharex=True, squeeze=False)
@@ -230,18 +234,17 @@ if len(runs) > 1:
             if sn not in Pr['st']:
                 continue
             Dr = series(Pr, sn)
-            lab = f'{Pr["gtagex"]} ({Pr["lt"]})'
+            lab = f'{Pr["gtagex"]} ({Pr["lt"]}, h {Pr["st"][sn]["h"]:.1f} m)'
             axs[0, col].plot(Dr.time_utc, Dr.DO_bot_mgL, '-', color=c, lw=0.6, label=lab)
             axs[1, col].plot(Dr.time_utc, Dr.drho, '-', color=c, lw=0.6, label=lab)
     for col, sn in enumerate(sns):
         axs[0, col].axhline(HYP, color='gray', ls=':', lw=1)
         axs[0, col].set_ylim(bottom=0)
-        s0 = next(Pr['st'][sn] for Pr in runs if sn in Pr['st'])
-        axs[0, col].set_title(st_label(s0, sn), fontsize=10)
+        axs[0, col].set_title(f'{sn} ({STATIONS_ALL[sn][0]:.4f}, {STATIONS_ALL[sn][1]:.4f})', fontsize=10)
+        axs[0, col].legend(loc='upper right', fontsize=7)
         axs[1, col].set_ylim(bottom=0)
     axs[0, 0].set_ylabel('Bottom DO [mg/L]')
     axs[1, 0].set_ylabel(r'$\Delta\sigma_0$ bottom - top [kg m$^{-3}$]')
-    axs[0, 0].legend(loc='upper right', fontsize=8)
     for ax in axs.flat:
         ax.grid(True, alpha=0.3)
     fig.tight_layout()

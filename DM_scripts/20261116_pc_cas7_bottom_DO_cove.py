@@ -11,6 +11,9 @@ Run on apogee (-ro 1 = Ldir['roms_out1'] = /dat1/parker/LO_roms on dm_apogee):
   Check on it with: tail pc_cas7_bottom_DO_cove.log
 cas7_t0_x4b (output in Parker's /dat2 = Ldir['roms_out3'] on dm_apogee, through 2019.12.31; forcing_list.csv says atm00):
     nohup python 20261116_pc_cas7_bottom_DO_cove.py -gtx cas7_t0_x4b -ro 3 -0 2012.10.07 -1 2019.12.31 -lt lowpass -atm atm00 -frc_root /dat1/parker/LO_output/forcing/cas7 > pc_cas7_x4b_bottom_DO_cove.log 2>&1 &
+wb1_t0_xn11abbur00 (0% burial nest; lowpassed.nc in our /dat2 = roms_out2; atm00 forcing in our own LO_output, the
+-frc_root default). Same mask rule on the wb1 grid, so the cove has far more (smaller) cells than cas7's 38:
+    nohup python 20261116_pc_cas7_bottom_DO_cove.py -gtx wb1_t0_xn11abbur00 -ro 2 -0 2024.01.01 -1 2025.12.31 -lt lowpass -atm atm00 > pc_cove_wb1.log 2>&1 &
 RESUME  each day is appended to <out_name>_partial.csv (flushed every 100 files). If the run dies, rerun the same
   command: days already in the partial file are skipped (a truncated last line is dropped). The final pickle is
   written, and the partial removed, at the end.
@@ -25,7 +28,7 @@ OCEAN   -lt average: f<date>/ocean_avg_0001.nc (UTC-day average); -lt lowpass: f
         oxygen, temp at s_rho index 0 (bottom) -> per cell; Uwind, Vwind -> cove mean (daily-mean wind, kept as a
         fallback: the stress of a daily-mean wind is not the daily-mean stress). oxygen mmol m-3 * 32/1000 = mg/L.
 AIR     the avg file has no Tair or surface stress (Aout F in BLANK.in), so they come from the hourly atm forcing
-        <frc_root>/f<date>/<atm>/Tair.nc, Uwind.nc, Vwind.nc (first of atm02, atm01, atm00 that exists, or only
+        <frc_root>/f<date>/<atm>/Tair.nc (frc_root default: Ldir['LOo']/forcing/<gridname>), Uwind.nc, Vwind.nc (first of atm02, atm01, atm00 that exists, or only
         -atm if given; recorded).
         Each file's own 24 hours are kept (record 24 = hour 0 of the next day). Cove mean over the 38 cells.
         Stress per cell and hour with Large & Pond (1981) Cd, rho_air 1.22 (as 20260806_wind_reduce.py), then
@@ -60,7 +63,7 @@ parser.add_argument('-0', '--ds0', type=str, default='2012.10.07')
 parser.add_argument('-1', '--ds1', type=str, default='2025.06.12')
 parser.add_argument('-lt', type=str, default='average')   # average (ocean_avg_0001) or lowpass (lowpassed.nc)
 parser.add_argument('-atm', type=str, default=None)       # force one atm forcing version, e.g. atm00
-parser.add_argument('-frc_root', type=str, default='/dat1/parker/LO_output/forcing/cas7')
+parser.add_argument('-frc_root', type=str, default=None)   # default Ldir['LOo'] / 'forcing' / gridname
 parser.add_argument('-plot_only', type=zfun.boolean_string, default=False)
 args = parser.parse_args()
 
@@ -71,7 +74,7 @@ if args.roms_out_num > 0:
 
 DO_MMOL_TO_MGL = 32.0 / 1000.0
 HYP = 2.0                                  # mg/L
-RUN_COLORS = {'cas7_t1_x11ab': 'tab:blue', 'cas7_t0_x4b': 'tab:red'}   # same in both compare plots
+RUN_COLORS = {'cas7_t1_x11ab': 'tab:blue', 'cas7_t0_x4b': 'tab:red', 'wb1_t0_xn11abbur00': 'tab:green'}   # same in both compare plots
 LON_MOUTH = -122.652                       # wb1 pc_lp line
 SEED = (-122.70878, 48.22710)              # single-point cell
 BOX_LAT = (48.20, 48.26)
@@ -129,7 +132,7 @@ if not args.plot_only:
     if len(fn_have) == 0:
         print(f'*** no files under {Ldir["roms_out"] / args.gtagex}')
         sys.exit()
-    frc_root = Path(args.frc_root)
+    frc_root = Path(args.frc_root) if args.frc_root else Ldir['LOo'] / 'forcing' / gridname
     print(f'forcing: {frc_root}  (exists: {frc_root.exists()})')
 
     # ---- cove mask ----
@@ -332,12 +335,13 @@ plt.close(fig)
 runs = sorted(out_dir.glob('*_pc_cove_*.p'))
 if len(runs) > 1:
     fig, axs = plt.subplots(3, 1, figsize=(14, 8), sharex=True)
-    for fn, c in zip(runs, ['tab:green', 'tab:purple', 'tab:orange', 'tab:brown']):
-        Pr = pickle.load(open(fn, 'rb'))
+    runs = sorted([pickle.load(open(fn, 'rb')) for fn in runs],
+                  key=lambda Pr: list(RUN_COLORS).index(Pr['gtagex']) if Pr['gtagex'] in RUN_COLORS else len(RUN_COLORS))   # drawing order: long x11ab first, shorter runs on top
+    for Pr, c in zip(runs, ['tab:purple', 'tab:orange', 'tab:brown', 'tab:pink']):
         c = RUN_COLORS.get(Pr['gtagex'], c)
         tr, dor, ar = pd.to_datetime(Pr['time']), Pr['do'], Pr['area']
         okr = np.isfinite(dor)
-        lab = Pr['gtagex']
+        lab = f'{Pr["gtagex"]} ({len(Pr["j"])} cells)'
         axs[0].plot(tr, np.nanmin(dor, axis=1), '-', color=c, lw=0.7, label=lab)
         axs[1].plot(tr, 100 * np.sum((dor < HYP) * ar, axis=1) / np.sum(okr * ar, axis=1), '-', color=c, lw=0.7,
                     label=lab)
@@ -349,7 +353,7 @@ if len(runs) > 1:
     axs[0].set_ylabel('Cove min bottom DO [mg/L]')
     axs[0].set_ylim(bottom=0)
     axs[0].legend(loc='upper right', fontsize=8)
-    axs[0].set_title(f'Penn Cove ({len(P["j"])} cas7 cells), daily', fontsize=10)
+    axs[0].set_title(f'Penn Cove bottom, wet cells west of {P["lon_mouth"]}, daily', fontsize=10)
     axs[1].set_ylabel(f'cove area < {HYP:g} mg/L [%]')
     axs[1].set_ylim(0, 100)
     axs[2].set_ylabel('Bottom T, cove mean [°C]')

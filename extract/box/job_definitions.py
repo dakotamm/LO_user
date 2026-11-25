@@ -280,6 +280,11 @@ def get_box(job, Lon, Lat):
         # neap 2024.09.08-09.11, tropic 2024.07.30-08.02, equatorial
         # 2024.05.02-05.05, high strat 2024.11.27-11.30, low strat
         # 2024.10.04-10.07, up-cove 2024.03.27-03.30, down-cove 2025.06.14-06.17.
+        # Also (2026/11/25) the two seasonal fortnights of
+        # 20261125_pc_seasonal_fortnights.py (picks.csv, neap to neap): winter
+        # 2024-01-21 01:00 -> 02-04 06:00 (run 2024.01.21-2024.02.04) and late
+        # summer 2024-08-28 17:00 -> 09-12 06:00 (run 2024.08.28-2024.09.12).
+        # ~7 MB per hour, so ~2.5-2.7 GB per fortnight.
         aa = [-122.74, -122.45, 48.12, 48.32]
         vn_list = 'h,f,pm,pn,mask_rho,zeta,salt,temp,oxygen,u,v,w,ubar,vbar,sustr,svstr'
 
